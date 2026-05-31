@@ -5,8 +5,6 @@
 #include "esp_timer.h"
 #include "globals.h"
 #include "photo_data.h"
-#include "ssd1306.h"
-#include "i2c.h"
 #include <math.h>
 #include "driver/gpio.h"
 #include "esp_log.h"
@@ -19,6 +17,42 @@
 
 
 #define MAX_STARS 15
+
+// --- WRAPPER SAKTI BUAT FONT ST7789 ---
+
+
+
+// Jembatan buat nulis teks pakai font ST7789
+// --- WRAPPER SAKTI BUAT FONT ST7789 ---
+// WAJIB array [2] sesuai dokumentasi nopnop2002
+// --- WRAPPER SAKTI BUAT FONT ST7789 ---
+// WAJIB array [2] sesuai dokumentasi nopnop2002
+FontxFile fx16G[2]; // Ukuran 8x16 (Kecil)
+FontxFile fx24G[2]; // Ukuran 12x24 (Sedang)
+FontxFile fx32G[2]; // Ukuran 16x32 (Gede)
+
+// 1. Fungsi Text Default / Kecil (8x16)
+void rootx_print_text(int x, int y, const char* str, uint16_t fg, uint16_t bg) {
+    if (bg != BLACK) lcdSetFontFill(&dev, bg);
+    else lcdUnsetFontFill(&dev);
+    lcdDrawString(&dev, fx16G, x, y, (uint8_t*)str, fg); 
+}
+
+// 2. Fungsi Text Sedang (12x24)
+void rootx_print_text_sedang(int x, int y, const char* str, uint16_t fg, uint16_t bg) {
+    if (bg != BLACK) lcdSetFontFill(&dev, bg);
+    else lcdUnsetFontFill(&dev);
+    lcdDrawString(&dev, fx24G, x, y, (uint8_t*)str, fg);
+}
+
+// 3. Fungsi Text Gede (16x32)
+void rootx_print_text_gede(int x, int y, const char* str, uint16_t fg, uint16_t bg) {
+    if (bg != BLACK) lcdSetFontFill(&dev, bg);
+    else lcdUnsetFontFill(&dev);
+    lcdDrawString(&dev, fx32G, x, y, (uint8_t*)str, fg);
+}
+
+
 
 void renderFileExplorer(void);
 
@@ -63,15 +97,20 @@ void init_joystick() {
 
 void task_display(void *pvParameters) {
 init_joystick();
-if (ssd1306_init(0, 9, 8)) {
-    vTaskDelay(pdMS_TO_TICKS(100)); 
-    ssd1306_select_font(0, 0);
-    ssd1306_clear(0);
-    ssd1306_refresh(0, true);
-    ESP_LOGI("RootX", "OLED Ready!");
-} else {
-    ESP_LOGE("RootX", "OLED Gagal Inisialisasi!");
-}
+// Ganti angka pin ini sesuai wiring SPI ST7789 lu (MOSI, SCLK, CS, D
+            spi_master_init(&dev, 11, 12, 10, 9, 8, 7); 
+    lcdInit(&dev, 135, 240, 52, 40);           
+    lcdEnableFrameBuffer(&dev);                
+
+    // Load ke-3 ukuran font bawaan library dari folder font di memori internal
+    InitFontx(fx16G, "/spiffs/fonts/ILGH16XB.FNT", ""); // 8x16
+    InitFontx(fx24G, "/spiffs/fonts/ILGH24XB.FNT", ""); // 12x24
+    InitFontx(fx32G, "/spiffs/fonts/ILGH32XB.FNT", ""); // 16x32
+
+    lcdFillScreen(&dev, BLACK);
+    lcdDrawFinish(&dev);
+    ESP_LOGI("RootX", "ST7789 Frame Buffer & FontX Ready!");
+
 
     tampilkanLogoDulu();
     tampilkanIntroAnime();
@@ -163,14 +202,14 @@ static float visualY = 24.0; // Variabel buat simpen posisi kursor sementara
 void drawSmartSelection(int targetY) {
     // 0.3 itu kecepatan luncur, makin kecil makin lambat/smooth
     visualY += (targetY - visualY) * 0.3; 
-    ssd1306_fill_rectangle(0, 0, (int)visualY, 128, 18, WHITE);
+    lcdDrawFillRect(&dev, 0, (int)visualY, 128, (int)visualY + 18, WHITE);
 }
 
 // Fungsi animasi wave
 void drawWave() {
     for (int x = 0; x < 128; x++) {
         int y = 60 + (int)(sin((x + (int)millis() / 10) * 0.1) * 3);
-        ssd1306_draw_pixel(0, x, y, WHITE);
+        lcdDrawPixel(&dev, x, y, WHITE);
     }
 }
 
@@ -181,17 +220,17 @@ int getBounce(int speed, int range) {
 
 // Fungsi loading bar yang bener
 void drawLoadingBar(int x, int y, int w, int h, int progress) {
-    ssd1306_draw_rectangle(0, x, y, w, h, WHITE);
+    lcdDrawRect(&dev, x, y, x + w, y + h, WHITE);
     int fillW = (w * progress) / 100;
     if (fillW > w) fillW = w;
-    ssd1306_fill_rectangle(0, x, y, fillW, h, WHITE);
+    lcdDrawFillRect(&dev, x, y, x + fillW, y + h, WHITE);
     
     int offset = (millis() / 50) % 20;
     for(int i = -20; i < fillW; i += 15) {
         int lineX = x + i + offset;
         if(lineX > x && lineX < x + fillW) {
             // Kalau ssd1306_draw_line gak ada, pake vline aja buat efek
-            for(int j=0; j<h; j++) ssd1306_draw_pixel(0, lineX, y+j, BLACK);
+            for(int j=0; j<h; j++) lcdDrawPixel(&dev, lineX, y+j, BLACK);
         }
     }
 }
@@ -212,7 +251,7 @@ void drawStarfield() {
         int sy = (int)(stars[i].y / stars[i].z * 32 + 32);
 
         if (sx >= 0 && sx < 128 && sy >= 10 && sy < 54) { // Filter biar gak kena header/footer
-            ssd1306_draw_pixel(0, sx, sy, WHITE);
+            lcdDrawPixel(&dev, sx, sy, WHITE);
         }
     }
 }
@@ -312,7 +351,7 @@ const char* subMenuGame[] = {
 
 
 void tampilkanMenuLogo() {
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
     drawStarfield();
     drawWave();
     
@@ -321,25 +360,25 @@ void tampilkanMenuLogo() {
     snprintf(batBuf, sizeof(batBuf), "%d%%", batteryPercent);
     
     // Tampilkan Persentase di pojok kanan (X=100, Y=0)
-    ssd1306_draw_string_adafruit(0, 95, 0, batBuf, WHITE, BLACK);
+    rootx_print_text(95, 0, batBuf, WHITE, BLACK);
 
     // --- DRAW ICON BATERAI (10x10) ---
     // Kotak luar baterai
-    ssd1306_draw_rectangle(0, 116, 0, 10, 6, WHITE); 
-    ssd1306_draw_pixel(0, 126, 2, WHITE); // Kepala baterai
+    lcdDrawRect(&dev, 116, 0, 126, 6, WHITE); 
+    lcdDrawPixel(&dev, 126, 2, WHITE); // Kepala baterai
     
     // Isi baterai berdasarkan persen
     int barWidth = batteryPercent / 12; // Skala 100% ke 8 pixel
     if (barWidth > 8) barWidth = 8;
-    ssd1306_fill_rectangle(0, 117, 1, barWidth, 4, WHITE);
+    lcdDrawFillRect(&dev, 117, 1, 117 + barWidth, 5, WHITE);
     
-    if(currentMenu == 0)      ssd1306_draw_string_adafruit(0, 0, 0, "#> RootX: WIFI", WHITE, BLACK);
-    else if(currentMenu == 1) ssd1306_draw_string_adafruit(0, 0, 0, "#> RootX: BLE", WHITE, BLACK);
-    else if(currentMenu == 2) ssd1306_draw_string_adafruit(0, 0, 0, "#> RootX: IR", WHITE, BLACK);
-    else if(currentMenu == 3) ssd1306_draw_string_adafruit(0, 0, 0, "#> RootX: SETS", WHITE, BLACK);
-    else                      ssd1306_draw_string_adafruit(0, 0, 0, "#> RootX: GAME", WHITE, BLACK);
+    if(currentMenu == 0)      rootx_print_text(0, 0, "#> RootX: WIFI", WHITE, BLACK);
+    else if(currentMenu == 1) rootx_print_text(0, 0, "#> RootX: BLE", WHITE, BLACK);
+    else if(currentMenu == 2) rootx_print_text(0, 0, "#> RootX: IR", WHITE, BLACK);
+    else if(currentMenu == 3) rootx_print_text(0, 0, "#> RootX: SETS", WHITE, BLACK);
+    else                      rootx_print_text(0, 0, "#> RootX: GAME", WHITE, BLACK);
     
-    ssd1306_draw_hline(0, 0, 9, 128, WHITE);
+    lcdDrawLine(&dev, 0, 9, 128, 9, WHITE);
 
     const unsigned char* bigIcon;
     if(currentMenu == 0)      bigIcon = logo_wifi_32; 
@@ -353,26 +392,26 @@ void tampilkanMenuLogo() {
     oled_draw_bitmap(0, 47, 20 + iconBounce, bigIcon, 32, 32, WHITE);
 
     // Font library ini ukurannya fix, jadi kita akalin kursornya aja
-    ssd1306_draw_string_adafruit(0, 20, 30, "<", WHITE, BLACK);
-    ssd1306_draw_string_adafruit(0, 102, 30, ">", WHITE, BLACK);
-    ssd1306_draw_string_adafruit(0, 40, 56, ">SELECT<", WHITE, BLACK); 
+    rootx_print_text(20, 30, "<", WHITE, BLACK);
+    rootx_print_text(102, 30, ">", WHITE, BLACK);
+    rootx_print_text(40, 56, ">SELECT<", WHITE, BLACK); 
     
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 void tampilkanMenuUtama() { 
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
     drawStarfield();
     drawWave();
     int totalSub = 0; 
 
-    if(currentMenu == 0)      { ssd1306_draw_string_adafruit(0, 0, 0, "#> RootX: WIFI", WHITE, BLACK); totalSub = 4; }
-    else if(currentMenu == 1) { ssd1306_draw_string_adafruit(0, 0, 0, "#> RootX: BLE ", WHITE, BLACK); totalSub = 3; }
-    else if(currentMenu == 2) { ssd1306_draw_string_adafruit(0, 0, 0, "#> RootX: IR", WHITE, BLACK);   totalSub = 5; }
-    else if(currentMenu == 3)  { ssd1306_draw_string_adafruit(0, 0, 0, "#> RootX: SETS", WHITE, BLACK); totalSub = 4; }
-    else                      { ssd1306_draw_string_adafruit(0, 0, 0, "#> RootX: GAME", WHITE, BLACK); totalSub = 3; }
+    if(currentMenu == 0)      { rootx_print_text(0, 0, "#> RootX: WIFI", WHITE, BLACK); totalSub = 4; }
+    else if(currentMenu == 1) { rootx_print_text(0, 0, "#> RootX: BLE ", WHITE, BLACK); totalSub = 3; }
+    else if(currentMenu == 2) { rootx_print_text(0, 0, "#> RootX: IR", WHITE, BLACK);   totalSub = 5; }
+    else if(currentMenu == 3)  { rootx_print_text(0, 0, "#> RootX: SETS", WHITE, BLACK); totalSub = 4; }
+    else                      { rootx_print_text(0, 0, "#> RootX: GAME", WHITE, BLACK); totalSub = 3; }
     
-    ssd1306_draw_hline(0, 0, 9, 128, WHITE);
+    lcdDrawLine(&dev, 0, 9, 128, 9, WHITE);
 
         for(int i = 0; i < 5; i++) {
         int itemIndex = topMenu + i;
@@ -387,7 +426,7 @@ void tampilkanMenuUtama() {
         // --- LOGIKA MENU YANG DIPILIH (YANG ADA BLOK PUTIHNYA) ---
         if(itemIndex == currentSub) { 
             // 1. Gambar blok putih dasar
-            ssd1306_fill_rectangle(0, 0, yPos - 1, 128, 10, WHITE);
+            lcdDrawFillRect(&dev, 0, yPos - 1, 128, yPos + 9, WHITE);
             
             // 2. Animasi "Data Stream / Glitch" di ujung kanan blok
             // Bikin garis hitam jalan mundur dari X=125 ke X=105
@@ -395,9 +434,9 @@ void tampilkanMenuUtama() {
             int animX = 125 - slide;
             
             // Garis tipis ngalir
-            ssd1306_fill_rectangle(0, animX, yPos - 1, 2, 10, BLACK); 
+            lcdDrawFillRect(&dev, animX, yPos - 1, animX + 2, yPos + 9, BLACK); 
             // Kotak agak tebel ngikutin di belakangnya
-            ssd1306_fill_rectangle(0, animX + 6, yPos - 1, 4, 10, BLACK); 
+            lcdDrawFillRect(&dev, animX + 6, yPos - 1, animX + 10, yPos + 9, BLACK); 
             
             // 3. Icon loncat cuma buat menu ini aja
             iconBounce = getBounce(200, 2); 
@@ -427,17 +466,17 @@ void tampilkanMenuUtama() {
         else textToPrint = subMenuGame[itemIndex];
 
         // Gambar Teks (Kalo diselect, text-nya ikutan goyang dikit biar asik)
-        ssd1306_draw_string_adafruit(0, 18 + tambahansu, yPos, (char*)textToPrint, textColor, bgColor);
+        rootx_print_text(18 + tambahansu, yPos, (char*)textToPrint, textColor, bgColor);
     }
 
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 // --- TARUH INI DI ATAS FUNGSI ---
 
 
 void tampilkanTrackScreen() {
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
     
 
     char buf[32];
@@ -447,59 +486,59 @@ void tampilkanTrackScreen() {
     oled_draw_bitmap(0, 105, floatY, iconSmall_wifi, 10, 10, WHITE);
 
     // Header
-    ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-    ssd1306_draw_string_adafruit(0, 30, 1, "TRACKING RSSI", BLACK, WHITE);
+    lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+    rootx_print_text(30, 1, "TRACKING RSSI", BLACK, WHITE);
     
     // --- ANIMASI RADAR PULSING ---
     static int r = 0;
     r++; if(r > 20) r = 0;
-    ssd1306_draw_circle(0, 108, 18, r, WHITE);
-    if(r > 5) ssd1306_draw_circle(0, 105, 15, r - 5, WHITE);
+    lcdDrawCircle(&dev, 108, 18, r, WHITE);
+    if(r > 5) lcdDrawCircle(&dev, 105, 15, r - 5, WHITE);
 
     // Data RSSI
     snprintf(buf, sizeof(buf), "%d", targetTerkunci.rssi);
-    ssd1306_draw_string_adafruit(0, 50, 30, buf, WHITE, BLACK);
+    rootx_print_text(50, 30, buf, WHITE, BLACK);
 
     // Footer
-    ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-    ssd1306_draw_string_adafruit(0, 5, 55, "< BACK", BLACK, WHITE);
+    lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+    rootx_print_text(5, 55, "< BACK", BLACK, WHITE);
     
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 
 void tampilkanWifiScanner() {
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
     char buf[64]; 
 
     if (scannerState == 0) {
-        ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 1, "WIFI SCANNER", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+        rootx_print_text(2, 1, "WIFI SCANNER", BLACK, WHITE);
 
-        ssd1306_draw_string_adafruit(0, 40, 25, "Yakin??", WHITE, BLACK);
+        rootx_print_text(40, 25, "Yakin??", WHITE, BLACK);
 
-        ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 55, "< CANCEL", BLACK, WHITE);
-        ssd1306_draw_string_adafruit(0, 95, 55, "YES >", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+        rootx_print_text(2, 55, "< CANCEL", BLACK, WHITE);
+        rootx_print_text(95, 55, "YES >", BLACK, WHITE);
     }
     else if (scannerState == 1) {
-        ssd1306_draw_string_adafruit(0, 20, 25, "Scanning Air...", WHITE, BLACK);
+        rootx_print_text(20, 25, "Scanning Air...", WHITE, BLACK);
         if (scanDone) scannerState = 2; 
     }
     else if (scannerState == 2) {
         if (totalWiFi == 0) {
-            ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-            ssd1306_draw_string_adafruit(0, 2, 1, "SAVED NETWORKS", BLACK, WHITE);
-            ssd1306_draw_string_adafruit(0, 15, 25, "BELUM ADA DATA!", WHITE, BLACK);
-            ssd1306_draw_string_adafruit(0, 10, 35, "Scan WiFi dulu", WHITE, BLACK);
-            ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-            ssd1306_draw_string_adafruit(0, 2, 55, "< BACK", BLACK, WHITE);
+            lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+            rootx_print_text(2, 1, "SAVED NETWORKS", BLACK, WHITE);
+            rootx_print_text(15, 25, "BELUM ADA DATA!", WHITE, BLACK);
+            rootx_print_text(10, 35, "Scan WiFi dulu", WHITE, BLACK);
+            lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+            rootx_print_text(2, 55, "< BACK", BLACK, WHITE);
         } else {
           
 
-            ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
+            lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
             snprintf(buf, sizeof(buf), "SCANNER - %d", totalWiFi);
-            ssd1306_draw_string_adafruit(0, 2, 1, buf, BLACK, WHITE);
+            rootx_print_text(2, 1, buf, BLACK, WHITE);
             
             for (int i = 0; i < 3; i++) {
                 int itemIdx = scrollPosScanner + i;
@@ -509,13 +548,13 @@ void tampilkanWifiScanner() {
                     int bgColor = BLACK;
                     
                     if (i == cursorInScanner) {
-                        ssd1306_fill_rectangle(0, 0, yPos - 1, 128, 12, WHITE);
+                        lcdDrawFillRect(&dev, 0, yPos - 1, 128, yPos + 11, WHITE);
                         textColor = BLACK;
                         bgColor = WHITE;
                     }
 
                     snprintf(buf, sizeof(buf), "%d.", listWiFi[itemIdx].id);
-                    ssd1306_draw_string_adafruit(0, 1, yPos + 1, buf, textColor, bgColor);
+                    rootx_print_text(1, yPos + 1, buf, textColor, bgColor);
                     
                     int maxChar = 8;
                     int len = strlen(listWiFi[itemIdx].ssid);
@@ -530,26 +569,26 @@ void tampilkanWifiScanner() {
                         if (len > maxChar) strncpy(textShow, listWiFi[itemIdx].ssid, maxChar);
                         else               strcpy(textShow, listWiFi[itemIdx].ssid);
                     }
-                    ssd1306_draw_string_adafruit(0, 16, yPos + 1, textShow, textColor, bgColor);
+                    rootx_print_text(16, yPos + 1, textShow, textColor, bgColor);
 
                     snprintf(buf, sizeof(buf), "C:%d", listWiFi[itemIdx].channel);
-                    ssd1306_draw_string_adafruit(0, 66, yPos + 1, buf, textColor, bgColor);
+                    rootx_print_text(66, yPos + 1, buf, textColor, bgColor);
                     snprintf(buf, sizeof(buf), "%ddB", listWiFi[itemIdx].rssi);
-                    ssd1306_draw_string_adafruit(0, 95, yPos + 1, buf, textColor, bgColor);
+                    rootx_print_text(95, yPos + 1, buf, textColor, bgColor);
                 }
             }
-            ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-            ssd1306_draw_string_adafruit(0, 2, 55, "< BACK", BLACK, WHITE);
-            ssd1306_draw_string_adafruit(0, 53, 55, "[OK]", BLACK, WHITE);
+            lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+            rootx_print_text(2, 55, "< BACK", BLACK, WHITE);
+            rootx_print_text(53, 55, "[OK]", BLACK, WHITE);
         }
     }
     else if (scannerState == 3) {
-        ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 22, 1, "DETAIL TARGET", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+        rootx_print_text(22, 1, "DETAIL TARGET", BLACK, WHITE);
 
         int xSide = 5; 
         
-        ssd1306_draw_string_adafruit(0, xSide, 13, "SSID: ", WHITE, BLACK);
+        rootx_print_text(xSide, 13, "SSID: ", WHITE, BLACK);
         int lenSSID = strlen(targetTerkunci.ssid);
         char tmpSSID[20] = {0};
         if (lenSSID > 14) {
@@ -560,28 +599,28 @@ void tampilkanWifiScanner() {
         } else {
             strcpy(tmpSSID, targetTerkunci.ssid);
         }
-        ssd1306_draw_string_adafruit(0, xSide + 35, 13, tmpSSID, WHITE, BLACK);
+        rootx_print_text(xSide + 35, 13, tmpSSID, WHITE, BLACK);
 
-        ssd1306_draw_string_adafruit(0, xSide, 23, "MAC : ", WHITE, BLACK);
-        ssd1306_draw_string_adafruit(0, xSide + 35, 23, targetTerkunci.mac, WHITE, BLACK);
+        rootx_print_text(xSide, 23, "MAC : ", WHITE, BLACK);
+        rootx_print_text(xSide + 35, 23, targetTerkunci.mac, WHITE, BLACK);
         
         snprintf(buf, sizeof(buf), "CH  : %d", targetTerkunci.channel);
-        ssd1306_draw_string_adafruit(0, xSide, 33, buf, WHITE, BLACK);
+        rootx_print_text(xSide, 33, buf, WHITE, BLACK);
 
         snprintf(buf, sizeof(buf), "SIG : %d dBm", targetTerkunci.rssi);
-        ssd1306_draw_string_adafruit(0, xSide, 43, buf, WHITE, BLACK);
+        rootx_print_text(xSide, 43, buf, WHITE, BLACK);
 
-        ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 55, "[<] BACK", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+        rootx_print_text(2, 55, "[<] BACK", BLACK, WHITE);
     } 
                 else if (scannerState == 4) { // Atau scannerStateSta == 4, sesuaikan aja
         // --- 1. HEADER ---
-        ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 42, 1, "ACTIONS", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+        rootx_print_text(42, 1, "ACTIONS", BLACK, WHITE);
 
         // --- 2. BLOK PUTIH STATIS DI TENGAH ---
         // Y mulai dari 24, tinggi 16 piksel (Bener-bener pas di center OLED 128x64)
-        ssd1306_fill_rectangle(0, 0, 24, 128, 16, WHITE);
+        lcdDrawFillRect(&dev, 0, 24, 128, 40, WHITE);
 
         // --- 3. LOGIKA ROLLING MENU ---
         for(int i = 0; i < 5; i++) {
@@ -608,64 +647,64 @@ void tampilkanWifiScanner() {
                     // --- MENU TERPILIH (DI TENGAH BLOK PUTIH) ---
                     // Warna dibalik (Hitam di atas Putih)
                     oled_draw_bitmap(0, 26, yPos - 1, icon, 10, 10, BLACK); 
-                    ssd1306_draw_string_adafruit(0, 42, yPos, (char*)teks, BLACK, WHITE);
+                    rootx_print_text(42, yPos, (char*)teks, BLACK, WHITE);
                     
                     // Tambahan efek panah biar kelihatan lebih "Gede/Lebar"
-                    ssd1306_draw_string_adafruit(0, 10, yPos, ">", BLACK, WHITE);
-                    ssd1306_draw_string_adafruit(0, 110, yPos, "<", BLACK, WHITE);
+                    rootx_print_text(10, yPos, ">", BLACK, WHITE);
+                    rootx_print_text(110, yPos, "<", BLACK, WHITE);
                 } 
                 else { 
                     // --- MENU GAK TERPILIH (DI ATAS / DI BAWAH) ---
                     // Warna normal (Putih di atas Hitam)
                     // Posisinya digeser X-nya (+4) biar seakan-akan mundur/mengecil
                     oled_draw_bitmap(0, 30, yPos, icon, 10, 10, WHITE);
-                    ssd1306_draw_string_adafruit(0, 46, yPos + 1, (char*)teks, WHITE, BLACK);
+                    rootx_print_text(46, yPos + 1, (char*)teks, WHITE, BLACK);
                 }
             }
         }
 
         // --- 4. FOOTER ---
-        ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 55, "< BACK", BLACK, WHITE);
-        ssd1306_draw_string_adafruit(0, 85, 55, "[OK] GO", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+        rootx_print_text(2, 55, "< BACK", BLACK, WHITE);
+        rootx_print_text(85, 55, "[OK] GO", BLACK, WHITE);
     }
 
 
 
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 
 
 
 void tampilkanStationScanner() {
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
     char buf[64]; 
 
     if (scannerStateSta == 0) {
-        ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 1, "STATION SCANNER", BLACK, WHITE);
-        ssd1306_draw_string_adafruit(0, 30, 25, "Scan Clients?", WHITE, BLACK);
-        ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 55, "< BACK", BLACK, WHITE);
-        ssd1306_draw_string_adafruit(0, 95, 55, "YES >", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+        rootx_print_text(2, 1, "STATION SCANNER", BLACK, WHITE);
+        rootx_print_text(30, 25, "Scan Clients?", WHITE, BLACK);
+        lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+        rootx_print_text(2, 55, "< BACK", BLACK, WHITE);
+        rootx_print_text(95, 55, "YES >", BLACK, WHITE);
     }
     else if (scannerStateSta == 1) {
-        ssd1306_draw_string_adafruit(0, 10, 20, "SNIFFING TARGET:", WHITE, BLACK);
-        ssd1306_draw_string_adafruit(0, 10, 35, targetTerkunci.ssid, WHITE, BLACK); 
+        rootx_print_text(10, 20, "SNIFFING TARGET:", WHITE, BLACK);
+        rootx_print_text(10, 35, targetTerkunci.ssid, WHITE, BLACK); 
         if (scanStaDone) scannerStateSta = 2; 
     }
     else if (scannerStateSta == 2) {
         if (totalStation == 0) {
-            ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-            ssd1306_draw_string_adafruit(0, 2, 1, "CLIENT LIST", BLACK, WHITE);
-            ssd1306_draw_string_adafruit(0, 15, 25, "NO CLIENTS FOUND!", WHITE, BLACK);
-            ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-            ssd1306_draw_string_adafruit(0, 2, 55, "< RESCAN", BLACK, WHITE);
+            lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+            rootx_print_text(2, 1, "CLIENT LIST", BLACK, WHITE);
+            rootx_print_text(15, 25, "NO CLIENTS FOUND!", WHITE, BLACK);
+            lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+            rootx_print_text(2, 55, "< RESCAN", BLACK, WHITE);
         } else {
-            ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
+            lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
             snprintf(buf, sizeof(buf), "CLIENTS: %d", totalStation);
-            ssd1306_draw_string_adafruit(0, 2, 1, buf, BLACK, WHITE);
+            rootx_print_text(2, 1, buf, BLACK, WHITE);
             
             for (int i = 0; i < 3; i++) {
                 int itemIdx = scrollPosScanner + i;
@@ -674,57 +713,57 @@ void tampilkanStationScanner() {
                     int txtCol = (i == cursorInScanSta) ? BLACK : WHITE;
                     int bgCol = (i == cursorInScanSta) ? WHITE : BLACK;
                     
-                    if (i == cursorInScanSta) ssd1306_fill_rectangle(0, 0, yPos - 1, 128, 12, WHITE);
+                    if (i == cursorInScanSta) lcdDrawFillRect(&dev, 0, yPos - 1, 128, yPos + 11, WHITE);
 
                     snprintf(buf, sizeof(buf), "%d.", listStation[itemIdx].id);
-                    ssd1306_draw_string_adafruit(0, 1, yPos + 1, buf, txtCol, bgCol);
+                    rootx_print_text(1, yPos + 1, buf, txtCol, bgCol);
 
                     snprintf(buf, sizeof(buf), "%02X:%02X..%02X:%02X", 
                              listStation[itemIdx].mac[0], listStation[itemIdx].mac[1],
                              listStation[itemIdx].mac[4], listStation[itemIdx].mac[5]);
                    
                   
-                    ssd1306_draw_string_adafruit(0, 18, yPos + 1, buf, txtCol, bgCol);
+                    rootx_print_text(18, yPos + 1, buf, txtCol, bgCol);
 
                     snprintf(buf, sizeof(buf), "%ddBm", listStation[itemIdx].rssi);
-                    ssd1306_draw_string_adafruit(0, 90, yPos + 1, buf, txtCol, bgCol);
+                    rootx_print_text(90, yPos + 1, buf, txtCol, bgCol);
                 }
             }
-            ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-            ssd1306_draw_string_adafruit(0, 2, 55, "< BACK", BLACK, WHITE);
-            ssd1306_draw_string_adafruit(0, 53, 55, "[OK] ACTION", BLACK, WHITE);
+            lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+            rootx_print_text(2, 55, "< BACK", BLACK, WHITE);
+            rootx_print_text(53, 55, "[OK] ACTION", BLACK, WHITE);
         }
     }
     else if (scannerStateSta == 3) {
-        ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 22, 1, "TARGET DETAILS", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+        rootx_print_text(22, 1, "TARGET DETAILS", BLACK, WHITE);
 
         snprintf(buf, sizeof(buf), "MC:%02X:%02X:%02X:%02X:%02X:%02X", 
                  targetSta.mac[0], targetSta.mac[1], targetSta.mac[2],
                  targetSta.mac[3], targetSta.mac[4], targetSta.mac[5]);
                  
         
-        ssd1306_draw_string_adafruit(0, 5, 17, buf, WHITE, BLACK);
+        rootx_print_text(5, 17, buf, WHITE, BLACK);
         
 
         snprintf(buf, sizeof(buf), "RSSI: %d dBm", targetSta.rssi);
-        ssd1306_draw_string_adafruit(0, 5, 25, buf, WHITE, BLACK);
+        rootx_print_text(5, 25, buf, WHITE, BLACK);
 
         snprintf(buf, sizeof(buf), "PACKETS: %d", targetSta.paket_count);
-        ssd1306_draw_string_adafruit(0, 5, 35, buf, WHITE, BLACK);
+        rootx_print_text(5, 35, buf, WHITE, BLACK);
 
-        ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 55, "< BACK", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+        rootx_print_text(2, 55, "< BACK", BLACK, WHITE);
     } 
     
         else if (scannerStateSta == 4) { // Atau scannerStateSta == 4, sesuaikan aja
         // --- 1. HEADER ---
-        ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 42, 1, "ACTIONS", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+        rootx_print_text(42, 1, "ACTIONS", BLACK, WHITE);
 
         // --- 2. BLOK PUTIH STATIS DI TENGAH ---
         // Y mulai dari 24, tinggi 16 piksel (Bener-bener pas di center OLED 128x64)
-        ssd1306_fill_rectangle(0, 0, 24, 128, 16, WHITE);
+        lcdDrawFillRect(&dev, 0, 24, 128, 40, WHITE);
 
         // --- 3. LOGIKA ROLLING MENU ---
         for(int i = 0; i < 2; i++) {
@@ -748,32 +787,32 @@ void tampilkanStationScanner() {
                     // --- MENU TERPILIH (DI TENGAH BLOK PUTIH) ---
                     // Warna dibalik (Hitam di atas Putih)
                     oled_draw_bitmap(0, 26, yPos - 1, icon, 10, 10, BLACK); 
-                    ssd1306_draw_string_adafruit(0, 42, yPos, (char*)teks, BLACK, WHITE);
+                    rootx_print_text(42, yPos, (char*)teks, BLACK, WHITE);
                     
                     // Tambahan efek panah biar kelihatan lebih "Gede/Lebar"
-                    ssd1306_draw_string_adafruit(0, 10, yPos, ">", BLACK, WHITE);
-                    ssd1306_draw_string_adafruit(0, 110, yPos, "<", BLACK, WHITE);
+                    rootx_print_text(10, yPos, ">", BLACK, WHITE);
+                    rootx_print_text(110, yPos, "<", BLACK, WHITE);
                 } 
                 else { 
                     // --- MENU GAK TERPILIH (DI ATAS / DI BAWAH) ---
                     // Warna normal (Putih di atas Hitam)
                     // Posisinya digeser X-nya (+4) biar seakan-akan mundur/mengecil
                     oled_draw_bitmap(0, 30, yPos, icon, 10, 10, WHITE);
-                    ssd1306_draw_string_adafruit(0, 46, yPos + 1, (char*)teks, WHITE, BLACK);
+                    rootx_print_text(46, yPos + 1, (char*)teks, WHITE, BLACK);
                 }
             }
         }
 
         // --- 4. FOOTER ---
-        ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 55, "< BACK", BLACK, WHITE);
-        ssd1306_draw_string_adafruit(0, 85, 55, "[OK] GO", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+        rootx_print_text(2, 55, "< BACK", BLACK, WHITE);
+        rootx_print_text(85, 55, "[OK] GO", BLACK, WHITE);
     }
     
    
         // --- 4. FOOTER (Tetap) ---
 
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 
@@ -781,91 +820,91 @@ void tampilkanStationScanner() {
 
 
 void tampilkandeauthsta() {
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
     char buf[64];
     
-        ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 1, "ATTACKING STATION...", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+        rootx_print_text(2, 1, "ATTACKING STATION...", BLACK, WHITE);
         
         snprintf(buf, sizeof(buf), "Target:%02X:%02X:%02X:%02X:%02X:%02X", 
                  targetSta.mac[0], targetSta.mac[1], targetSta.mac[2],
                  targetSta.mac[3], targetSta.mac[4], targetSta.mac[5]);
 
-        ssd1306_draw_string_adafruit(0, 0, 20, buf, WHITE, BLACK);
+        rootx_print_text(0, 20, buf, WHITE, BLACK);
         snprintf(buf, sizeof(buf), "Ch: %d", targetTerkunci.channel);
-        ssd1306_draw_string_adafruit(0, 0, 30, buf, WHITE, BLACK);
+        rootx_print_text(0, 30, buf, WHITE, BLACK);
         
         int animasiProgress = (millis() / 30) % 100; 
 
         drawLoadingBar(14, 42, 100, 8, animasiProgress);
         
         
-        ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 55, "< STOP ATTACK", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+        rootx_print_text(2, 55, "< STOP ATTACK", BLACK, WHITE);
     
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 void tampilkanDeauthScreen() {
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
     char buf[64];
     
     if (deauthState == 0) {
-        ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 26, 1, "DEAUTH ATTACK", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+        rootx_print_text(26, 1, "DEAUTH ATTACK", BLACK, WHITE);
         
-        ssd1306_draw_string_adafruit(0, 10, 25, "Attack Target?", WHITE, BLACK);
+        rootx_print_text(10, 25, "Attack Target?", WHITE, BLACK);
         
         char shortSsid[16];
         strncpy(shortSsid, targetTerkunci.ssid, 15);
         shortSsid[15] = '\0';
-        ssd1306_draw_string_adafruit(0, 10, 35, shortSsid, WHITE, BLACK);
+        rootx_print_text(10, 35, shortSsid, WHITE, BLACK);
 
-        ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 55, "< NO", BLACK, WHITE);
-        ssd1306_draw_string_adafruit(0, 95, 55, "YES >", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+        rootx_print_text(2, 55, "< NO", BLACK, WHITE);
+        rootx_print_text(95, 55, "YES >", BLACK, WHITE);
     } 
     else if (deauthState == 1) {
-        ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 1, "ATTACKING...", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+        rootx_print_text(2, 1, "ATTACKING...", BLACK, WHITE);
 
         snprintf(buf, sizeof(buf), "Target: %s", targetTerkunci.ssid);
-        ssd1306_draw_string_adafruit(0, 0, 20, buf, WHITE, BLACK);
+        rootx_print_text(0, 20, buf, WHITE, BLACK);
         snprintf(buf, sizeof(buf), "Ch: %d", targetTerkunci.channel);
-        ssd1306_draw_string_adafruit(0, 0, 30, buf, WHITE, BLACK);
+        rootx_print_text(0, 30, buf, WHITE, BLACK);
         
         
         int animasiProgress = (millis() / 30) % 100; 
 
         drawLoadingBar(14, 42, 100, 8, animasiProgress);
         
-        ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 55, "< STOP ATTACK", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+        rootx_print_text(2, 55, "< STOP ATTACK", BLACK, WHITE);
     }
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 void tampilkanBrightness() {
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
     char buf[16];
 
-    ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-    ssd1306_draw_string_adafruit(0, 35, 1, "BRIGHTNESS", BLACK, WHITE);
+    lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+    rootx_print_text(35, 1, "BRIGHTNESS", BLACK, WHITE);
 
-    ssd1306_draw_rectangle(0, 14, 28, 100, 12, WHITE); 
+    lcdDrawRect(&dev, 14, 28, 114, 40, WHITE); 
     
     int barWidth = map(brightnessValue, 0, 255, 0, 96);
-    ssd1306_fill_rectangle(0, 16, 30, barWidth, 8, WHITE);
+    lcdDrawFillRect(&dev, 16, 30, 16 + barWidth, 38, WHITE);
 
     int persen = map(brightnessValue, 0, 255, 0, 100);
     snprintf(buf, sizeof(buf), "%d%%", persen);
-    ssd1306_draw_string_adafruit(0, 55, 45, buf, WHITE, BLACK);
+    rootx_print_text(55, 45, buf, WHITE, BLACK);
 
-    ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-    ssd1306_draw_string_adafruit(0, 5, 55, "[<] BACK", BLACK, WHITE);
-    ssd1306_draw_string_adafruit(0, 75, 55, "[UP/DN] SET", BLACK, WHITE);
+    lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+    rootx_print_text(5, 55, "[<] BACK", BLACK, WHITE);
+    rootx_print_text(75, 55, "[UP/DN] SET", BLACK, WHITE);
 
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 void setOledBrightness(uint8_t level) {
@@ -890,34 +929,34 @@ void setOledBrightness(uint8_t level) {
 
 
 void tampilkanSpamScreen(const char* judul, const char* subTeks) {
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
     char buf[64];
     
     if (spamState == 0) {
-        ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 1, (char*)judul, BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+        rootx_print_text(2, 1, (char*)judul, BLACK, WHITE);
         
-        ssd1306_draw_string_adafruit(0, 10, 25, (char*)subTeks, WHITE, BLACK);
+        rootx_print_text(10, 25, (char*)subTeks, WHITE, BLACK);
 
-        ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 55, "< NO", BLACK, WHITE);
-        ssd1306_draw_string_adafruit(0, 95, 55, "YES >", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+        rootx_print_text(2, 55, "< NO", BLACK, WHITE);
+        rootx_print_text(95, 55, "YES >", BLACK, WHITE);
     } 
     else if (spamState == 1) {
-        ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 1, "RUNNING...", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+        rootx_print_text(2, 1, "RUNNING...", BLACK, WHITE);
 
         snprintf(buf, sizeof(buf), "Mode: %s", subTeks);
-        ssd1306_draw_string_adafruit(0, 0, 25, buf, WHITE, BLACK);
+        rootx_print_text(0, 25, buf, WHITE, BLACK);
         
         
         int animasiProgress = (millis() / 30) % 100; 
         drawLoadingBar(14, 42, 100, 8, animasiProgress);
         
-        ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 55, "< STOP", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+        rootx_print_text(2, 55, "< STOP", BLACK, WHITE);
     }
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 
@@ -926,17 +965,17 @@ void tampilkanSpamScreen(const char* judul, const char* subTeks) {
 
 void renderDinoGame() {
     if (dinoHighScore == -1) dinoHighScore = baca_highscore_dino();
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
 
     // --- LOGIC SIANG MALAM ---
     int cycle = dinoScore % 1000;
     bool isNight = (cycle >= 0 && cycle < 300 && dinoScore >= 1000); 
-    ssd1306_invert_display(0, isNight);
+    if(isNight) lcdInversionOn(&dev); else lcdInversionOff(&dev);
 
     // --- UI: SKOR ---
     char scoreBuf[32];
     snprintf(scoreBuf, sizeof(scoreBuf), "HI %05d  %05d", dinoHighScore, dinoScore);
-    ssd1306_draw_string_adafruit(0, 35, 0, scoreBuf, WHITE, BLACK);
+    rootx_print_text(35, 0, scoreBuf, WHITE, BLACK);
 
     // Variabel Musuh pake static biar enteng
     static int obs1X = 130; 
@@ -1001,13 +1040,13 @@ void renderDinoGame() {
 
 
         // --- DRAW GROUND ---
-        ssd1306_draw_hline(0, 0, 60, 128, WHITE);
+        lcdDrawLine(&dev, 0, 60, 128, 60, WHITE);
         for (int i = 0; i < 128; i += 16) {
             int scrollX = (i - ((int)rawScore % 128));
             if (scrollX < 0) scrollX += 128;
-            ssd1306_draw_pixel(0, scrollX, 62, WHITE);
-            ssd1306_draw_pixel(0, (scrollX + 7) % 128, 61, WHITE);
-            if (i % 32 == 0) ssd1306_draw_hline(0, scrollX, 61, 4, WHITE);
+            lcdDrawPixel(&dev, scrollX, 62, WHITE);
+            lcdDrawPixel(&dev, (scrollX + 7) % 128, 61, WHITE);
+            if (i % 32 == 0) lcdDrawLine(&dev, scrollX, 61, scrollX + 4, 61, WHITE);
         }
 
         // --- DRAW DINO ---
@@ -1038,7 +1077,7 @@ void renderDinoGame() {
             int o_top = (obs1Type == 2) ? obs1Y + 4 : ((obs1Type == 0) ? 44 : 38);
             int o_bottom = (obs1Type == 2) ? obs1Y + 12 : 60;
             if (!(d_bottom < o_top || d_top > o_bottom)) { 
-                dinoState = 1; ssd1306_invert_display(0, false); 
+                dinoState = 1; lcdInversionOff(&dev); 
                 if (dinoScore > dinoHighScore) { dinoHighScore = dinoScore; simpan_highscore_dino(dinoHighScore); }
             }
         }
@@ -1048,54 +1087,54 @@ void renderDinoGame() {
             int o_top = (obs2Type == 2) ? obs2Y + 4 : ((obs2Type == 0) ? 44 : 38);
             int o_bottom = (obs2Type == 2) ? obs2Y + 12 : 60;
             if (!(d_bottom < o_top || d_top > o_bottom)) { 
-                dinoState = 1; ssd1306_invert_display(0, false); 
+                dinoState = 1; lcdInversionOff(&dev); 
                 if (dinoScore > dinoHighScore) { dinoHighScore = dinoScore; simpan_highscore_dino(dinoHighScore); }
             }
         }
 
     } 
     else { // GAME OVER
-        ssd1306_draw_string_adafruit(0, 20, 25, "G A M E  O V E R", WHITE, BLACK);
-        ssd1306_draw_string_adafruit(0, 28, 50, "[OK] RESTART", WHITE, BLACK);
+        rootx_print_text(20, 25, "G A M E  O V E R", WHITE, BLACK);
+        rootx_print_text(28, 50, "[OK] RESTART", WHITE, BLACK);
     }
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 
 
 
 void tampilkanEvilTwinScreen() {
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
     drawStarfield();
     
     if (evilTwinState == 0) {
-    ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 1, "EVIL TWIN", BLACK, WHITE);
+    lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+        rootx_print_text(2, 1, "EVIL TWIN", BLACK, WHITE);
         
-        ssd1306_draw_string_adafruit(0, 10, 25, "Start Evil Twin?", WHITE, BLACK);
+        rootx_print_text(10, 25, "Start Evil Twin?", WHITE, BLACK);
 
      
         
-        ssd1306_draw_string_adafruit(0, 10, 35, targetTerkunci.ssid, WHITE, BLACK);
-        ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 55, "< NO", BLACK, WHITE);
-        ssd1306_draw_string_adafruit(0, 95, 55, "YES >", BLACK, WHITE);
+        rootx_print_text(10, 35, targetTerkunci.ssid, WHITE, BLACK);
+        lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+        rootx_print_text(2, 55, "< NO", BLACK, WHITE);
+        rootx_print_text(95, 55, "YES >", BLACK, WHITE);
     } 
     else if (evilTwinState == 1) {
-        ssd1306_draw_string_adafruit(0, 15, 20, "WAITING FOR DATA...", WHITE, BLACK);
+        rootx_print_text(15, 20, "WAITING FOR DATA...", WHITE, BLACK);
         int bounce = (millis() / 200) % 5;
-        ssd1306_draw_string_adafruit(0, 50, 40 + bounce, "...", WHITE, BLACK);
-        ssd1306_draw_string_adafruit(0, 2, 55, "< STOP", WHITE, BLACK);
+        rootx_print_text(50, 40 + bounce, "...", WHITE, BLACK);
+        rootx_print_text(2, 55, "< STOP", WHITE, BLACK);
     }
     else if (evilTwinState == 2) {
-        ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 20, 1, "PW EXPLOITED!", BLACK, WHITE);
-        ssd1306_draw_string_adafruit(0, 5, 25, "Target:", WHITE, BLACK);
-        ssd1306_draw_string_adafruit(0, 50, 25, targetTerkunci.ssid, WHITE, BLACK);
-        ssd1306_draw_string_adafruit(0, 5, 40, "Pass  :", WHITE, BLACK);
-        ssd1306_draw_string_adafruit(0, 50, 40, stolenPassword, WHITE, BLACK);
+        lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+        rootx_print_text(20, 1, "PW EXPLOITED!", BLACK, WHITE);
+        rootx_print_text(5, 25, "Target:", WHITE, BLACK);
+        rootx_print_text(50, 25, targetTerkunci.ssid, WHITE, BLACK);
+        rootx_print_text(5, 40, "Pass  :", WHITE, BLACK);
+        rootx_print_text(50, 40, stolenPassword, WHITE, BLACK);
     }
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 
@@ -1139,16 +1178,16 @@ void loadSavedRemotes() {
 
 
 void tampilkanMenuSavedIR() {
-    ssd1306_clear(0); // Bersihin layar (ID 0)
+    lcdFillScreen(&dev, BLACK); // Bersihin layar (ID 0)
 
     if (currentIRSavedState == IR_SAVED_STATE_LIST) {
         // --- HEADER (BLOK PUTIH) ---
         // Format library lu: (ID, X, Y, Teks, Warna Teks, Warna Background)
-        ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 1, "SAVED REMOTE", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+        rootx_print_text(2, 1, "SAVED REMOTE", BLACK, WHITE);
 
         if (totalSavedRemotes == 0) {
-            ssd1306_draw_string_adafruit(0, 10, 25, "Data Kosong!", WHITE, BLACK);
+            rootx_print_text(10, 25, "Data Kosong!", WHITE, BLACK);
         } else {
             // Tampilkan max 3 item biar rapi (Paging logic)
             int startIdx = (savedRemoteIndex / 3) * 3;
@@ -1162,14 +1201,14 @@ void tampilkanMenuSavedIR() {
                 } else {
                     snprintf(buf, sizeof(buf), "  %s", listSavedRemotes[curr].nama);
                 }
-                ssd1306_draw_string_adafruit(0, 0, 16 + (i * 12), buf, WHITE, BLACK);
+                rootx_print_text(0, 16 + (i * 12), buf, WHITE, BLACK);
             }
         }
 
         // --- FOOTER (BLOK PUTIH) ---
-        ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 55, "< NO", BLACK, WHITE);
-        ssd1306_draw_string_adafruit(0, 95, 55, "OK >", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+        rootx_print_text(2, 55, "< NO", BLACK, WHITE);
+        rootx_print_text(95, 55, "OK >", BLACK, WHITE);
     } 
     else if (currentIRSavedState == IR_SAVED_STATE_ACTION) {
         char buf[32];
@@ -1177,57 +1216,57 @@ void tampilkanMenuSavedIR() {
         snprintf(buf, sizeof(buf), " ACTION: %s ", listSavedRemotes[savedRemoteIndex].nama);
         // Header
         
-        ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 1, buf, BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+        rootx_print_text(2, 1, buf, BLACK, WHITE);
 
         // Menu Transmit / Hapus
         if (actionMenuIndex == 0) {
-            ssd1306_draw_string_adafruit(0, 15, 20, "> 1. TRANSMIT", WHITE, BLACK);
-            ssd1306_draw_string_adafruit(0, 15, 35, "  2. HAPUS", WHITE, BLACK);
+            rootx_print_text(15, 20, "> 1. TRANSMIT", WHITE, BLACK);
+            rootx_print_text(15, 35, "  2. HAPUS", WHITE, BLACK);
         } else {
-            ssd1306_draw_string_adafruit(0, 15, 20, "  1. TRANSMIT", WHITE, BLACK);
-            ssd1306_draw_string_adafruit(0, 15, 35, "> 2. HAPUS", WHITE, BLACK);
+            rootx_print_text(15, 20, "  1. TRANSMIT", WHITE, BLACK);
+            rootx_print_text(15, 35, "> 2. HAPUS", WHITE, BLACK);
         }
-        ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 55, "< NO", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+        rootx_print_text(2, 55, "< NO", BLACK, WHITE);
     } 
     else if (currentIRSavedState == IR_SAVED_STATE_SENDING) {
         // Layar Polos, Tulisan di Tengah!
-        ssd1306_draw_string_adafruit(0, 25, 25, "IR SEND!", WHITE, BLACK);
+        rootx_print_text(25, 25, "IR SEND!", WHITE, BLACK);
     }
 
     // Refresh layar ID 0, dan force update (true)
-    ssd1306_refresh(0, true); 
+    lcdDrawFinish(&dev); 
 }
 
 void tampilkanMenuIR() {
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
     char buf[32];
 
     if (currentIRState == IR_STATE_CONFIRM) {
-        ssd1306_fill_rectangle(0, 0, 0, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 1, "SNIFF IR SIGNAL", BLACK, WHITE);
-        ssd1306_draw_string_adafruit(0, 10, 25, "Start Sniff??", WHITE, BLACK);
+        lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
+        rootx_print_text(2, 1, "SNIFF IR SIGNAL", BLACK, WHITE);
+        rootx_print_text(10, 25, "Start Sniff??", WHITE, BLACK);
         
-        ssd1306_fill_rectangle(0, 0, 54, 128, 10, WHITE);
-        ssd1306_draw_string_adafruit(0, 2, 55, "< NO", BLACK, WHITE);
-        ssd1306_draw_string_adafruit(0, 95, 55, "OK >", BLACK, WHITE);
+        lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
+        rootx_print_text(2, 55, "< NO", BLACK, WHITE);
+        rootx_print_text(95, 55, "OK >", BLACK, WHITE);
     
     } 
     else if (currentIRState == IR_STATE_WAITING) {
-        ssd1306_draw_string_adafruit(0, 5, 20, "Menunggu", WHITE, BLACK);
-        ssd1306_draw_string_adafruit(0, 5, 40, "sinyal masuk...", WHITE, BLACK);
+        rootx_print_text(5, 20, "Menunggu", WHITE, BLACK);
+        rootx_print_text(5, 40, "sinyal masuk...", WHITE, BLACK);
     } 
     else if (currentIRState == IR_STATE_RESULT) {
-        ssd1306_draw_string_adafruit(0, 0, 0, "== IR RESULT ==", WHITE, BLACK);
-        ssd1306_draw_string_adafruit(0, 0, 16, "Type: RAW CLONER", WHITE, BLACK);
+        rootx_print_text(0, 0, "== IR RESULT ==", WHITE, BLACK);
+        rootx_print_text(0, 16, "Type: RAW CLONER", WHITE, BLACK);
         
         snprintf(buf, sizeof(buf), "Pulses: %d", last_ir_data.num_pulses);
-        ssd1306_draw_string_adafruit(0, 0, 30, buf, WHITE, BLACK);
+        rootx_print_text(0, 30, buf, WHITE, BLACK);
         
-        ssd1306_draw_string_adafruit(0, 0, 56, "> SD Card Saved <", WHITE, BLACK);
+        rootx_print_text(0, 56, "> SD Card Saved <", WHITE, BLACK);
     }
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 void renderSnakeGame() {
@@ -1235,7 +1274,7 @@ void renderSnakeGame() {
     // Sementara kita set manual kalo belum ada.
     
    if (snakeHighScore == -1) snakeHighScore = baca_highscore_snake();
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
 
     // Array buat nyimpen koordinat badan Ular (Maksimal panjang 100)
     static int snakeX[100];
@@ -1270,7 +1309,7 @@ void renderSnakeGame() {
         isSnakeInitialized = true;
     }
 
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
 
     if (snakeState == 0) { // SEDANG MAIN
         
@@ -1322,38 +1361,40 @@ void renderSnakeGame() {
         // --- MENGGAMBAR GAME (RENDER) ---
         
         // 1. Gambar Batas Atas (Garis bawah Skor)
-        ssd1306_draw_hline(0, 0, 10, 128, WHITE);
+        lcdDrawLine(&dev, 0, 10, 128, 10, WHITE);
         
         // 2. Teks Skor
         char scoreBuf[32];
         snprintf(scoreBuf, sizeof(scoreBuf), "HI:%04d  SCR:%04d", snakeHighScore, snakeScore);
-        ssd1306_draw_string_adafruit(0, 0, 0, scoreBuf, WHITE, BLACK);
+        rootx_print_text(0, 0, scoreBuf, WHITE, BLACK);
 
         // 3. Gambar Apel (Bikin titik aja/kotak kecil 4x4)
-        ssd1306_draw_rectangle(0, appleX * 4, appleY * 4, 4, 4, WHITE);
+        lcdDrawRect(&dev, appleX * 4, appleY * 4, (appleX * 4) + 4, (appleY * 4) + 4, WHITE);
         
         // Kasih efek "bintik" di tengah apel biar beda sama badan ular
-        ssd1306_draw_pixel(0, (appleX * 4) + 1, (appleY * 4) + 1, BLACK); 
+        lcdDrawPixel(&dev, (appleX * 4) + 1, (appleY * 4) + 1, BLACK); 
 
         // 4. Gambar Badan Ular
         for (int i = 0; i < snakeLen; i++) {
             if (i == 0) {
                 // Kepala: Kotak tebel (Full)
-                ssd1306_draw_rectangle(0, snakeX[i] * 4, snakeY[i] * 4, 4, 4, WHITE);
-            } else {
+                // x1, y1, x2, y2 (x2 = x1+4, y2 = y1+4)
+                lcdDrawFillRect(&dev, snakeX[i] * 4, snakeY[i] * 4, (snakeX[i] * 4) + 4, (snakeY[i] * 4) + 4, WHITE);
+            }
+ else {
                 // Badan: Kotak bolong / bergaris biar keliatan ruasnya
-                ssd1306_draw_rectangle(0, snakeX[i] * 4, snakeY[i] * 4, 3, 3, WHITE);
+                lcdDrawRect(&dev, snakeX[i] * 4, snakeY[i] * 4, (snakeX[i] * 4) + 3, (snakeY[i] * 4) + 3, WHITE);
             }
         }
 
     }
            
     else { // GAME OVER
-        ssd1306_draw_string_adafruit(0, 20, 25, "G A M E  O V E R", WHITE, BLACK);
+        rootx_print_text(20, 25, "G A M E  O V E R", WHITE, BLACK);
         
         // Cukup tampilin instruksi aja, logikanya udah diatur di input_system.c
-        ssd1306_draw_string_adafruit(0, 15, 45, "[OK] RESTART", WHITE, BLACK);
-        ssd1306_draw_string_adafruit(0, 15, 55, "[<] BACK", WHITE, BLACK);
+        rootx_print_text(15, 45, "[OK] RESTART", WHITE, BLACK);
+        rootx_print_text(15, 55, "[<] BACK", WHITE, BLACK);
 
         if (snakeScore > snakeHighScore) {
             snakeHighScore = snakeScore;
@@ -1368,7 +1409,7 @@ void renderSnakeGame() {
         // Jangan lupa bikin `isInitialized = false;` di dalem logika tombol OK lu.
     }
     
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 // ==========================================
@@ -1425,7 +1466,7 @@ void handleTetrisInput(int btn) {
 
 void renderTetrisGame() {
     if (tetrisHighScore == -1) tetrisHighScore = baca_highscore_tetris();
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
 
 
     if (!isTetrisInitialized) {
@@ -1435,7 +1476,7 @@ void renderTetrisGame() {
         isTetrisInitialized = true;
     }
 
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
     int fallSpeed = 500 - (tetrisScore * 2); // Makin gede skor, makin ngebut
     if (fallSpeed < 100) fallSpeed = 100;
 
@@ -1481,14 +1522,14 @@ void renderTetrisGame() {
 
              // --- RENDER VISUAL TETRIS VERTIKAL ---
         // Grid layar kita geser ke Y=14 biar ada ruang kosong buat teks di Y=0 sampai 12
-        ssd1306_draw_hline(0, 0, 13, 126, WHITE);  // Border Kiri
-        ssd1306_draw_hline(0, 0, 63, 126, WHITE);  // Border Kanan
-        ssd1306_draw_vline(0, 126, 13, 50, WHITE); // Border Bawah (Tanah)
+        lcdDrawLine(&dev, 0, 13, 126, 13, WHITE);  // Border Kiri
+        lcdDrawLine(&dev, 0, 63, 126, 63, WHITE);  // Border Kanan
+        lcdDrawLine(&dev, 126, 13, 126, 63, WHITE); // Border Bawah (Tanah)
 
         for (int y = 0; y < 20; y++) {
             for (int x = 0; x < 10; x++) {
                 if (tetris_grid[y][x]) {
-                    ssd1306_draw_rectangle(0, y * 5, 14 + (x * 5), 5, 5, WHITE); 
+                    lcdDrawRect(&dev, y * 5, 14 + (x * 5), (y * 5) + 5, 14 + (x * 5) + 5, WHITE); 
                 }
             }
         }
@@ -1497,12 +1538,12 @@ void renderTetrisGame() {
         for (int i=0; i<16; i++) {
             if (p & (0x8000 >> i)) {
                 int x = t_x + (i % 4); int y = t_y + (i / 4);
-                ssd1306_draw_rectangle(0, y * 5, 14 + (x * 5), 5, 5, WHITE);
+                lcdDrawRect(&dev, y * 5, 14 + (x * 5), (y * 5) + 5, 14 + (x * 5) + 5, WHITE);
             }
         }
 
     } else { // GAME OVER
-        ssd1306_draw_string_adafruit(0, 20, 25, "GAME OVER", WHITE, BLACK);
+        rootx_print_text(20, 25, "GAME OVER", WHITE, BLACK);
         
                 if (tetrisScore > tetrisHighScore) {
             tetrisHighScore = tetrisScore;
@@ -1514,51 +1555,51 @@ void renderTetrisGame() {
     // Posisinya di Y=2 (Ruang kosong di sebelah kiri arena kalau dipegang vertikal)
     char sc[32]; 
     snprintf(sc, sizeof(sc), "HI:%d  SCR:%d", tetrisHighScore, tetrisScore);
-    ssd1306_draw_string_adafruit(0, 0, 2, sc, WHITE, BLACK);
+    rootx_print_text(0, 2, sc, WHITE, BLACK);
 
     
 
     
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 void renderAboutScreen() {
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
 
     // Bikin border kotak di pinggir layar biar UI-nya rapi
-    ssd1306_draw_rectangle(0, 0, 0, 128, 64, WHITE);
-    ssd1306_draw_rectangle(0, 2, 2, 124, 60, WHITE); // Border dalem (double line)
+    lcdDrawRect(&dev, 0, 0, 128, 64, WHITE);
+    lcdDrawRect(&dev, 2, 2, 126, 62, WHITE); // Border dalem (double line)
 
     // Judul
-    ssd1306_draw_string_adafruit(0, 32, 8, "ROOTX OS", WHITE, BLACK);
-    ssd1306_draw_hline(0, 25, 18, 78, WHITE); // Garis bawah judul
+    rootx_print_text(32, 8, "ROOTX OS", WHITE, BLACK);
+    lcdDrawLine(&dev, 25, 18, 103, 18, WHITE); // Garis bawah judul
 
     // Info Alat (Lu bisa ganti teksnya sesuka lu Cok!)
-    ssd1306_draw_string_adafruit(0, 10, 25, "Ver : 1.0.0", WHITE, BLACK);
-    ssd1306_draw_string_adafruit(0, 10, 35, "Core: ESP32-S3", WHITE, BLACK);
-    ssd1306_draw_string_adafruit(0, 10, 45, "By  : Andyy", WHITE, BLACK); // Ganti pake nama lu!
+    rootx_print_text(10, 25, "Ver : 1.0.0", WHITE, BLACK);
+    rootx_print_text(10, 35, "Core: ESP32-S3", WHITE, BLACK);
+    rootx_print_text(10, 45, "By  : Andyy", WHITE, BLACK); // Ganti pake nama lu!
 
     // Tombol Keluar
-    ssd1306_draw_string_adafruit(0, 90, 45, "[<]", WHITE, BLACK); // Logo Kiri buat exit
+    rootx_print_text(90, 45, "[<]", WHITE, BLACK); // Logo Kiri buat exit
 
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 void renderRebootScreen() {
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
 
     // Border Frame biar keren
-    ssd1306_draw_rectangle(0, 5, 5, 118, 54, WHITE);
+    lcdDrawRect(&dev, 5, 5, 123, 59, WHITE);
 
     // Teks Pertanyaan
-    ssd1306_draw_string_adafruit(0, 20, 20, "Reboot sekarang?", WHITE, BLACK);
+    rootx_print_text(20, 20, "Reboot sekarang?", WHITE, BLACK);
 
     // Petunjuk Tombol
     
-    ssd1306_draw_string_adafruit(0, 2, 55, "< NO", WHITE, BLACK);
-    ssd1306_draw_string_adafruit(0, 95, 55, "OK >", WHITE, BLACK);
+    rootx_print_text(2, 55, "< NO", WHITE, BLACK);
+    rootx_print_text(95, 55, "OK >", WHITE, BLACK);
 
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 // Variabel State buat SD Manager
@@ -1567,90 +1608,86 @@ int sdActionIdx = 0; // 0: EXIT, 1: FILES, 2: FORMAT
 int sdState = 0;     // 0: Main Dashboard, 1: Confirm Format, 2: Formatting
 
 void renderSdManager() {
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
     
-    // --- 1. HEADER (Inverted Block) ---
-    for(int y = 0; y < 11; y++) ssd1306_draw_hline(0, 0, y, 128, WHITE);
-    ssd1306_draw_string_adafruit(0, 34, 2, "SD MANAGER", BLACK, WHITE);
+    // --- 1. HEADER ---
+    for(int y = 0; y < 11; y++) lcdDrawLine(&dev, 0, y, 128, y, WHITE);
+    rootx_print_text(34, 2, "SD MANAGER", BLACK, WHITE);
 
     if (sdState == 0) { // DASHBOARD UTAMA
-        
         struct statvfs st;
         float total_mb = 0, free_mb = 0, used_mb = 0;
         int percent = 0;
-        bool is_mounted = false; // TAMBAHAN: Buat deteksi sukses/gagal mount
+        bool is_mounted = false;
 
-        // BACA KAPASITAS ASLI (Pake statvfs ESP32)
+        // --- TRIK FIX 0MB: Coba 3 variasi path ---
         if (statvfs("/sdcard", &st) == 0) {
-            is_mounted = true; // Kalo sukses, flag ini nyala!
-            
-            // Cast ke uint64_t biar aman dari limit 32-bit
+            is_mounted = true;
+        } else if (statvfs("/sdcard/", &st) == 0) {
+            is_mounted = true;
+        } else if (statvfs("fatfs", &st) == 0) { // Kadang internal ESP32 kenalnya ini
+            is_mounted = true;
+        }
+
+        if (is_mounted) {
+            // Gunakan uint64_t buat kalkulasi biar gak overflow
             uint64_t total_bytes = (uint64_t)st.f_blocks * (uint64_t)st.f_frsize;
             uint64_t free_bytes = (uint64_t)st.f_bfree * (uint64_t)st.f_frsize;
     
-            total_mb = total_bytes / (1024.0 * 1024.0);
-            free_mb = free_bytes / (1024.0 * 1024.0);
+            total_mb = (float)total_bytes / (1024.0 * 1024.0);
+            free_mb = (float)free_bytes / (1024.0 * 1024.0);
             used_mb = total_mb - free_mb;
             
             if (total_mb > 0) percent = (int)((used_mb / total_mb) * 100);
         }
 
-        // --- 3. TEXT INFO ---
+        // --- 3. DISPLAY INFO ---
         char buf[32];
-        
-        // JIKA GAGAL BACA SD CARD (Kabel salah / Belum format / Modul mati)
-        if (!is_mounted || total_mb == 0) {
-            ssd1306_draw_string_adafruit(0, 5, 15, "ERR: NOT MOUNTED", WHITE, BLACK);
-            ssd1306_draw_string_adafruit(0, 5, 25, "Cek VCC (wajib 5V)", WHITE, BLACK);
-        } 
-        // JIKA SUKSES BACA SD CARD
-        else {
-            if (total_mb > 1024) {
-                snprintf(buf, sizeof(buf), "Size: %.1f GB", total_mb / 1024.0);
-                ssd1306_draw_string_adafruit(0, 5, 15, buf, WHITE, BLACK);
-                snprintf(buf, sizeof(buf), "Free: %.1f GB", free_mb / 1024.0);
-                ssd1306_draw_string_adafruit(0, 5, 25, buf, WHITE, BLACK);
-            } else {
-                snprintf(buf, sizeof(buf), "Size: %.0f MB", total_mb);
-                ssd1306_draw_string_adafruit(0, 5, 15, buf, WHITE, BLACK);
-                snprintf(buf, sizeof(buf), "Free: %.0f MB", free_mb);
-                ssd1306_draw_string_adafruit(0, 5, 25, buf, WHITE, BLACK);
-            }
+        if (!is_mounted) {
+            rootx_print_text(5, 20, "VFS Error!", WHITE, BLACK);
+            rootx_print_text(5, 30, "Gagal Baca Size", WHITE, BLACK);
+        } else {
+            // Tampilan Size
+            snprintf(buf, sizeof(buf), "Size: %.0f MB", total_mb);
+            rootx_print_text(5, 15, buf, WHITE, BLACK);
+            // Tampilan Free
+            snprintf(buf, sizeof(buf), "Free: %.0f MB", free_mb);
+            rootx_print_text(5, 25, buf, WHITE, BLACK);
         }
         
-        // --- 4. PROGRESS BAR PRESISI ---
+        // --- 4. PROGRESS BAR ---
         snprintf(buf, sizeof(buf), "%d%%", percent);
-        ssd1306_draw_string_adafruit(0, 100, 25, buf, WHITE, BLACK);
-
-        ssd1306_draw_rectangle(0, 5, 38, 118, 8, WHITE);
+        rootx_print_text(100, 25, buf, WHITE, BLACK);
+        lcdDrawRect(&dev, 5, 38, 123, 46, WHITE);
         
         int fillWidth = (percent * 114) / 100;
+        if (fillWidth > 114) fillWidth = 114;
         if (fillWidth > 0) {
             for (int i = 0; i < 4; i++) {
-                ssd1306_draw_hline(0, 7, 40 + i, fillWidth, WHITE);
+                lcdDrawLine(&dev, 7, 40 + i, 7 + fillWidth, 40 + i, WHITE);
             }
         }
 
-        // --- 5. CAROUSEL MENU ACTION ---
+        // --- 5. MENU ---
         const char* menuNames[] = {"[ EXIT ]", "[ FILES ]", "[ FORMAT ]"};
         int textLen = strlen(menuNames[sdActionIdx]) * 6;
         int startX = (128 - textLen) / 2;
 
-        ssd1306_draw_string_adafruit(0, 5, 54, "<", WHITE, BLACK);
-        ssd1306_draw_string_adafruit(0, startX, 54, menuNames[sdActionIdx], WHITE, BLACK);
-        ssd1306_draw_string_adafruit(0, 117, 54, ">", WHITE, BLACK);
-
-    } 
+        rootx_print_text(5, 54, "<", WHITE, BLACK);
+        rootx_print_text(startX, 54, menuNames[sdActionIdx], WHITE, BLACK);
+        rootx_print_text(117, 54, ">", WHITE, BLACK);
+    }
+   
     else if (sdState == 1) { // KONFIRMASI FORMAT
-        ssd1306_draw_string_adafruit(0, 15, 20, "FORMAT SD CARD?", WHITE, BLACK);
-        ssd1306_draw_string_adafruit(0, 25, 32, "ALL DATA LOST!", WHITE, BLACK);
-        ssd1306_draw_string_adafruit(0, 5, 50, "[<-] NO   [OK] YES", WHITE, BLACK);
+        rootx_print_text(15, 20, "FORMAT SD CARD?", WHITE, BLACK);
+        rootx_print_text(25, 32, "ALL DATA LOST!", WHITE, BLACK);
+        rootx_print_text(5, 50, "[<-] NO   [OK] YES", WHITE, BLACK);
     } 
     else if (sdState == 2) { // FORMATTING
-        ssd1306_draw_string_adafruit(0, 25, 30, "FORMATTING...", WHITE, BLACK);
+        rootx_print_text(25, 30, "FORMATTING...", WHITE, BLACK);
     }
 
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 
@@ -1690,15 +1727,15 @@ void renderFileExplorer() {
         isFileExpInit = true;
     }
 
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
 
     // --- 2. HEADER UI ---
-    for(int y = 0; y < 11; y++) ssd1306_draw_hline(0, 0, y, 128, WHITE);
-    ssd1306_draw_string_adafruit(0, 38, 2, "SD FILES", BLACK, WHITE);
+    for(int y = 0; y < 11; y++) lcdDrawLine(&dev, 0, y, 128, y, WHITE);
+    rootx_print_text(38, 2, "SD FILES", BLACK, WHITE);
 
     if (sdTotalFiles == 0) {
-        ssd1306_draw_string_adafruit(0, 15, 30, "NO FILES FOUND!", WHITE, BLACK);
-        ssd1306_draw_string_adafruit(0, 30, 50, "[<-] BACK", WHITE, BLACK);
+        rootx_print_text(15, 30, "NO FILES FOUND!", WHITE, BLACK);
+        rootx_print_text(30, 50, "[<-] BACK", WHITE, BLACK);
     } 
     else {
         if (sdFileState == 0) { // MODE LISTING
@@ -1712,13 +1749,13 @@ void renderFileExplorer() {
 
                 if (fileIdx == sdFileCursor) {
                     // Kursor Aktif: Kasih panah dan hurufnya kita Invert biar keren
-                    ssd1306_draw_string_adafruit(0, 0, yPos, ">", WHITE, BLACK);
+                    rootx_print_text(0, yPos, ">", WHITE, BLACK);
                     // Kotak Invert Background kursor
-                    ssd1306_draw_rectangle(0, 8, yPos - 1, 120, 9, WHITE);
-                    ssd1306_draw_string_adafruit(0, 10, yPos, sdFileNames[fileIdx], BLACK, WHITE);
+                    lcdDrawRect(&dev, 8, yPos - 1, 128, yPos + 8, WHITE);
+                    rootx_print_text(10, yPos, sdFileNames[fileIdx], BLACK, WHITE);
                 } else {
                     // File biasa
-                    ssd1306_draw_string_adafruit(0, 10, yPos, sdFileNames[fileIdx], WHITE, BLACK);
+                    rootx_print_text(10, yPos, sdFileNames[fileIdx], WHITE, BLACK);
                 }
             }
             
@@ -1726,22 +1763,22 @@ void renderFileExplorer() {
             // Ganti dari "[OK] DEL" jadi "[OK] SEL/DEL" (Select / Delete)
 char foot[32]; 
 snprintf(foot, sizeof(foot), "%d/%d [OK] SEL/DEL", sdFileCursor + 1, sdTotalFiles);
-ssd1306_draw_string_adafruit(0, 5, 56, foot, WHITE, BLACK);
+rootx_print_text(5, 56, foot, WHITE, BLACK);
 
-            ssd1306_draw_string_adafruit(0, 5, 56, foot, WHITE, BLACK);
+            rootx_print_text(5, 56, foot, WHITE, BLACK);
         } 
         else if (sdFileState == 1) { // MODE CONFIRM DELETE
-            ssd1306_draw_string_adafruit(0, 20, 20, "DELETE FILE?", WHITE, BLACK);
+            rootx_print_text(20, 20, "DELETE FILE?", WHITE, BLACK);
             // Tulis nama file yg mau dihapus (Max 18 karakter biar muat di tengah)
             char truncName[20];
             snprintf(truncName, sizeof(truncName), "%.18s", sdFileNames[sdFileCursor]);
-            ssd1306_draw_string_adafruit(0, 10, 32, truncName, WHITE, BLACK);
+            rootx_print_text(10, 32, truncName, WHITE, BLACK);
             
-            ssd1306_draw_string_adafruit(0, 5, 50, "[<-] NO   [OK] YES", WHITE, BLACK);
+            rootx_print_text(5, 50, "[<-] NO   [OK] YES", WHITE, BLACK);
         }
     }
 
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }
 
 // Definisi state TV-B-Gone
@@ -1751,13 +1788,13 @@ int tvbgoneProgress = 0;
 int tvbgoneTotal = 0;
 
 void renderTvBGone() {
-    ssd1306_clear(0);
+    lcdFillScreen(&dev, BLACK);
     
     // --- 1. HEADER PRESISI ---
     // Kotak putih Y: 0-12
-    ssd1306_draw_rectangle(0, 0, 0, 128, 12, WHITE);
+    lcdDrawRect(&dev, 0, 0, 128, 12, WHITE);
     // Teks 9 huruf x 6px = 54. X = (128-54)/2 = 37
-    ssd1306_draw_string_adafruit(0, 37, 2, "TV-B-GONE", BLACK, WHITE);
+    rootx_print_text(37, 2, "TV-B-GONE", BLACK, WHITE);
     
     if (tvbgoneState == 0) { // MODE MENU PILIH REGION
         const char* menus[] = {"[ NA / ASIA ]", "[  EUROPE   ]", "[ ALL WORLD ]"};
@@ -1767,34 +1804,34 @@ void renderTvBGone() {
             
             if (i == tvbgoneMenuIdx) {
                 // Kursor Aktif
-                ssd1306_draw_string_adafruit(0, 18, yPos, ">", WHITE, BLACK);
-                ssd1306_draw_rectangle(0, 26, yPos - 1, 78, 9, WHITE); // Highlight
-                ssd1306_draw_string_adafruit(0, 28, yPos, menus[i], BLACK, WHITE);
+                rootx_print_text(18, yPos, ">", WHITE, BLACK);
+                lcdDrawRect(&dev, 26, yPos - 1, 104, yPos + 8, WHITE); // Highlight
+                rootx_print_text(28, yPos, menus[i], BLACK, WHITE);
             } else {
-                ssd1306_draw_string_adafruit(0, 28, yPos, menus[i], WHITE, BLACK);
+                rootx_print_text(28, yPos, menus[i], WHITE, BLACK);
             }
         }
         
         // Footer Petunjuk Tombol
-        ssd1306_draw_string_adafruit(0, 5, 55, "[<-] EXIT    [OK] START", WHITE, BLACK);
+        rootx_print_text(5, 55, "[<-] EXIT    [OK] START", WHITE, BLACK);
 
     } 
     else if (tvbgoneState == 1) { // MODE FIRING (LAGI NEMBAK)
         
         // Animasi Teks Kedip
         if ((xTaskGetTickCount() * portTICK_PERIOD_MS) / 500 % 2 == 0) {
-            ssd1306_draw_string_adafruit(0, 18, 20, "TRANSMITTING...", WHITE, BLACK);
+            rootx_print_text(18, 20, "TRANSMITTING...", WHITE, BLACK);
         }
         
         // --- PROGRESS BAR MATEMATIS ---
         // Border Bar (X: 10, Lebar: 108)
-        ssd1306_draw_rectangle(0, 10, 35, 108, 10, WHITE);
+        lcdDrawRect(&dev, 10, 35, 118, 45, WHITE);
         
         if (tvbgoneTotal > 0) {
             // Hitung lebar isi bar (Maks 104 pixel)
             int fillWidth = (tvbgoneProgress * 104) / tvbgoneTotal;
             if (fillWidth > 0) {
-                ssd1306_draw_rectangle(0, 12, 37, fillWidth, 6, WHITE); // Fill Bar
+                lcdDrawRect(&dev, 12, 37, 12 + fillWidth, 43, WHITE); // Fill Bar
             }
         }
         
@@ -1802,8 +1839,8 @@ void renderTvBGone() {
         char counter[32];
         snprintf(counter, sizeof(counter), "CODE: %d / %d", tvbgoneProgress, tvbgoneTotal);
         // Tengahin teks counter (Asumsi maks 15 char = 90px. X = (128-90)/2 = 19)
-        ssd1306_draw_string_adafruit(0, 19, 50, counter, WHITE, BLACK);
+        rootx_print_text(19, 50, counter, WHITE, BLACK);
     }
     
-    ssd1306_refresh(0, true);
+    lcdDrawFinish(&dev);
 }

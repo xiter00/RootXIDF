@@ -4,11 +4,14 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
+#include "esp_https_ota.h"
+#include "esp_crt_bundle.h"
+
 
 // --- HEADER LU ---
 #include "globals.h"
 #include "photo_data.h"
-#include "ssd1306.h"  // Sesuaikan sama nama file dari library OLED lu
+
 
 // --- DEKLARASI FUNGSI DARI MANAGER LAIN ---
 
@@ -127,12 +130,50 @@ TaskHandle_t TaskWiFi;
 // ==========================================
 // JANTUNG UTAMA FIRMWARE LU (Pengganti Setup & Loop)
 // ==========================================
+void ota_satpam_task(void *pvParameter) {
+    ESP_LOGI("OTA", "Satpam OTA Aktif! Mantau update...");
+    while(1) {
+        if (isWiFiConnected) { // Cuma jalan pas dapet sinyal
+            esp_http_client_config_t config = {
+                .url = "https://link-github-raw-lu.com/firmware.bin", // Nanti ini diganti link raw release GitHub lu
+                .crt_bundle_attach = esp_crt_bundle_attach, // Wajib buat nembus gembok HTTPS
+                .keep_alive_enable = true,
+            };
+
+            ESP_LOGI("OTA", "Ngecek versi baru...");
+            esp_err_t ret = esp_https_ota(&config);
+            if (ret == ESP_OK) {
+                ESP_LOGI("OTA", "UPDATE SUKSES COK! Alat Restart...");
+                esp_restart(); // Langsung reboot sendiri bawa UI baru
+            } else {
+                ESP_LOGE("OTA", "Gagal/Belum ada update: %s", esp_err_to_name(ret));
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(60000)); // Ngecek setiap 1 menit (60000 ms)
+    }
+}
+
 void app_main(void) {
     ESP_LOGI("RootX", "System Booting...");
+    
+    esp_vfs_spiffs_conf_t conf = {
+      .base_path = "/spiffs",
+      .partition_label = NULL,
+      .max_files = 5,
+      .format_if_mount_failed = true
+    };
+    esp_err_t ret = esp_vfs_spiffs_register(&conf);
+    if (ret != ESP_OK) {
+        ESP_LOGE("RootX", "Gagal mount SPIFFS! Font gak bakal kebaca!");
+    } else {
+        ESP_LOGI("RootX", "SPIFFS Mounted! Siap baca font!");
+    }
+    // ----------------------------------------
+    
         xTaskCreatePinnedToCore(
     task_display,    // Nama fungsinya
     "DisplayTask",   // Nama bebas buat debug
-    16384,            // Ukuran memori (8KB cukup kok)
+    8192,            // Ukuran memori (8KB cukup kok)
     NULL,            // Gak ada parameter tambahan
     1,               // Prioritas (rendah aja gapapa)
     NULL,            // Gak butuh handle
@@ -145,7 +186,7 @@ extern bool init_sdcard(); // Kasih tau compiler fungsinya ada di file lain
         ESP_LOGI("RootX", "Mantap, SD Card Jalan!");
     } else {
         // Kalau gagal, minimal lu tau dari log serial
-        ESP_LOGE("RootX", "Yah, SD Card Gagal... Cek kabel GPIO 3 lu!");
+        ESP_LOGE("RootX", "Yah, SD Card Gagal...");
     }
     init_ir_system(); 
     init_battery();
@@ -158,6 +199,8 @@ extern bool init_sdcard(); // Kasih tau compiler fungsinya ada di file lain
         &TaskWiFi,    /* Handle */
         0             /* Core 0 */
     );
+// Kasih RAM 8KB, jalanin di Core 0 biar gak ganggu UI dan mesin RootX lu di Core 1
+xTaskCreatePinnedToCore(ota_satpam_task, "ota_task", 8192, NULL, 5, NULL, 0);
 
 
     // 5. Pengganti loop()

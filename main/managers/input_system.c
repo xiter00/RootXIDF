@@ -6,7 +6,6 @@
 #include "globals.h"
 #include "esp_wifi.h"
 #include <string.h>
-#include "ssd1306.h"
 #include "tvbgone_engine.h"
 #include <unistd.h>
 #include <sys/stat.h>
@@ -159,9 +158,9 @@ void handleJoystick() {
         if (appMode == 15) {
         if (btn == BTN_OK || btn == BTN_RIGHT) {
             // EKSEKUSI REBOOT!
-            ssd1306_clear(0);
+            lcdFillScreen(&dev, BLACK);
             ssd1306_draw_string_adafruit(0, 25, 30, "REBOOTING...", WHITE, BLACK);
-            ssd1306_refresh(0, true);
+            lcdDrawFinish(&dev);
             
             vTaskDelay(pdMS_TO_TICKS(500)); // Kasih jeda dikit biar OLED sempet nulis
             esp_restart(); // Perintah sakti buat restart ESP32

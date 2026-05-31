@@ -3,6 +3,10 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "st7789.h"
+#include "esp_spiffs.h"
+
+extern TFT_t dev; // Biar layar bisa diakses dari file mana aja
 
 // --- SETTING PIN JOYSTICK ---
 #define PIN_UP    42
@@ -100,6 +104,10 @@ extern int baca_highscore_dino();
 void simpan_highscore_dino(int hs);
 extern int baca_highscore_snake();
 void simpan_highscore_snake(int hs);
+// --- EKSPOR FUNGSI TEKS ST7789 BIAR BISA DIPAKAI DI SEMUA FILE ---
+extern void rootx_print_text(int x, int y, const char* str, uint16_t fg, uint16_t bg);
+extern void rootx_print_text_sedang(int x, int y, const char* str, uint16_t fg, uint16_t bg);
+extern void rootx_print_text_gede(int x, int y, const char* str, uint16_t fg, uint16_t bg);
 
 // --- EXTERN VARIABEL GLOBAL ---
 // --- EXTERN VARIABEL GLOBAL ---
