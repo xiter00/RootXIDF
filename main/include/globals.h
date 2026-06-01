@@ -14,8 +14,7 @@ extern TFT_t dev; // Biar layar bisa diakses dari file mana aja
 #define PIN_LEFT  40
 #define PIN_RIGHT 39
 #define PIN_OK    38
-#define WHITE 1
-#define BLACK 0
+
 
 #define BTN_NONE  0
 #define BTN_UP    1
