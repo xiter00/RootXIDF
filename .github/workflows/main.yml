@@ -11,41 +11,47 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # --- 1. INSTALL TOOLS UTAMA UBUNTU (Wajib ada tiap build, tapi cepet) ---
+      # --- 1. INSTALL TOOLS UTAMA UBUNTU ---
       - name: Install System Prerequisites
         run: |
           sudo apt-get update
           sudo apt-get install -y wget git flex bison gperf python3-pip python3-setuptools cmake ninja-build ccache libffi-dev libssl-dev dfu-util python3-venv
 
-      # --- 2. CEK DAN AMBIL CACHE ESP-IDF ---
-      - name: Cache ESP-IDF
-        id: cache-idf
-        uses: actions/cache@v4
+      # --- 2. CEK CACHE ESP-IDF DI GUDANG (Pake RESTORE) ---
+      - name: Restore ESP-IDF Cache
+        id: cache-restore
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/esp-idf
             ~/.espressif
           key: esp-idf-v6.0-${{ runner.os }}-v1
-          save-always: true    # <--- TAMBAHIN BARIS INI COK!
-          restore-keys: |
-            esp-idf-v6.0-${{ runner.os }}-
 
-
-      # --- 3. CLONE & INSTALL (Hanya jalan 1x pas pertama kali / kalau cache hangus) ---
+      # --- 3. DOWNLOAD & INSTALL (Hanya jalan kalau Cache Kosong) ---
       - name: Clone and Install ESP-IDF
-        if: steps.cache-idf.outputs.cache-hit != 'true'
+        if: steps.cache-restore.outputs.cache-hit != 'true'
         run: |
           git clone -b v6.0 --depth 1 --recursive https://github.com/espressif/esp-idf.git ~/esp-idf
           ~/esp-idf/install.sh
 
-      # --- 4. PATCHING SOURCE CODE (Tetap jalan biar file di dalam cache selalu ter-patch) ---
+      # --- 4. PAKSA SIMPAN CACHE SEKARANG JUGA! (Sebelum Compile) ---
+      - name: Save ESP-IDF Cache
+        if: steps.cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/esp-idf
+            ~/.espressif
+          key: esp-idf-v6.0-${{ runner.os }}-v1
+
+      # --- 5. PATCHING SOURCE CODE & BUILD FIRMWARE ---
       - name: Patch gdbstub Source
         run: |
           python3 -c "import os,pathlib; p=pathlib.Path(os.path.expanduser('~/esp-idf'))/'components/esp_gdbstub/src/gdbstub.c'; s=p.read_text(encoding='utf-8'); s=s.replace('#if (CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME || CONFIG_ESP_GDBSTUB_SUPPORT_TASKS)', '#if 1'); p.write_text(s, encoding='utf-8')"
           
       - name: Build Firmware
         run: |
-          # Load compiler & environment dari folder cache
+          # Load compiler & environment dari folder
           . ~/esp-idf/export.sh
           
           # Patching wifi_init
@@ -55,7 +61,6 @@ jobs:
           
           echo "Patch Selesai, Lanjut Build..."
 
-          # Cek kalau sdkconfig lama ada biar ga build dari nol banget
           if [ -f sdkconfig.defaults ]; then
             cp sdkconfig.defaults sdkconfig
           fi
@@ -63,7 +68,7 @@ jobs:
           idf.py set-target esp32s3
           idf.py build
 
-      # --- 5. UPLOAD HASIL JADI .BIN ---
+      # --- 6. UPLOAD HASIL JADI .BIN ---
       - name: Upload Bin
         uses: actions/upload-artifact@v4
         with:
