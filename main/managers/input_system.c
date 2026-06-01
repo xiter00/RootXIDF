@@ -420,18 +420,29 @@ void handleJoystick() {
 
     if (appMode == 3) {
         if (btn == BTN_UP) {
-            if (brightnessValue < 245) brightnessValue += 10;
+            // Mentokin sampai batas maksimal PWM 8-bit (255)
+            if (brightnessValue <= 245) brightnessValue += 10;
+            else brightnessValue = 255; 
+            
             setOledBrightness(brightnessValue);
+            tampilkanBrightness(); // Langsung render ulang layarnya biar bar-nya ikut naik
         }
         else if (btn == BTN_DOWN) {
-            if (brightnessValue > 10) brightnessValue -= 10;
+            // Batas bawah biar gak mati total lampunya (minimal 5 atau 10)
+            if (brightnessValue >= 15) brightnessValue -= 10;
+            else brightnessValue = 5; 
+            
             setOledBrightness(brightnessValue);
+            tampilkanBrightness(); // Langsung render ulang layarnya biar bar-nya ikut turun
         }
-        else if (btn == BTN_LEFT) appMode = 0;
+        else if (btn == BTN_LEFT) {
+            appMode = 0; // Balik ke menu utama
+        }
         
         lastPress = input_millis();
         return;
     }
+
 
     // ==========================================
     // 3. LOGIKA MENU UTAMA (APPMODE == 0)

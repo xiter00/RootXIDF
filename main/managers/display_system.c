@@ -11,6 +11,7 @@
 #include <dirent.h>
 #include <sys/unistd.h>
 #include <sys/stat.h>
+#include "driver/ledc.h"
 
 #include <sys/statvfs.h> // Wajib buat baca kapasitas memori
 
@@ -98,9 +99,32 @@ void init_joystick() {
 void task_display(void *pvParameters) {
 init_joystick();
 // Ganti angka pin ini sesuai wiring SPI ST7789 lu (MOSI, SCLK, CS, D
-            spi_master_init(&dev, 11, 12, 10, 9, 8, 7); 
+    spi_master_init(&dev, 11, 12, 10, 9, 14, -1);
     lcdInit(&dev, 135, 240, 52, 40);           
     lcdEnableFrameBuffer(&dev);                
+    
+    // Atur konfigurasi Timer PWM
+ledc_timer_config_t ledc_timer = {
+    .speed_mode       = LEDC_LOW_SPEED_MODE,
+    .timer_num        = LEDC_TIMER_0,
+    .duty_resolution  = LEDC_TIMER_8_BIT, // 8-bit artinya nilai 0-255 (pas buat lu)
+    .freq_hz          = 5000,             // Frekuensi 5kHz biar layar ga kedip-kedip di kamera
+    .clk_cfg          = LEDC_AUTO_CLK
+};
+ledc_timer_config(&ledc_timer);
+
+// Atur konfigurasi Channel ke pin Backlight (misal GPIO 13)
+ledc_channel_config_t ledc_channel = {
+    .speed_mode     = LEDC_LOW_SPEED_MODE,
+    .channel        = LEDC_CHANNEL_0,
+    .timer_sel      = LEDC_TIMER_0,
+    .intr_type      = LEDC_INTR_DISABLE,
+    .gpio_num       = 13,                 // <--- SESUAIIN SAMA PIN BL LU
+    .duty           = 150,                // Kecerahan awal pas baru nyala
+    .hpoint         = 0
+};
+ledc_channel_config(&ledc_channel);
+
 
     // Load ke-3 ukuran font bawaan library dari folder font di memori internal
     InitFontx(fx16G, "/spiffs/fonts/ILGH16XB.FNT", ""); // 8x16
@@ -191,7 +215,7 @@ void initStars() {
 
 
 // Inisialisasi bintang pertama kali
-extern void oled_draw_bitmap(uint8_t id, int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, ssd1306_color_t color);
+extern void screen_draw_bitmap(uint8_t id, int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint8_t color);
 
 uint32_t millis() {
     return (uint32_t)(esp_timer_get_time() / 1000);
@@ -389,7 +413,7 @@ void tampilkanMenuLogo() {
     
 
     int iconBounce = getBounce(300, 2); // Loncat 2 pixel
-    oled_draw_bitmap(0, 47, 20 + iconBounce, bigIcon, 32, 32, WHITE);
+    screen_draw_bitmap(0, 47, 20 + iconBounce, bigIcon, 32, 32, WHITE);
 
     // Font library ini ukurannya fix, jadi kita akalin kursornya aja
     rootx_print_text(20, 30, "<", WHITE, BLACK);
@@ -455,7 +479,7 @@ void tampilkanMenuUtama() {
         else iconSmall = iconListGame[itemIndex];
 
         // Gambar Icon (Kalo diselect dia ada iconBounce-nya, kalo ngga ya + 0)
-        oled_draw_bitmap(0, 2 + tambahansu, (yPos - 1) + iconBounce, iconSmall, 10, 10, textColor);
+        screen_draw_bitmap(0, 2 + tambahansu, (yPos - 1) + iconBounce, iconSmall, 10, 10, textColor);
         
         // Setting Teks
         const char* textToPrint = "";
@@ -483,7 +507,7 @@ void tampilkanTrackScreen() {
     
     // --- ANIMASI FLOATING ICON (Icon WiFi naik turun pelan) ---
     int floatY = 15 + (int)(sin(millis() / 300.0) * 3);
-    oled_draw_bitmap(0, 105, floatY, iconSmall_wifi, 10, 10, WHITE);
+    screen_draw_bitmap(0, 105, floatY, iconSmall_wifi, 10, 10, WHITE);
 
     // Header
     lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
@@ -646,7 +670,7 @@ void tampilkanWifiScanner() {
                 if (diff == 0) { 
                     // --- MENU TERPILIH (DI TENGAH BLOK PUTIH) ---
                     // Warna dibalik (Hitam di atas Putih)
-                    oled_draw_bitmap(0, 26, yPos - 1, icon, 10, 10, BLACK); 
+                    screen_draw_bitmap(0, 26, yPos - 1, icon, 10, 10, BLACK); 
                     rootx_print_text(42, yPos, (char*)teks, BLACK, WHITE);
                     
                     // Tambahan efek panah biar kelihatan lebih "Gede/Lebar"
@@ -657,7 +681,7 @@ void tampilkanWifiScanner() {
                     // --- MENU GAK TERPILIH (DI ATAS / DI BAWAH) ---
                     // Warna normal (Putih di atas Hitam)
                     // Posisinya digeser X-nya (+4) biar seakan-akan mundur/mengecil
-                    oled_draw_bitmap(0, 30, yPos, icon, 10, 10, WHITE);
+                    screen_draw_bitmap(0, 30, yPos, icon, 10, 10, WHITE);
                     rootx_print_text(46, yPos + 1, (char*)teks, WHITE, BLACK);
                 }
             }
@@ -786,7 +810,7 @@ void tampilkanStationScanner() {
                 if (diff == 0) { 
                     // --- MENU TERPILIH (DI TENGAH BLOK PUTIH) ---
                     // Warna dibalik (Hitam di atas Putih)
-                    oled_draw_bitmap(0, 26, yPos - 1, icon, 10, 10, BLACK); 
+                    screen_draw_bitmap(0, 26, yPos - 1, icon, 10, 10, BLACK); 
                     rootx_print_text(42, yPos, (char*)teks, BLACK, WHITE);
                     
                     // Tambahan efek panah biar kelihatan lebih "Gede/Lebar"
@@ -797,7 +821,7 @@ void tampilkanStationScanner() {
                     // --- MENU GAK TERPILIH (DI ATAS / DI BAWAH) ---
                     // Warna normal (Putih di atas Hitam)
                     // Posisinya digeser X-nya (+4) biar seakan-akan mundur/mengecil
-                    oled_draw_bitmap(0, 30, yPos, icon, 10, 10, WHITE);
+                    screen_draw_bitmap(0, 30, yPos, icon, 10, 10, WHITE);
                     rootx_print_text(46, yPos + 1, (char*)teks, WHITE, BLACK);
                 }
             }
@@ -908,23 +932,15 @@ void tampilkanBrightness() {
 }
 
 void setOledBrightness(uint8_t level) {
-    // Kita pake fungsi manual dari i2c.c lu
-    i2c_start();
+    // Kodingan i2c lama udah RIP, kita ganti pake LEDC PWM
     
-    // 0x3C << 1 jadi 0x78 (Alamat OLED)
-    i2c_write(0x78); 
+    // Set level kecerahan baru (0 sampai 255)
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, level);
     
-    // 0x00 artinya byte berikutnya adalah COMMAND
-    i2c_write(0x00); 
-    
-    // Perintah 0x81 (Contrast Control)
-    i2c_write(0x81); 
-    
-    // Kirim nilai kecerahan (0-255)
-    i2c_write(level); 
-    
-    i2c_stop();
+    // Eksekusi perubahannya sekarang juga!
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
 }
+
 
 
 
@@ -1006,8 +1022,8 @@ void renderDinoGame() {
         // --- BACKGROUND ---
         skyX -= 0.5;
         if (skyX < -20) skyX = 128;
-        if (isNight) oled_draw_bitmap(0, (int)skyX, 8, bulan_16, 16, 16, WHITE);
-        else oled_draw_bitmap(0, (int)skyX, 8, matahari_16, 16, 16, WHITE);
+        if (isNight) screen_draw_bitmap(0, (int)skyX, 8, bulan_16, 16, 16, WHITE);
+        else screen_draw_bitmap(0, (int)skyX, 8, matahari_16, 16, 16, WHITE);
 
         // ==========================================
         // OBAT BUG 3: ANTI TELEPORT (SPAWN SELALU DARI KANAN)
@@ -1051,20 +1067,20 @@ void renderDinoGame() {
 
         // --- DRAW DINO ---
         const unsigned char* dinoFrame = (dinoY < 36) ? dino_lari1 : (((millis()/100)%2==0) ? dino_lari1 : dino_lari2);
-        oled_draw_bitmap(0, 15, (int)dinoY, dinoFrame, 24, 24, WHITE);
+        screen_draw_bitmap(0, 15, (int)dinoY, dinoFrame, 24, 24, WHITE);
 
         // --- DRAW SEMUA MUSUH ---
         const unsigned char* pteroFrame = ((millis() / 200) % 2 == 0) ? ptero_up : ptero_down;
         
         // Musuh 1
-        if (obs1Type == 0) oled_draw_bitmap(0, obs1X, 44, kaktus_16, 16, 16, WHITE);
-        else if (obs1Type == 1) oled_draw_bitmap(0, obs1X, 38, kaktus_besar, 24, 24, WHITE);
-        else if (obs1Type == 2) oled_draw_bitmap(0, obs1X, obs1Y, pteroFrame, 16, 16, WHITE);
+        if (obs1Type == 0) screen_draw_bitmap(0, obs1X, 44, kaktus_16, 16, 16, WHITE);
+        else if (obs1Type == 1) screen_draw_bitmap(0, obs1X, 38, kaktus_besar, 24, 24, WHITE);
+        else if (obs1Type == 2) screen_draw_bitmap(0, obs1X, obs1Y, pteroFrame, 16, 16, WHITE);
 
         // Musuh 2
-        if (obs2Type == 0) oled_draw_bitmap(0, obs2X, 44, kaktus_16, 16, 16, WHITE);
-        else if (obs2Type == 1) oled_draw_bitmap(0, obs2X, 38, kaktus_besar, 24, 24, WHITE);
-        else if (obs2Type == 2) oled_draw_bitmap(0, obs2X, obs2Y, pteroFrame, 16, 16, WHITE);
+        if (obs2Type == 0) screen_draw_bitmap(0, obs2X, 44, kaktus_16, 16, 16, WHITE);
+        else if (obs2Type == 1) screen_draw_bitmap(0, obs2X, 38, kaktus_besar, 24, 24, WHITE);
+        else if (obs2Type == 2) screen_draw_bitmap(0, obs2X, obs2Y, pteroFrame, 16, 16, WHITE);
 
 
         // ==========================================

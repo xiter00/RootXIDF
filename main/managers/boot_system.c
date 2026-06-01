@@ -15,7 +15,7 @@ extern TFT_t dev; // Panggil mesin layarnya
 // ========================================================
 // Pembaca Bitmap gaya Adafruit (Support untuk ST7789!)
 // ========================================================
-void oled_draw_bitmap(uint8_t id, int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t color) {
+void screen_draw_bitmap(uint8_t id, int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t color) {
     int16_t byteWidth = (w + 7) / 8; 
     uint8_t byte = 0;
     for (int16_t j = 0; j < h; j++, y++) {
@@ -36,7 +36,7 @@ void tampilkanLogoDulu() {
     lcdFillScreen(&dev, BLACK); 
     
     // Nampilin gambar foto 1-bit
-    oled_draw_bitmap(0, 0, 0, my_photo_bmp, 128, 64, WHITE);
+    screen_draw_bitmap(0, 0, 0, my_photo_bmp, 128, 64, WHITE);
     
     lcdDrawFinish(&dev); 
     vTaskDelay(pdMS_TO_TICKS(1000));
@@ -61,7 +61,7 @@ void tampilkanIntroAnime() {
     lcdFillScreen(&dev, BLACK);
     
     // Foto Anime di Kiri (1-bit aman!)
-    oled_draw_bitmap(0, 0, 0, foto_anime_64, 64, 64, WHITE);
+    screen_draw_bitmap(0, 0, 0, foto_anime_64, 64, 64, WHITE);
     
     // Garis Pemisah Vertikal 
     lcdDrawLine(&dev, 65, 0, 65, 64, WHITE); // Ganti ke garis vertikal ST7789
