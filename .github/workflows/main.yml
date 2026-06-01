@@ -26,8 +26,10 @@ jobs:
             ~/esp-idf
             ~/.espressif
           key: esp-idf-v6.0-${{ runner.os }}-v1
+          save-always: true    # <--- TAMBAHIN BARIS INI COK!
           restore-keys: |
             esp-idf-v6.0-${{ runner.os }}-
+
 
       # --- 3. CLONE & INSTALL (Hanya jalan 1x pas pertama kali / kalau cache hangus) ---
       - name: Clone and Install ESP-IDF
