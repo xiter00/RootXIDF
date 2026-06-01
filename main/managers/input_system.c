@@ -24,7 +24,7 @@ extern void tvbgone_fire_task(void *pvParameters);
 // Tarik fungsi dari display buat set brightness
 extern void setOledBrightness(uint8_t level);
 extern void tampilkanMenuSavedIR(void);
-
+extern void tampilkanBrightness(void);
 extern void transmit_ir_raw(uint16_t* pulses, int num_pulses);
 
 extern void loadSavedRemotes(void);
@@ -159,7 +159,7 @@ void handleJoystick() {
         if (btn == BTN_OK || btn == BTN_RIGHT) {
             // EKSEKUSI REBOOT!
             lcdFillScreen(&dev, BLACK);
-            ssd1306_draw_string_adafruit(0, 25, 30, "REBOOTING...", WHITE, BLACK);
+            rootx_print_text(0, 25, 30, "REBOOTING...", WHITE, BLACK);
             lcdDrawFinish(&dev);
             
             vTaskDelay(pdMS_TO_TICKS(500)); // Kasih jeda dikit biar OLED sempet nulis
@@ -805,7 +805,7 @@ void handleDinoInput(int btn) {
 
     // Tombol Keluar (Kiri)
     if (btn == BTN_LEFT) {
-        ssd1306_invert_display(0, false); // Pastiin layar gak nyangkut item
+        lcdInversionOff(&dev); // Pastiin layar gak nyangkut item
         appMode = 0; 
         dinoScore = 0; rawScore = 0;
         obstacleX = 128;
