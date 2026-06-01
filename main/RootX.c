@@ -4,13 +4,22 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
+#include "esp_ota_ops.h"
+#include "esp_http_client.h"
 #include "esp_https_ota.h"
-#include "esp_crt_bundle.h"
+#include "esp_crt_bundle.h" // Wajib biar bisa tembus HTTPS GitHub tanpa error SSL
 
 
 // --- HEADER LU ---
 #include "globals.h"
 #include "photo_data.h"
+
+// Hardcode versi firmware lu saat ini (100 = v1.0.0)
+#define VERSION_SAAT_INI 100 
+
+// URL mentah (RAW) langsung tembak ke file lu di GitHub
+#define URL_VERSION  "https://raw.githubusercontent.com/xiter00/RTXUP/main/vr.txt"
+#define URL_FIRMWARE "https://raw.githubusercontent.com/xiter00/RTXUP/main/core.bin"
 
 
 // --- DEKLARASI FUNGSI DARI MANAGER LAIN ---
@@ -130,79 +139,106 @@ TaskHandle_t TaskWiFi;
 // ==========================================
 // JANTUNG UTAMA FIRMWARE LU (Pengganti Setup & Loop)
 // ==========================================
-void ota_satpam_task(void *pvParameter) {
-    ESP_LOGI("OTA", "Satpam OTA Aktif! Mantau update...");
-    while(1) {
-        if (isWiFiConnected) { // Cuma jalan pas dapet sinyal
-            esp_http_client_config_t config = {
-                .url = "https://link-github-raw-lu.com/firmware.bin", // Nanti ini diganti link raw release GitHub lu
-                .crt_bundle_attach = esp_crt_bundle_attach, // Wajib buat nembus gembok HTTPS
-                .keep_alive_enable = true,
-            };
+// ==========================================
+// TASK OTA OTOMATIS (Loop tiap 1 menit)
+// ==========================================
+void task_cek_ota(void *pvParameter) {
+    while (1) {
+        // Cek cuma kalau WiFi udah beneran konek
+        if (isWiFiConnected) {
+            ESP_LOGI("OTA", "Mengecek update di server GitHub...");
 
-            ESP_LOGI("OTA", "Ngecek versi baru...");
-            esp_err_t ret = esp_https_ota(&config);
-            if (ret == ESP_OK) {
-                ESP_LOGI("OTA", "UPDATE SUKSES COK! Alat Restart...");
-                esp_restart(); // Langsung reboot sendiri bawa UI baru
+            esp_http_client_config_t config = {
+                .url = URL_VERSION,
+                .crt_bundle_attach = esp_crt_bundle_attach, 
+            };
+            esp_http_client_handle_t client = esp_http_client_init(&config);
+            esp_err_t err = esp_http_client_open(client, 0);
+
+            if (err == ESP_OK) {
+                esp_http_client_fetch_headers(client);
+                char buffer[10] = {0};
+                esp_http_client_read(client, buffer, sizeof(buffer)-1);
+                
+                int versi_github = atoi(buffer); 
+                ESP_LOGI("OTA", "Versi ESP32: %d | Versi GitHub: %d", VERSION_SAAT_INI, versi_github);
+
+                if (versi_github > VERSION_SAAT_INI) {
+                    ESP_LOGI("OTA", "Update ditemukan! Memulai download...");
+
+                    esp_http_client_config_t ota_client_config = {
+                        .url = URL_FIRMWARE,
+                        .crt_bundle_attach = esp_crt_bundle_attach,
+                        .keep_alive_enable = true,
+                    };
+                    esp_https_ota_config_t ota_config = {
+                        .http_config = &ota_client_config,
+                    };
+
+                    esp_err_t ret = esp_https_ota(&ota_config);
+                    if (ret == ESP_OK) {
+                        ESP_LOGI("OTA", "SUKSES! RootX akan Reboot sekarang...");
+                        vTaskDelay(pdMS_TO_TICKS(1000));
+                        esp_restart(); 
+                    } else {
+                        ESP_LOGE("OTA", "Gagal Update! Code: %d", ret);
+                    }
+                } else {
+                    ESP_LOGI("OTA", "RootX sudah versi terbaru.");
+                }
             } else {
-                ESP_LOGE("OTA", "Gagal/Belum ada update: %s", esp_err_to_name(ret));
+                ESP_LOGE("OTA", "Gagal konek ke GitHub. Cek internet.");
             }
+            esp_http_client_cleanup(client);
         }
-        vTaskDelay(pdMS_TO_TICKS(60000)); // Ngecek setiap 1 menit (60000 ms)
+        
+        // Jeda 1 menit (60000 milidetik) sebelum ngecek lagi
+        vTaskDelay(pdMS_TO_TICKS(60000)); 
     }
 }
 
+
+// ==========================================
+// APP MAIN LU
+// ==========================================
 void app_main(void) {
     ESP_LOGI("RootX", "System Booting...");
+
+    // --- 1. LAPOR KE BOOTLOADER KALAU OS AMAN (Biar Gak Rollback) ---
+    esp_ota_mark_app_valid_cancel_rollback();
     
+    // --- 2. INIT SISTEM ---
     esp_vfs_spiffs_conf_t conf = {
       .base_path = "/spiffs",
       .partition_label = NULL,
       .max_files = 5,
       .format_if_mount_failed = true
     };
-    esp_err_t ret = esp_vfs_spiffs_register(&conf);
-    if (ret != ESP_OK) {
+    if (esp_vfs_spiffs_register(&conf) != ESP_OK) {
         ESP_LOGE("RootX", "Gagal mount SPIFFS! Font gak bakal kebaca!");
     } else {
         ESP_LOGI("RootX", "SPIFFS Mounted! Siap baca font!");
     }
-    // ----------------------------------------
     
-        xTaskCreatePinnedToCore(
-    task_display,    // Nama fungsinya
-    "DisplayTask",   // Nama bebas buat debug
-    8192,            // Ukuran memori (8KB cukup kok)
-    NULL,            // Gak ada parameter tambahan
-    1,               // Prioritas (rendah aja gapapa)
-    NULL,            // Gak butuh handle
-    1                // <--- INI KUNCINYA (1 berarti Core 1)
-);
+    xTaskCreatePinnedToCore(task_display, "DisplayTask", 8192, NULL, 1, NULL, 1);
 
-
-extern bool init_sdcard(); // Kasih tau compiler fungsinya ada di file lain
+    extern bool init_sdcard(); 
     if (init_sdcard()) {
         ESP_LOGI("RootX", "Mantap, SD Card Jalan!");
-    } else {
-        // Kalau gagal, minimal lu tau dari log serial
-        ESP_LOGE("RootX", "Yah, SD Card Gagal...");
     }
+
     init_ir_system(); 
     init_battery();
-    xTaskCreatePinnedToCore(
-        loopWiFi,     /* Fungsi task (ada di wifi_system.c) */
-        "TaskWiFi",   /* Nama task */
-        16384,         /* Stack size (di ESP-IDF dikecilin aja cukup) */
-        NULL,         /* Parameter */
-        1,            /* Prioritas */
-        &TaskWiFi,    /* Handle */
-        0             /* Core 0 */
-    );
-// Kasih RAM 8KB, jalanin di Core 0 biar gak ganggu UI dan mesin RootX lu di Core 1
-xTaskCreatePinnedToCore(ota_satpam_task, "ota_task", 8192, NULL, 5, NULL, 0);
+    
+    xTaskCreatePinnedToCore(loopWiFi, "TaskWiFi", 16384, NULL, 1, &TaskWiFi, 0);
 
+    // --- 3. HACK AUTO-CONNECT WIFI BUAT DEV (Suntik Variabel Global Lu) ---
+    // GANTI SAMA NAMA WIFI & PASSWORD RUMAH LU!
+    strcpy(connSSID, "NOT MASTAH"); 
+    strcpy(inputPassword, "yangbrorasakan");
+    triggerConnect = true; // Ini bakal mancing loopWiFi lu buat ngeksekusi koneksi
 
-    // 5. Pengganti loop()
-
+    // --- 4. JALANIN MESIN OTA ---
+    // (Tadi lu salah ketik ota_satpam_task, gw ganti jadi task_cek_ota)
+    xTaskCreatePinnedToCore(task_cek_ota, "task_ota", 8192, NULL, 5, NULL, 0);
 }
