@@ -74,6 +74,6 @@ jobs:
         with:
           name: RootX-v6-Firmware
           path: |
-            build/RootX.bin
-            build/bootloader/bootloader.bin
-            build/partition_table/partition-table.bin
+            build/*.bin
+            build/*/*.bin
+            

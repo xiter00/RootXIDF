@@ -12,8 +12,7 @@
 #include "globals.h"
 
 
-#define IR_RX_PIN GPIO_NUM_4  
-#define IR_TX_PIN GPIO_NUM_5
+
 
 ir_read_state_t currentIRState = IR_STATE_CONFIRM;
 ir_data_t last_ir_data = {0};

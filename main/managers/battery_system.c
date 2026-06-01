@@ -6,10 +6,7 @@
 #include "globals.h"
 
 // Konstanta Resistor Divider lu (440 Ohm dan 440 Ohm)
-#define R1 440.0
-#define R2 440.0
-#define VOLTAGE_DIVIDER_RATIO ((R1 + R2) / R2) // Harusnya pas 2.0
-#define CALIBRATION_FACTOR 1.00 // Ubah ini misal jadi 1.02 atau 0.98 kalau hasil bacaan beda sama Multimeter
+
 
 adc_oneshot_unit_handle_t adc1_handle;
 adc_cali_handle_t adc1_cali_handle = NULL;

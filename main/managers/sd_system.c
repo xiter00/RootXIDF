@@ -9,12 +9,7 @@
 #include "globals.h"
 
 // --- SETTING PIN SD CARD (SPI MODE) ---
-#define PIN_CS   10
-#define PIN_MOSI 11
-#define PIN_MISO 3
-#define PIN_CLK  12
 
-#define MOUNT_POINT "/sdcard"
 
 sdmmc_card_t *card;
 const char mount_point[] = MOUNT_POINT;

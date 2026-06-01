@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include "st7789.h"
 #include "esp_spiffs.h"
+#include "driver/gpio.h"
 
 TFT_t dev; // Biar layar bisa diakses dari file mana aja
 
@@ -15,7 +16,28 @@ TFT_t dev; // Biar layar bisa diakses dari file mana aja
 #define PIN_RIGHT 39
 #define PIN_OK    38
 
+// PIN SDCARD
+#define PIN_CS   10
+#define PIN_MOSI 11
+#define PIN_MISO 3
+#define PIN_CLK  12
 
+#define MOUNT_POINT "/sdcard"
+
+
+// IR
+#define IR_RX_PIN GPIO_NUM_4  
+#define IR_TX_PIN GPIO_NUM_5
+
+
+//BATTERY 
+#define R1 440.0
+#define R2 440.0
+#define VOLTAGE_DIVIDER_RATIO ((R1 + R2) / R2) 
+#define CALIBRATION_FACTOR 1.00 
+
+
+//BTN
 #define BTN_NONE  0
 #define BTN_UP    1
 #define BTN_DOWN  2
