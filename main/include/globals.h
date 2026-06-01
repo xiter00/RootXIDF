@@ -6,7 +6,7 @@
 #include "st7789.h"
 #include "esp_spiffs.h"
 
-extern TFT_t dev; // Biar layar bisa diakses dari file mana aja
+TFT_t dev; // Biar layar bisa diakses dari file mana aja
 
 // --- SETTING PIN JOYSTICK ---
 #define PIN_UP    42
