@@ -10,7 +10,7 @@ idf_component_register(SRCS "RootX.c"
                             "managers/WORLDcodes.c"
                        INCLUDE_DIRS "include" "."
                        # VVV --- MBEDTLS UDAH MASUK DI UJUNG KANAN --- VVV
-                       REQUIRES esp_wifi nvs_flash esp_netif esp_event esp_timer driver esp_driver_gpio fatfs sdmmc vfs esp_http_server esp_driver_rmt esp_adc st7789 spiffs esp_http_client esp_https_ota app_update mbedtls )
+                       REQUIRES esp_wifi nvs_flash esp_netif esp_event esp_timer driver esp_driver_gpio fatfs sdmmc vfs esp_http_server esp_driver_rmt esp_adc st7789 spiffs esp_http_client esp_https_ota app_update mbedtls esp_driver_ledc )
 
 # JIMAT SAKTI BYPASS DEAUTH TETEP AMAN DI SINI
 target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,-zmuldefs")
