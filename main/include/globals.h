@@ -17,10 +17,12 @@ TFT_t dev; // Biar layar bisa diakses dari file mana aja
 #define PIN_OK    38
 
 // PIN SDCARD
-#define PIN_CS   10
-#define PIN_MOSI 11
-#define PIN_MISO 3
-#define PIN_CLK  12
+// PIN SDCARD (Dipindah biar gak tabrakan sama Layar)
+#define PIN_CS   15 
+#define PIN_MOSI 16  
+#define PIN_MISO 17 
+#define PIN_CLK  18
+
 
 #define MOUNT_POINT "/sdcard"
 

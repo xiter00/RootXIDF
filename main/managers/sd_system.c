@@ -29,7 +29,9 @@ bool init_sdcard() {
     ESP_LOGI("SD_CARD", "Inisialisasi SD Card...");
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-    
+    // VVV --- KUNCI 1: PAKSA SD CARD PAKE JALUR TOL 3 --- VVV
+    host.slot = SPI3_HOST; 
+
     // Config jalur kabel SPI
     spi_bus_config_t bus_cfg = {
         .mosi_io_num = PIN_MOSI,
@@ -40,30 +42,28 @@ bool init_sdcard() {
         .max_transfer_sz = 4000,
     };
 
-    ret = spi_bus_initialize(host.slot, &bus_cfg, SDSPI_DEFAULT_DMA);
+    // VVV --- KUNCI 2: NYALAIN MESIN SPI3 --- VVV
+    ret = spi_bus_initialize(SPI3_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
     if (ret != ESP_OK) {
-        ESP_LOGE("SD_CARD", "Gagal inisialisasi bus SPI.");
+        ESP_LOGE("SD_CARD", "Gagal nyalain jalur SPI3 buat SD Card!");
         return false;
     }
 
-    // Config Pin CS (Chip Select)
+    // Config alat SPI-nya
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
     slot_config.gpio_cs = PIN_CS;
-    slot_config.host_id = host.slot;
+    slot_config.host_id = SPI3_HOST; // <--- KUNCI 3: Kasih tau alatnya kalau dia numpang di Host 3
 
-    ESP_LOGI("SD_CARD", "Mounting filesystem...");
+    // VFS mount...
     ret = esp_vfs_fat_sdspi_mount(mount_point, &host, &slot_config, &mount_config, &card);
 
     if (ret != ESP_OK) {
-        if (ret == ESP_FAIL) {
-            ESP_LOGE("SD_CARD", "Gagal mount filesystem. Coba cek format SD Card lu.");
-        } else {
-            ESP_LOGE("SD_CARD", "Gagal inisialisasi SD Card (%s). Cek kabel!", esp_err_to_name(ret));
-        }
+        ESP_LOGE("SD_CARD", "Gagal inisialisasi SD Card (ESP_ERR_TIMEOUT). Cek kabel!");
         return false;
     }
 
-    ESP_LOGI("SD_CARD", "SD Card OK! Kapasitas: %llu MB", ((uint64_t)card->csd.capacity) * card->csd.sector_size / (1024 * 1024));
+    // Kalo sukses
+    sdmmc_card_print_info(stdout, card);
     return true;
 }
 
