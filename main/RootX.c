@@ -143,11 +143,18 @@ TaskHandle_t TaskWiFi;
 // TASK OTA OTOMATIS (Loop tiap 1 menit)
 // ==========================================
 void task_cek_ota(void *pvParameter) {
-    while (1) {
-        // Cek cuma kalau WiFi udah beneran konek
-        if (isWiFiConnected) {
-            ESP_LOGI("OTA", "Mengecek update di server GitHub...");
+    ESP_LOGI("OTA", "Mesin OTA nyala! Menunggu WiFi terkoneksi...");
 
+    // 1. TUNGGU SAMPAI WIFI KONEK (Ngecek tiap 2 detik)
+    while (!isWiFiConnected) {
+        vTaskDelay(pdMS_TO_TICKS(2000)); 
+    }
+
+    // 2. KALO UDAH LOLOS DARI WHILE DI ATAS, BERARTI WIFI UDAH NYAMBUNG!
+    ESP_LOGI("OTA", "WiFi Konek! Gas ngecek GitHub...");
+    
+    while (1) {
+        if (isWiFiConnected) {
             esp_http_client_config_t config = {
                 .url = URL_VERSION,
                 .crt_bundle_attach = esp_crt_bundle_attach, 
@@ -192,7 +199,7 @@ void task_cek_ota(void *pvParameter) {
             esp_http_client_cleanup(client);
         }
         
-        // Jeda 1 menit (60000 milidetik) sebelum ngecek lagi
+        // Tidur 1 menit sebelum ngecek versi lagi
         vTaskDelay(pdMS_TO_TICKS(60000)); 
     }
 }
@@ -234,6 +241,18 @@ void app_main(void) {
 
     // --- 3. HACK AUTO-CONNECT WIFI BUAT DEV (Suntik Variabel Global Lu) ---
     // GANTI SAMA NAMA WIFI & PASSWORD RUMAH LU!
+
+
+    // KASIH NAFAS 2 DETIK BIAR MESIN WIFI SIAP DULU!
+    vTaskDelay(pdMS_TO_TICKS(2000));
+
+    // --- 3. HACK AUTO-CONNECT WIFI BUAT DEV ---
+    strcpy(connSSID, "NOT MASTAH"); 
+    strcpy(inputPassword, "yangbrorasakan");
+    vTaskDelay(pdMS_TO_TICKS(100));
+    triggerConnect = true; 
+
+
     strcpy(connSSID, "NOT MASTAH"); 
     strcpy(inputPassword, "yangbrorasakan");
     triggerConnect = true; // Ini bakal mancing loopWiFi lu buat ngeksekusi koneksi
