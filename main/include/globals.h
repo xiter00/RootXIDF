@@ -27,6 +27,14 @@ TFT_t dev; // Biar layar bisa diakses dari file mana aja
 #define MOUNT_POINT "/sdcard"
 
 
+// PIN LAYAR
+#define LCD_SDA 12
+#define LCD_SCL 11
+#define LCD_RES 8
+#define LCD_DC 9
+#define LCD_CS 10
+#define LCD_BLK -1
+
 // IR
 #define IR_RX_PIN GPIO_NUM_4  
 #define IR_TX_PIN GPIO_NUM_5

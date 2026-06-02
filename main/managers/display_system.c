@@ -99,7 +99,7 @@ void init_joystick() {
 void task_display(void *pvParameters) {
 init_joystick();
 // Ganti angka pin ini sesuai wiring SPI ST7789 lu (MOSI, SCLK, CS, D
-    spi_master_init(&dev, 11, 12, 10, 9, 14, -1);
+    spi_master_init(&dev, LCD_SDA, LCD_SCL, LCD_CS, LCD_DC, LCD_RES, LCD_BLK);
     lcdInit(&dev, 135, 240, 52, 40);           
     lcdEnableFrameBuffer(&dev);                
     
@@ -127,9 +127,9 @@ ledc_channel_config(&ledc_channel);
 
 
     // Load ke-3 ukuran font bawaan library dari folder font di memori internal
-    InitFontx(fx16G, "/spiffs/fonts/ILGH16XB.FNT", ""); // 8x16
-    InitFontx(fx24G, "/spiffs/fonts/ILGH24XB.FNT", ""); // 12x24
-    InitFontx(fx32G, "/spiffs/fonts/ILGH32XB.FNT", ""); // 16x32
+    InitFontx(fx16G, "/spiffs/ILGH16XB.FNT", ""); // 8x16
+    InitFontx(fx24G, "/spiffs/ILGH24XB.FNT", ""); // 12x24
+    InitFontx(fx32G, "/spiffs/ILGH32XB.FNT", ""); // 16x32
 
     lcdFillScreen(&dev, BLACK);
     lcdDrawFinish(&dev);
