@@ -159,7 +159,7 @@ ledc_channel_config(&ledc_channel);
     InitFontx(fx24G, "/spiffs/ILGH24XB.FNT", ""); // 12x24
     InitFontx(fx32G, "/spiffs/ILGH32XB.FNT", ""); // 16x32
 
-    lcdFillScreen(&Dev, BLACK);
+    lcdFillScreen(&dev, BLACK);
 draw_bruce_ui(" ROOTX - MAIN MENU ");
     lcdDrawFinish(&dev);
     ESP_LOGI("RootX", "ST7789 Frame Buffer & FontX Ready!");
@@ -404,7 +404,7 @@ const char* subMenuGame[] = {
 
 
 void tampilkanMenuLogo() {
-    lcdFillScreen(&Dev, BLACK);
+    lcdFillScreen(&dev, BLACK);
 draw_bruce_ui(" ROOTX - MAIN MENU ");
     drawStarfield();
     drawWave();
@@ -1159,7 +1159,7 @@ void renderDinoGame() {
 
 
 void tampilkanEvilTwinScreen() {
-    lcdFillScreen(&Dev, BLACK);
+    lcdFillScreen(&dev, BLACK);
 draw_bruce_ui(" ROOTX - MAIN MENU ");
     drawStarfield();
     
@@ -1234,7 +1234,7 @@ void loadSavedRemotes() {
 
 
 void tampilkanMenuSavedIR() {
-    lcdFillScreen(&Dev, BLACK);
+    lcdFillScreen(&dev, BLACK);
 draw_bruce_ui(" ROOTX - MAIN MENU "); // Bersihin layar (ID 0)
 
     if (currentIRSavedState == IR_SAVED_STATE_LIST) {
@@ -1297,7 +1297,7 @@ draw_bruce_ui(" ROOTX - MAIN MENU "); // Bersihin layar (ID 0)
 }
 
 void tampilkanMenuIR() {
-    lcdFillScreen(&Dev, BLACK);
+    lcdFillScreen(&dev, BLACK);
 draw_bruce_ui(" ROOTX - MAIN MENU ");
     char buf[32];
 
@@ -1622,7 +1622,7 @@ void renderTetrisGame() {
 }
 
 void renderAboutScreen() {
-    lcdFillScreen(&Dev, BLACK);
+    lcdFillScreen(&dev, BLACK);
 draw_bruce_ui(" ROOTX - MAIN MENU ");
 
     // Bikin border kotak di pinggir layar biar UI-nya rapi
@@ -1645,7 +1645,7 @@ draw_bruce_ui(" ROOTX - MAIN MENU ");
 }
 
 void renderRebootScreen() {
-    lcdFillScreen(&Dev, BLACK);
+    lcdFillScreen(&dev, BLACK);
 draw_bruce_ui(" ROOTX - MAIN MENU ");
 
     // Border Frame biar keren
@@ -1668,7 +1668,7 @@ int sdActionIdx = 0; // 0: EXIT, 1: FILES, 2: FORMAT
 int sdState = 0;     // 0: Main Dashboard, 1: Confirm Format, 2: Formatting
 
 void renderSdManager() {
-    lcdFillScreen(&Dev, BLACK);
+    lcdFillScreen(&dev, BLACK);
 draw_bruce_ui(" ROOTX - MAIN MENU ");
     
     // --- 1. HEADER ---
@@ -1849,7 +1849,7 @@ int tvbgoneProgress = 0;
 int tvbgoneTotal = 0;
 
 void renderTvBGone() {
-    lcdFillScreen(&Dev, BLACK);
+    lcdFillScreen(&dev, BLACK);
 draw_bruce_ui(" ROOTX - MAIN MENU ");
     
     // --- 1. HEADER PRESISI ---
