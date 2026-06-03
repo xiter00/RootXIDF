@@ -12,7 +12,7 @@
 #include <sys/unistd.h>
 #include <sys/stat.h>
 #include "driver/ledc.h"
-
+#include <math.h>
 #include <sys/statvfs.h> // Wajib buat baca kapasitas memori
 
 
@@ -99,83 +99,216 @@ void init_joystick() {
 
 // Asumsikan dev dan batteryPercent sudah global (dari globals.h)
 
-void draw_smartwatch_ui(void) {
-    // 1. Bersihkan layar
-    lcdFillScreen(&dev, BLACK);
 
-    // 2. Grid persis seperti HTML (garis tiap 15px, warna sangat redup)
-    for (int x = 0; x < 240; x += 15)
-        lcdDrawLine(&dev, x, 0, x, 134, LGRID_COLOR);
-    for (int y = 0; y < 135; y += 15)
-        lcdDrawLine(&dev, 0, y, 239, y, LGRID_COLOR);
 
-    // 3. Header top-bar
-    rootx_print_text(5, 1, "ROOTX // OS", LCYAN, BLACK);
-    // Badge baterai (pill pink)
-    lcdDrawFillRect(&dev, 185, 1, 235, 17, LPINK);
-    char bat[16];
-    sprintf(bat, "BAT %d%%", batteryPercent);
-    rootx_print_text(188, 2, bat, WHITE, LPINK);
+// Definisikan font yang digunakan (contoh, sesuaikan dengan file font yang tersedia)
+// #include "font8x16.h"
+// #include "font5x7.h"
 
-    // 4. Menu kiri (4 item)
-    int menu_y = 22;
-    const int item_h = 18;
-    const int gap = 3;
+// Warna khusus
+#define BG_COLOR      rgb565(5, 5, 5)       // #050505
+#define GRID_COLOR    rgb565(13, 2, 5)       // grid sangat redup
+#define PINK_COLOR    rgb565(255, 30, 90)    // #ff1e5a
+#define CYAN_COLOR    rgb565(0, 255, 255)    // #00ffff
+#define WHITE_COLOR   rgb565(255, 255, 255)
+#define GRAY_COLOR    rgb565(128, 128, 128)
+#define BLACK_COLOR   rgb565(0, 0, 0)
 
-    // Item 1 - aktif (WIFI SCANNER)
-    lcdDrawFillRect(&dev, 5, menu_y, 135, menu_y + item_h - 1, LPINK);
-    lcdDrawFillRect(&dev, 5, menu_y, 7, menu_y + item_h - 1, LCYAN); // garis kiri LCYAN 2px
-    rootx_print_text(12, menu_y + 1, "> WIFI SCANNER", WHITE, LPINK);
+#define MENU_ACTIVE_BG_START  rgb565(205, 25, 73)   // hasil blending pink 80% + bg
+#define MENU_ACTIVE_BG_END    rgb565(30, 8, 14)     // hasil blending pink 10% + bg
+#define OUTER_RING_COLOR      rgb565(77, 9, 27)     // pink 30%
 
-    // Item 2 - tidak aktif
-    menu_y += item_h + gap;
-    lcdDrawRect(&dev, 5, menu_y, 135, menu_y + item_h - 1, GRAY); // border saja (transparan)
-    rootx_print_text(12, menu_y + 1, "  DEAUTH ATTACK", GRAY, BLACK);
+// Fungsi bantu: menggambar dashed circle langsung ke buffer (jika frame buffer aktif)
+static void draw_dashed_circle_to_buffer(TFT_t *dev, int xc, int yc, int r, uint16_t color, int dash_deg, int gap_deg) {
+    if (!dev->_use_frame_buffer || dev->_frame_buffer == NULL) return;
+    uint16_t *buf = dev->_frame_buffer;
+    int w = dev->_width;
+    int h = dev->_height;
 
-    // Item 3
-    menu_y += item_h + gap;
-    lcdDrawRect(&dev, 5, menu_y, 135, menu_y + item_h - 1, GRAY);
-    rootx_print_text(12, menu_y + 1, "  BEACON SPAM", GRAY, BLACK);
+    for (int angle = 0; angle < 360; angle++) {
+        int cycle = angle % (dash_deg + gap_deg);
+        if (cycle >= dash_deg) continue;
 
-    // Item 4
-    menu_y += item_h + gap;
-    lcdDrawRect(&dev, 5, menu_y, 135, menu_y + item_h - 1, GRAY);
-    rootx_print_text(12, menu_y + 1, "  EVIL TWIN", GRAY, BLACK);
+        float rad = angle * M_PI / 180.0f;
+        int x = xc + (int)(r * cosf(rad));
+        int y = yc + (int)(r * sinf(rad));
+        if (x >= 0 && x < w && y >= 0 && y < h) {
+            buf[y * w + x] = color;
+        }
+    }
+}
 
-    // 5. Panel kanan (widget)
-    const int panel_x = 140;
-    const int panel_w = 95;
+// Fungsi utama: menggambar UI hacker seperti pada desain HTML
+void draw_hacker_ui(TFT_t *dev) {
+    // Pastikan frame buffer aktif
+    lcdEnableFrameBuffer(dev);
+    uint16_t *buf = dev->_frame_buffer;
+    int w = dev->_width;
+    int h = dev->_height;
 
-    // Image ring (lingkaran ganda)
-    int ring_cx = panel_x + panel_w / 2; // 187
-    int ring_cy = 22 + 22;               // 44
-    lcdDrawCircle(&dev, ring_cx, ring_cy, 20, LCYAN);
-    lcdDrawCircle(&dev, ring_cx, ring_cy, 23, LPINK);
-    rootx_print_text(ring_cx - 8, ring_cy - 4, "IMG", LCYAN, BLACK);
+    // 1. Background dasar
+    lcdFillScreen(dev, BG_COLOR);
 
-    // Stat boxes
-    int stat_y = 71;
-    const int stat_h = 18;
-    const int stat_gap = 3;
+    // 2. Grid 15px (horizontal & vertical)
+    for (int y = 0; y < h; y += 15) {
+        for (int x = 0; x < w; x++) {
+            buf[y * w + x] = GRID_COLOR;
+        }
+    }
+    for (int x = 0; x < w; x += 15) {
+        for (int y = 0; y < h; y++) {
+            buf[y * w + x] = GRID_COLOR;
+        }
+    }
 
-    // Box CPU
-    lcdDrawFillRect(&dev, panel_x, stat_y, panel_x + panel_w - 1, stat_y + stat_h - 1, LDARK_BG);
-    lcdDrawFillRect(&dev, panel_x, stat_y, panel_x + 2, stat_y + stat_h - 1, LPINK); // border kiri pink
-    rootx_print_text(panel_x + 5, stat_y + 1, "CPU", LPINK, LDARK_BG);
-    rootx_print_text(panel_x + 50, stat_y + 1, "240M", WHITE, LDARK_BG);
+    // 3. Efek radial pink di pojok kanan atas (240,0)
+    float radius1 = 100.0f;
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            float dx = (float)(x - 240);
+            float dy = (float)(y - 0);
+            float dist = sqrtf(dx*dx + dy*dy);
+            if (dist < radius1) {
+                float factor = 1.0f - dist / radius1;
+                float alpha = 0.15f * factor;
+                // Ambil warna latar saat ini
+                uint16_t bg = buf[y * w + x];
+                uint8_t r_bg = ((bg >> 11) & 0x1F) << 3;
+                uint8_t g_bg = ((bg >> 5) & 0x3F) << 2;
+                uint8_t b_bg = (bg & 0x1F) << 3;
+                // Pink (255,30,90)
+                uint8_t r_pk = 255, g_pk = 30, b_pk = 90;
+                uint8_t r_new = (uint8_t)(r_bg * (1.0f - alpha) + r_pk * alpha);
+                uint8_t g_new = (uint8_t)(g_bg * (1.0f - alpha) + g_pk * alpha);
+                uint8_t b_new = (uint8_t)(b_bg * (1.0f - alpha) + b_pk * alpha);
+                buf[y * w + x] = rgb565(r_new, g_new, b_new);
+            }
+        }
+    }
 
-    stat_y += stat_h + stat_gap;
-    // Box NET
-    lcdDrawFillRect(&dev, panel_x, stat_y, panel_x + panel_w - 1, stat_y + stat_h - 1, LDARK_BG);
-    lcdDrawFillRect(&dev, panel_x, stat_y, panel_x + 2, stat_y + stat_h - 1, LCYAN); // border kiri LCYAN
-    rootx_print_text(panel_x + 5, stat_y + 1, "NET", LCYAN, LDARK_BG);
-    rootx_print_text(panel_x + 50, stat_y + 1, "MON", WHITE, LDARK_BG);  // "MONITOR" disingkat agar muat
+    // 4. Efek radial cyan di pojok kiri bawah (0,135)
+    float radius2 = 100.0f;
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            float dx = (float)(x - 0);
+            float dy = (float)(y - 135);
+            float dist = sqrtf(dx*dx + dy*dy);
+            if (dist < radius2) {
+                float factor = 1.0f - dist / radius2;
+                float alpha = 0.1f * factor;
+                uint16_t bg = buf[y * w + x];
+                uint8_t r_bg = ((bg >> 11) & 0x1F) << 3;
+                uint8_t g_bg = ((bg >> 5) & 0x3F) << 2;
+                uint8_t b_bg = (bg & 0x1F) << 3;
+                // Cyan (0,255,255)
+                uint8_t r_cy = 0, g_cy = 255, b_cy = 255;
+                uint8_t r_new = (uint8_t)(r_bg * (1.0f - alpha) + r_cy * alpha);
+                uint8_t g_new = (uint8_t)(g_bg * (1.0f - alpha) + g_cy * alpha);
+                uint8_t b_new = (uint8_t)(b_bg * (1.0f - alpha) + b_cy * alpha);
+                buf[y * w + x] = rgb565(r_new, g_new, b_new);
+            }
+        }
+    }
 
-    stat_y += stat_h + stat_gap;
-    // Box TGT (garis bawah pink, tanpa border kiri)
-    lcdDrawFillRect(&dev, panel_x, stat_y, panel_x + panel_w - 1, stat_y + stat_h - 1, LDARK_BG);
-    lcdDrawLine(&dev, panel_x, stat_y + stat_h - 1, panel_x + panel_w - 1, stat_y + stat_h - 1, LPINK);
-    rootx_print_text(panel_x + 15, stat_y + 1, "TGT: NONE", GRAY, LDARK_BG);
+    // 5. Top bar: teks kiri
+    rootx_print_text(dev, fx16, 5, 4, "ROOTX // OS", CYAN_COLOR);
+
+    // Badge baterai (kanan atas)
+    int badge_x1 = 195, badge_x2 = 235, badge_y1 = 2, badge_y2 = 13;
+    lcdDrawFillRect(dev, badge_x1, badge_y1, badge_x2, badge_y2, PINK_COLOR);
+    rootx_print_text(dev, fx7, 199, 4, "BAT 98%", WHITE_COLOR);
+
+    // 6. Menu kiri
+    int menu_x = 5, menu_w = 130;
+    int item_y = 22, item_h = 22, gap = 3;
+
+    // Item 1 aktif: gradasi horizontal
+    for (int x = menu_x; x < menu_x + menu_w; x++) {
+        float ratio = (float)(x - menu_x) / (float)(menu_w - 1);
+        // Interpolasi warna dari MENU_ACTIVE_BG_START ke MENU_ACTIVE_BG_END
+        uint16_t start = MENU_ACTIVE_BG_START;
+        uint16_t end = MENU_ACTIVE_BG_END;
+        uint8_t r_st = ((start >> 11) & 0x1F) << 3;
+        uint8_t g_st = ((start >> 5) & 0x3F) << 2;
+        uint8_t b_st = (start & 0x1F) << 3;
+        uint8_t r_ed = ((end >> 11) & 0x1F) << 3;
+        uint8_t g_ed = ((end >> 5) & 0x3F) << 2;
+        uint8_t b_ed = (end & 0x1F) << 3;
+
+        uint8_t r = (uint8_t)(r_st * (1.0f - ratio) + r_ed * ratio);
+        uint8_t g = (uint8_t)(g_st * (1.0f - ratio) + g_ed * ratio);
+        uint8_t b = (uint8_t)(b_st * (1.0f - ratio) + b_ed * ratio);
+        uint16_t color = rgb565(r, g, b);
+
+        for (int y = item_y; y < item_y + item_h; y++) {
+            if (x >= 0 && x < w && y >= 0 && y < h) {
+                buf[y * w + x] = color;
+            }
+        }
+    }
+    // Border kiri cyan 2px
+    lcdDrawFillRect(dev, menu_x, item_y, menu_x + 1, item_y + item_h - 1, CYAN_COLOR);
+    lcdDrawFillRect(dev, menu_x + 1, item_y, menu_x + 2, item_y + item_h - 1, CYAN_COLOR);
+    // Teks item 1
+    int text_x = menu_x + 5 + 2; // padding + border
+    int text_y = item_y + 3;
+    rootx_print_text(dev, fx16, text_x, text_y, " >", CYAN_COLOR); // icon
+    rootx_print_text(dev, fx16, text_x + 16, text_y, "WIFI SCANNER", WHITE_COLOR);
+
+    // Item 2 non-aktif
+    item_y += item_h + gap; // 22+3=25 -> 47
+    rootx_print_text(dev, fx16, text_x, item_y + 3, " o DEAUTH ATTACK", GRAY_COLOR);
+
+    // Item 3 non-aktif
+    item_y += item_h + gap; // 72
+    rootx_print_text(dev, fx16, text_x, item_y + 3, " o BEACON SPAM", GRAY_COLOR);
+
+    // Item 4 non-aktif
+    item_y += item_h + gap; // 97
+    rootx_print_text(dev, fx16, text_x, item_y + 3, " o EVIL TWIN", GRAY_COLOR);
+
+    // 7. Widget kanan
+    int widget_x = 140, widget_w = 95;
+    int center_x = widget_x + widget_w / 2; // 187
+    int center_y = 44;
+    int r_outer = 25;
+    int r_inner = 22;
+
+    // Lingkaran luar pink tipis
+    lcdDrawCircle(dev, center_x, center_y, r_outer, OUTER_RING_COLOR);
+
+    // Lingkaran dalam dashed cyan
+    draw_dashed_circle_to_buffer(dev, center_x, center_y, r_inner, CYAN_COLOR, 10, 10);
+
+    // Teks "IMG" di tengah
+    int img_w = 15; // 3 karakter * 5 pixel (font 5x7)
+    int img_h = 7;
+    rootx_print_text(dev, fx7, center_x - img_w/2, center_y - img_h/2, "IMG", CYAN_COLOR);
+
+    // 8. Stat boxes
+    // Box 1
+    int box1_y = 74;
+    lcdDrawFillRect(dev, 140, box1_y, 235, box1_y + 10, BLACK_COLOR);
+    lcdDrawFillRect(dev, 140, box1_y, 141, box1_y + 10, PINK_COLOR); // border kiri
+    rootx_print_text(dev, fx7, 144, box1_y + 2, "CPU", PINK_COLOR);
+    rootx_print_text(dev, fx7, 144 + 15 + 2, box1_y + 2, "240MHz", WHITE_COLOR);
+
+    // Box 2
+    int box2_y = 88;
+    lcdDrawFillRect(dev, 140, box2_y, 235, box2_y + 10, BLACK_COLOR);
+    lcdDrawFillRect(dev, 140, box2_y, 141, box2_y + 10, CYAN_COLOR);
+    rootx_print_text(dev, fx7, 144, box2_y + 2, "NET", CYAN_COLOR);
+    rootx_print_text(dev, fx7, 144 + 15 + 2, box2_y + 2, "MONITOR", WHITE_COLOR);
+
+    // Box 3
+    int box3_y = 102;
+    lcdDrawFillRect(dev, 140, box3_y, 235, box3_y + 10, BLACK_COLOR);
+    lcdDrawLine(dev, 140, box3_y + 10, 235, box3_y + 10, PINK_COLOR); // border bawah
+    rootx_print_text(dev, fx7, 144, box3_y + 2, "TGT:", GRAY_COLOR);
+    rootx_print_text(dev, fx7, 144 + 20 + 2, box3_y + 2, "NONE", WHITE_COLOR);
+
+    // Kirim frame buffer ke layar
+    lcdDrawFinish(dev);
 }
 
 
@@ -246,7 +379,7 @@ ledc_channel_config(&ledc_channel);
 handleJoystick(); 
 
         if (appMode == 0) {
-            if (inSubMenu == false) draw_smartwatch_ui();
+            if (inSubMenu == false) draw_hacker_ui(&dev);
             else tampilkanMenuUtama();
         } 
         else if (appMode == 1) {
