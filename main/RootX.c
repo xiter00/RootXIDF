@@ -263,7 +263,13 @@ void perform_ota_manual(void) {
     }
 
     // Buffer untuk download chunk
-    char buffer[4096];
+    char *buffer = (char *)malloc(4096);
+    if (buffer == NULL) {
+        ESP_LOGE("OTA", "RAM Habis! Gagal alokasi buffer.");
+        esp_ota_abort(ota_handle);
+        esp_http_client_cleanup(client);
+        return;
+    }
     int total_read = 0;
 
     while (total_read < content_length) {
@@ -358,5 +364,5 @@ void app_main(void) {
 
     // --- 4. JALANIN MESIN OTA ---
     // (Tadi lu salah ketik ota_satpam_task, gw ganti jadi task_cek_ota)
-    xTaskCreatePinnedToCore(task_cek_ota, "task_ota", 8192, NULL, 5, NULL, 0);
+    xTaskCreatePinnedToCore(task_cek_ota, "task_ota", 16384, NULL, 5, NULL, 0);
 }

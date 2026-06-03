@@ -65,6 +65,7 @@ jobs:
             cp sdkconfig.defaults sdkconfig
           fi
           
+          idf.py fullclean
           idf.py set-target esp32s3
           idf.py build
 
