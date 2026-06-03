@@ -211,12 +211,13 @@ void draw_hacker_ui(TFT_t *dev) {
     }
 
     // 5. Top bar: teks kiri
-    rootx_print_text(dev, fx16, 5, 4, "ROOTX // OS", CYAN_COLOR);
+    
+rootx_print_text(5, 4, "ROOTX // OS", CYAN_COLOR, BLACK_COLOR);
 
     // Badge baterai (kanan atas)
     int badge_x1 = 195, badge_x2 = 235, badge_y1 = 2, badge_y2 = 13;
     lcdDrawFillRect(dev, badge_x1, badge_y1, badge_x2, badge_y2, PINK_COLOR);
-    rootx_print_text(dev, fx7, 199, 4, "BAT 98%", WHITE_COLOR);
+    rootx_print_text(199, 4, "BAT 98%", WHITE_COLOR, BLACK_COLOR);
 
     // 6. Menu kiri
     int menu_x = 5, menu_w = 130;
@@ -252,20 +253,25 @@ void draw_hacker_ui(TFT_t *dev) {
     // Teks item 1
     int text_x = menu_x + 5 + 2; // padding + border
     int text_y = item_y + 3;
-    rootx_print_text(dev, fx16, text_x, text_y, " >", CYAN_COLOR); // icon
-    rootx_print_text(dev, fx16, text_x + 16, text_y, "WIFI SCANNER", WHITE_COLOR);
+    
+rootx_print_text(text_x, text_y, " >", CYAN_COLOR, BLACK_COLOR); // icon
+    
+rootx_print_text(text_x + 16, text_y, "WIFI SCANNER", WHITE_COLOR, BLACK_COLOR);
 
     // Item 2 non-aktif
     item_y += item_h + gap; // 22+3=25 -> 47
-    rootx_print_text(dev, fx16, text_x, item_y + 3, " o DEAUTH ATTACK", GRAY_COLOR);
+    
+rootx_print_text(text_x, item_y + 3, " o DEAUTH ATTACK", GRAY_COLOR, BLACK_COLOR);
 
     // Item 3 non-aktif
     item_y += item_h + gap; // 72
-    rootx_print_text(dev, fx16, text_x, item_y + 3, " o BEACON SPAM", GRAY_COLOR);
+    
+rootx_print_text(text_x, item_y + 3, " o BEACON SPAM", GRAY_COLOR, BLACK_COLOR);
 
     // Item 4 non-aktif
     item_y += item_h + gap; // 97
-    rootx_print_text(dev, fx16, text_x, item_y + 3, " o EVIL TWIN", GRAY_COLOR);
+    
+rootx_print_text(text_x, item_y + 3, " o EVIL TWIN", GRAY_COLOR, BLACK_COLOR);
 
     // 7. Widget kanan
     int widget_x = 140, widget_w = 95;
@@ -283,29 +289,29 @@ void draw_hacker_ui(TFT_t *dev) {
     // Teks "IMG" di tengah
     int img_w = 15; // 3 karakter * 5 pixel (font 5x7)
     int img_h = 7;
-    rootx_print_text(dev, fx7, center_x - img_w/2, center_y - img_h/2, "IMG", CYAN_COLOR);
+    rootx_print_text(center_x - img_w/2, center_y - img_h/2, "IMG", CYAN_COLOR, BLACK_COLOR);
 
     // 8. Stat boxes
     // Box 1
     int box1_y = 74;
     lcdDrawFillRect(dev, 140, box1_y, 235, box1_y + 10, BLACK_COLOR);
     lcdDrawFillRect(dev, 140, box1_y, 141, box1_y + 10, PINK_COLOR); // border kiri
-    rootx_print_text(dev, fx7, 144, box1_y + 2, "CPU", PINK_COLOR);
-    rootx_print_text(dev, fx7, 144 + 15 + 2, box1_y + 2, "240MHz", WHITE_COLOR);
+    rootx_print_text(144, box1_y + 2, "CPU", CYAN_COLOR, BLACK_COLOR);
+    rootx_print_text(144 + 15 + 2, box1_y + 2, "240MHz", WHITE_COLOR, BLACK_COLOR);
 
     // Box 2
     int box2_y = 88;
     lcdDrawFillRect(dev, 140, box2_y, 235, box2_y + 10, BLACK_COLOR);
     lcdDrawFillRect(dev, 140, box2_y, 141, box2_y + 10, CYAN_COLOR);
-    rootx_print_text(dev, fx7, 144, box2_y + 2, "NET", CYAN_COLOR);
-    rootx_print_text(dev, fx7, 144 + 15 + 2, box2_y + 2, "MONITOR", WHITE_COLOR);
+    rootx_print_text(144, box2_y + 2, "NET", CYAN_COLOR, BLACK_COLOR);
+    rootx_print_text(144 + 15 + 2, box2_y + 2, "MONITOR", WHITE_COLOR, BLACK_COLOR);
 
     // Box 3
     int box3_y = 102;
     lcdDrawFillRect(dev, 140, box3_y, 235, box3_y + 10, BLACK_COLOR);
     lcdDrawLine(dev, 140, box3_y + 10, 235, box3_y + 10, PINK_COLOR); // border bawah
-    rootx_print_text(dev, fx7, 144, box3_y + 2, "TGT:", GRAY_COLOR);
-    rootx_print_text(dev, fx7, 144 + 20 + 2, box3_y + 2, "NONE", WHITE_COLOR);
+    rootx_print_text(144, box3_y + 2, "TGT:", GRAY_COLOR, BLACK_COLOR);
+    rootx_print_text(144 + 20 + 2, box3_y + 2, "NONE", WHITE_COLOR, BLACK_COLOR);
 
     // Kirim frame buffer ke layar
     lcdDrawFinish(dev);
