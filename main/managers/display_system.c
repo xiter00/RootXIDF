@@ -96,30 +96,30 @@ void init_joystick() {
     }
 }
 void draw_bruce_ui(const char* judul_header) {
-    // Sesuaikan sama resolusi layar lu (Landscape)
-    int w = 240; 
-    int h = 135; 
-
-    // 1. Bersihin layar
+    // 1. Bersihkan layar dulu
     lcdFillScreen(&dev, BLACK);
 
-    // 2. Bikin Border Utama Melengkung (Radius lengkungan = 5)
-    // Bikin 2 lapis biar garis bordernya agak tebal dan tegas
-    lcdDrawRoundRect(&dev, 0, 0, w-1, h-1, 5, WARNA_BRUCE);
-    lcdDrawRoundRect(&dev, 1, 1, w-2, h-2, 5, WARNA_BRUCE);
+    // 2. HEADER SOLID (Kotak Pink Nge-blok di Atas)
+    // Tinggi headernya 22 pixel. Digambar duluan biar ujung atasnya ketimpa bingkai melengkung
+    lcdDrawFillRect(&dev, 0, 0, 239, 22, WARNA_BRUCE);
 
-    // 3. Bikin Header Solid (Kotak nge-blok di bagian atas)
-    // Dari koordinat Y=2 sampai Y=22
-    lcdDrawFillRect(&dev, 2, 2, w-3, 22, WARNA_BRUCE);
+    // 3. BORDER LUAR MELENGKUNG (Radius lengkungan 6px)
+    // Digambar 2 lapis biar garis pink-nya kelihatan agak tebal
+    lcdDrawRoundRect(&dev, 0, 0, 239, 134, 6, WARNA_BRUCE);
+    lcdDrawRoundRect(&dev, 1, 1, 237, 132, 6, WARNA_BRUCE);
 
-    // 4. Tulis Judul Header di dalem kotak (Tengahin dikit)
-    // Format warna: Teks Hitam, Background Pink-Merah
-    rootx_print_text(10, 16, judul_header, BLACK, WARNA_BRUCE);
+    // 4. GARIS PEMISAH HEADER
+    lcdDrawLine(&dev, 0, 23, 239, 23, WARNA_BRUCE);
 
-    // 5. Indikator Baterai di Kanan Atas Header
+    // 5. TEKS JUDUL DI DALAM HEADER
+    // Format warna: Teks Hitam, Background Pink (WARNA_BRUCE)
+    // Y=18 biar teksnya pas di tengah-tengah kotak header
+    rootx_print_text(10, 18, judul_header, BLACK, WARNA_BRUCE);
+
+    // 6. INDIKATOR BATERAI DI POJOK KANAN HEADER
     char bat_teks[16];
-    sprintf(bat_teks, "BAT:%d%%", batteryPercent); // Pastiin batteryPercent lu jalan
-    rootx_print_text(w - 75, 16, bat_teks, BLACK, WARNA_BRUCE);
+    sprintf(bat_teks, "BAT:%d%%", batteryPercent); 
+    rootx_print_text(150, 18, bat_teks, BLACK, WARNA_BRUCE);
 }
 
 
@@ -128,7 +128,23 @@ void task_display(void *pvParameters) {
 init_joystick();
 // Ganti angka pin ini sesuai wiring SPI ST7789 lu (MOSI, SCLK, CS, D
     spi_master_init(&dev, LCD_SDA, LCD_SCL, LCD_CS, LCD_DC, LCD_RES, LCD_BLK);
-    lcdInit(&dev, 240, 135, 52, 40);           
+        // 1. INISIALISASI SESUAI UKURAN ASLI PABRIK (Biar gak semut!)
+    lcdInit(&dev, 135, 240, 52, 40); 
+    
+    // 2. HACK ROTASI HARDWARE (Nembak Register MADCTL)
+    spi_master_write_command(&dev, 0x36);    
+    spi_master_write_data_byte(&dev, 0x70); // 0x70 = Putar 90 Derajat (Landscape)
+
+    // 3. TUKER LOGIKA DIMENSI DI OTAK ESP32
+    // Biar fungsi nggambar kotak tahu kalau layarnya sekarang lagi tiduran
+    dev._width = 240;
+    dev._height = 135;
+    dev._offsetx = 40; 
+    dev._offsety = 52;
+
+    // Bersihin layar pakai warna hitam
+    lcdFillScreen(&dev, BLACK);
+
     lcdEnableFrameBuffer(&dev);                
     
     // Atur konfigurasi Timer PWM
