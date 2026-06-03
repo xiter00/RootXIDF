@@ -95,12 +95,40 @@ void init_joystick() {
         gpio_set_pull_mode(pins[i], GPIO_PULLUP_ONLY);
     }
 }
+void draw_bruce_ui(const char* judul_header) {
+    // Sesuaikan sama resolusi layar lu (Landscape)
+    int w = 240; 
+    int h = 135; 
+
+    // 1. Bersihin layar
+    lcdFillScreen(&dev, BLACK);
+
+    // 2. Bikin Border Utama Melengkung (Radius lengkungan = 5)
+    // Bikin 2 lapis biar garis bordernya agak tebal dan tegas
+    lcdDrawRoundRect(&dev, 0, 0, w-1, h-1, 5, WARNA_BRUCE);
+    lcdDrawRoundRect(&dev, 1, 1, w-2, h-2, 5, WARNA_BRUCE);
+
+    // 3. Bikin Header Solid (Kotak nge-blok di bagian atas)
+    // Dari koordinat Y=2 sampai Y=22
+    lcdDrawFillRect(&dev, 2, 2, w-3, 22, WARNA_BRUCE);
+
+    // 4. Tulis Judul Header di dalem kotak (Tengahin dikit)
+    // Format warna: Teks Hitam, Background Pink-Merah
+    rootx_print_text(10, 16, judul_header, BLACK, WARNA_BRUCE);
+
+    // 5. Indikator Baterai di Kanan Atas Header
+    char bat_teks[16];
+    sprintf(bat_teks, "BAT:%d%%", batteryPercent); // Pastiin batteryPercent lu jalan
+    rootx_print_text(w - 75, 16, bat_teks, BLACK, WARNA_BRUCE);
+}
+
+
 
 void task_display(void *pvParameters) {
 init_joystick();
 // Ganti angka pin ini sesuai wiring SPI ST7789 lu (MOSI, SCLK, CS, D
     spi_master_init(&dev, LCD_SDA, LCD_SCL, LCD_CS, LCD_DC, LCD_RES, LCD_BLK);
-    lcdInit(&dev, 135, 240, 52, 40);           
+    lcdInit(&dev, 240, 135, 52, 40);           
     lcdEnableFrameBuffer(&dev);                
     
     // Atur konfigurasi Timer PWM
@@ -131,7 +159,8 @@ ledc_channel_config(&ledc_channel);
     InitFontx(fx24G, "/spiffs/ILGH24XB.FNT", ""); // 12x24
     InitFontx(fx32G, "/spiffs/ILGH32XB.FNT", ""); // 16x32
 
-    lcdFillScreen(&dev, BLACK);
+    lcdFillScreen(&Dev, BLACK);
+draw_bruce_ui(" ROOTX - MAIN MENU ");
     lcdDrawFinish(&dev);
     ESP_LOGI("RootX", "ST7789 Frame Buffer & FontX Ready!");
 
@@ -375,7 +404,8 @@ const char* subMenuGame[] = {
 
 
 void tampilkanMenuLogo() {
-    lcdFillScreen(&dev, BLACK);
+    lcdFillScreen(&Dev, BLACK);
+draw_bruce_ui(" ROOTX - MAIN MENU ");
     drawStarfield();
     drawWave();
     
@@ -388,6 +418,7 @@ void tampilkanMenuLogo() {
 
     // --- DRAW ICON BATERAI (10x10) ---
     // Kotak luar baterai
+    draw_bruce_ui(" ROOTX - MAIN MENU ");
     lcdDrawRect(&dev, 116, 0, 126, 6, WHITE); 
     lcdDrawPixel(&dev, 126, 2, WHITE); // Kepala baterai
     
@@ -425,6 +456,7 @@ void tampilkanMenuLogo() {
 
 void tampilkanMenuUtama() { 
     lcdFillScreen(&dev, BLACK);
+    draw_bruce_ui(" ROOTX - MAIN MENU ");
     drawStarfield();
     drawWave();
     int totalSub = 0; 
@@ -501,7 +533,7 @@ void tampilkanMenuUtama() {
 
 void tampilkanTrackScreen() {
     lcdFillScreen(&dev, BLACK);
-    
+    draw_bruce_ui(" ROOTX - MAIN MENU ");
 
     char buf[32];
     
@@ -533,6 +565,7 @@ void tampilkanTrackScreen() {
 
 void tampilkanWifiScanner() {
     lcdFillScreen(&dev, BLACK);
+    draw_bruce_ui(" ROOTX - MAIN MENU ");
     char buf[64]; 
 
     if (scannerState == 0) {
@@ -703,6 +736,7 @@ void tampilkanWifiScanner() {
 
 void tampilkanStationScanner() {
     lcdFillScreen(&dev, BLACK);
+    draw_bruce_ui(" ROOTX - MAIN MENU ");
     char buf[64]; 
 
     if (scannerStateSta == 0) {
@@ -845,6 +879,7 @@ void tampilkanStationScanner() {
 
 void tampilkandeauthsta() {
     lcdFillScreen(&dev, BLACK);
+    draw_bruce_ui(" ROOTX - MAIN MENU ");
     char buf[64];
     
         lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
@@ -871,6 +906,7 @@ void tampilkandeauthsta() {
 
 void tampilkanDeauthScreen() {
     lcdFillScreen(&dev, BLACK);
+    draw_bruce_ui(" ROOTX - MAIN MENU ");
     char buf[64];
     
     if (deauthState == 0) {
@@ -910,6 +946,7 @@ void tampilkanDeauthScreen() {
 
 void tampilkanBrightness() {
     lcdFillScreen(&dev, BLACK);
+    draw_bruce_ui(" ROOTX - MAIN MENU ");
     char buf[16];
 
     lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
@@ -946,6 +983,7 @@ void setOledBrightness(uint8_t level) {
 
 void tampilkanSpamScreen(const char* judul, const char* subTeks) {
     lcdFillScreen(&dev, BLACK);
+    draw_bruce_ui(" ROOTX - MAIN MENU ");
     char buf[64];
     
     if (spamState == 0) {
@@ -982,6 +1020,7 @@ void tampilkanSpamScreen(const char* judul, const char* subTeks) {
 void renderDinoGame() {
     if (dinoHighScore == -1) dinoHighScore = baca_highscore_dino();
     lcdFillScreen(&dev, BLACK);
+    draw_bruce_ui(" ROOTX - MAIN MENU ");
 
     // --- LOGIC SIANG MALAM ---
     int cycle = dinoScore % 1000;
@@ -1120,7 +1159,8 @@ void renderDinoGame() {
 
 
 void tampilkanEvilTwinScreen() {
-    lcdFillScreen(&dev, BLACK);
+    lcdFillScreen(&Dev, BLACK);
+draw_bruce_ui(" ROOTX - MAIN MENU ");
     drawStarfield();
     
     if (evilTwinState == 0) {
@@ -1194,7 +1234,8 @@ void loadSavedRemotes() {
 
 
 void tampilkanMenuSavedIR() {
-    lcdFillScreen(&dev, BLACK); // Bersihin layar (ID 0)
+    lcdFillScreen(&Dev, BLACK);
+draw_bruce_ui(" ROOTX - MAIN MENU "); // Bersihin layar (ID 0)
 
     if (currentIRSavedState == IR_SAVED_STATE_LIST) {
         // --- HEADER (BLOK PUTIH) ---
@@ -1256,7 +1297,8 @@ void tampilkanMenuSavedIR() {
 }
 
 void tampilkanMenuIR() {
-    lcdFillScreen(&dev, BLACK);
+    lcdFillScreen(&Dev, BLACK);
+draw_bruce_ui(" ROOTX - MAIN MENU ");
     char buf[32];
 
     if (currentIRState == IR_STATE_CONFIRM) {
@@ -1580,7 +1622,8 @@ void renderTetrisGame() {
 }
 
 void renderAboutScreen() {
-    lcdFillScreen(&dev, BLACK);
+    lcdFillScreen(&Dev, BLACK);
+draw_bruce_ui(" ROOTX - MAIN MENU ");
 
     // Bikin border kotak di pinggir layar biar UI-nya rapi
     lcdDrawRect(&dev, 0, 0, 128, 64, WHITE);
@@ -1602,7 +1645,8 @@ void renderAboutScreen() {
 }
 
 void renderRebootScreen() {
-    lcdFillScreen(&dev, BLACK);
+    lcdFillScreen(&Dev, BLACK);
+draw_bruce_ui(" ROOTX - MAIN MENU ");
 
     // Border Frame biar keren
     lcdDrawRect(&dev, 5, 5, 123, 59, WHITE);
@@ -1624,7 +1668,8 @@ int sdActionIdx = 0; // 0: EXIT, 1: FILES, 2: FORMAT
 int sdState = 0;     // 0: Main Dashboard, 1: Confirm Format, 2: Formatting
 
 void renderSdManager() {
-    lcdFillScreen(&dev, BLACK);
+    lcdFillScreen(&Dev, BLACK);
+draw_bruce_ui(" ROOTX - MAIN MENU ");
     
     // --- 1. HEADER ---
     for(int y = 0; y < 11; y++) lcdDrawLine(&dev, 0, y, 128, y, WHITE);
@@ -1804,7 +1849,8 @@ int tvbgoneProgress = 0;
 int tvbgoneTotal = 0;
 
 void renderTvBGone() {
-    lcdFillScreen(&dev, BLACK);
+    lcdFillScreen(&Dev, BLACK);
+draw_bruce_ui(" ROOTX - MAIN MENU ");
     
     // --- 1. HEADER PRESISI ---
     // Kotak putih Y: 0-12

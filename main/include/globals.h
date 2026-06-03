@@ -9,6 +9,16 @@
 
 TFT_t dev; // Biar layar bisa diakses dari file mana aja
 
+
+
+
+
+//COLOR
+// Racikan warna Pink-Merah khas Hacker
+#define WARNA_BRUCE rgb565(255, 50, 120) 
+
+
+
 // --- SETTING PIN JOYSTICK ---
 #define PIN_UP    42
 #define PIN_DOWN  41
