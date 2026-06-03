@@ -96,32 +96,33 @@ void init_joystick() {
     }
 }
 void draw_bruce_ui(const char* judul_header) {
-    // 1. Bersihkan layar dulu
+    // 1. Clear layar
     lcdFillScreen(&dev, BLACK);
 
-    // 2. HEADER SOLID (Kotak Pink Nge-blok di Atas)
-    // Tinggi headernya 22 pixel. Digambar duluan biar ujung atasnya ketimpa bingkai melengkung
-    lcdDrawFillRect(&dev, 0, 0, 239, 22, WARNA_BRUCE);
+    // 2. Header fill — mulai dari x=2 biar gak masuk zona corner radius
+    lcdDrawFillRect(&dev, 2, 0, 237, 20, WARNA_BRUCE);
 
-    // 3. BORDER LUAR MELENGKUNG (Radius lengkungan 6px)
-    // Digambar 2 lapis biar garis pink-nya kelihatan agak tebal
-    lcdDrawRoundRect(&dev, 0, 0, 239, 134, 6, WARNA_BRUCE);
-    lcdDrawRoundRect(&dev, 1, 1, 237, 132, 6, WARNA_BRUCE);
+    // 3. KUNCI FIX: Hapus 2 pojok atas jadi hitam lagi
+    //    (jadi border melengkung bisa keliatan bener, bukan kotak siku)
+    lcdDrawFillRect(&dev, 0, 0, 7,   7, BLACK);  // pojok kiri atas
+    lcdDrawFillRect(&dev, 232, 0, 239, 7, BLACK); // pojok kanan atas
 
-    // 4. GARIS PEMISAH HEADER
-    lcdDrawLine(&dev, 0, 23, 239, 23, WARNA_BRUCE);
+    // 4. Separator line bawah header (2px tebal)
+    lcdDrawLine(&dev, 2, 21, 237, 21, WARNA_BRUCE);
+    lcdDrawLine(&dev, 2, 22, 237, 22, WARNA_BRUCE);
 
-    // 5. TEKS JUDUL DI DALAM HEADER
-    // Format warna: Teks Hitam, Background Pink (WARNA_BRUCE)
-    // Y=18 biar teksnya pas di tengah-tengah kotak header
+    // 5. Border utama — DIGAMBAR TERAKHIR biar on top semua (2 lapis = ~2px tebal)
+    lcdDrawRoundRect(&dev, 0, 0, 239, 134, 8, WARNA_BRUCE);
+    lcdDrawRoundRect(&dev, 1, 1, 237, 132, 7, WARNA_BRUCE);
+
+    // 6. Teks judul (hitam di atas pink)
     rootx_print_text(10, 18, judul_header, BLACK, WARNA_BRUCE);
 
-    // 6. INDIKATOR BATERAI DI POJOK KANAN HEADER
+    // 7. Indikator baterai pojok kanan
     char bat_teks[16];
-    sprintf(bat_teks, "BAT:%d%%", batteryPercent); 
-    rootx_print_text(150, 18, bat_teks, BLACK, WARNA_BRUCE);
+    sprintf(bat_teks, "%d%%", batteryPercent);
+    rootx_print_text(190, 18, bat_teks, BLACK, WARNA_BRUCE);
 }
-
 
 
 void task_display(void *pvParameters) {
