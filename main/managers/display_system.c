@@ -96,32 +96,35 @@ void init_joystick() {
     }
 }
 void draw_bruce_ui(const char* judul_header) {
-    // 1. Clear layar
+    int margin = 4;                // Jarak dari tepi layar
+    int header_h = 22;             // Tinggi header
+    int header_y0 = margin;        // Y awal header
+    int header_y1 = header_y0 + header_h - 1;
+
     lcdFillScreen(&dev, BLACK);
 
-    // 2. Header fill — mulai dari x=2 biar gak masuk zona corner radius
-    lcdDrawFillRect(&dev, 2, 0, 237, 20, WARNA_BRUCE);
+    // --- Header warna Bruce (pink) dengan sudut rounded ---
+    lcdDrawFillRect(&dev, margin, header_y0, 239 - margin, header_y1, WARNA_BRUCE);
 
-    // 3. KUNCI FIX: Hapus 2 pojok atas jadi hitam lagi
-    //    (jadi border melengkung bisa keliatan bener, bukan kotak siku)
-    lcdDrawFillRect(&dev, 0, 0, 7,   7, BLACK);  // pojok kiri atas
-    lcdDrawFillRect(&dev, 232, 0, 239, 7, BLACK); // pojok kanan atas
+    // Hapus pojok atas kiri dan kanan agar header melengkung
+    lcdDrawFillRect(&dev, 0, 0, margin + 7, margin + 7, BLACK);
+    lcdDrawFillRect(&dev, 239 - margin - 7, 0, 239, margin + 7, BLACK);
 
-    // 4. Separator line bawah header (2px tebal)
-    lcdDrawLine(&dev, 2, 21, 237, 21, WARNA_BRUCE);
-    lcdDrawLine(&dev, 2, 22, 237, 22, WARNA_BRUCE);
+    // Garis bawah header (2 pixel tebal)
+    lcdDrawLine(&dev, margin, header_y1 + 1, 239 - margin, header_y1 + 1, WARNA_BRUCE);
+    lcdDrawLine(&dev, margin, header_y1 + 2, 239 - margin, header_y1 + 2, WARNA_BRUCE);
 
-    // 5. Border utama — DIGAMBAR TERAKHIR biar on top semua (2 lapis = ~2px tebal)
-    lcdDrawRoundRect(&dev, 0, 0, 239, 134, 8, WARNA_BRUCE);
-    lcdDrawRoundRect(&dev, 1, 1, 237, 132, 7, WARNA_BRUCE);
+    // --- Border luar rounded (tebal 2px) ---
+    lcdDrawRoundRect(&dev, margin, margin, 239 - margin, 134 - margin, 8, WARNA_BRUCE);
+    lcdDrawRoundRect(&dev, margin + 1, margin + 1, 239 - margin - 1, 134 - margin - 1, 7, WARNA_BRUCE);
 
-    // 6. Teks judul (hitam di atas pink)
-    rootx_print_text(10, 18, judul_header, BLACK, WARNA_BRUCE);
+    // --- Teks judul di dalam header ---
+    rootx_print_text(10, header_y0 + 2, judul_header, BLACK, WARNA_BRUCE);
 
-    // 7. Indikator baterai pojok kanan
+    // --- Indikator baterai di pojok kanan header ---
     char bat_teks[16];
-    sprintf(bat_teks, "%d%%", batteryPercent);
-    rootx_print_text(190, 18, bat_teks, BLACK, WARNA_BRUCE);
+    snprintf(bat_teks, sizeof(bat_teks), "%d%%", batteryPercent);
+    rootx_print_text(190, header_y0 + 2, bat_teks, BLACK, WARNA_BRUCE);
 }
 
 
@@ -243,21 +246,7 @@ renderDinoGame();
 }
 
 // --- DATA UNTUK ANIMASI BINTANG ---
-typedef struct {
-    float x, y, z;
-} Star;
-Star stars[MAX_STARS];
-bool starInit = false;
 
-
-void initStars() {
-    for (int i = 0; i < 15; i++) {
-        stars[i].x = (rand() % 128) - 64;
-        stars[i].y = (rand() % 64) - 32;
-        stars[i].z = (rand() % 64) + 1;
-    }
-    starInit = true;
-}
 
 
 // Inisialisasi bintang pertama kali
@@ -276,12 +265,7 @@ void drawSmartSelection(int targetY) {
 }
 
 // Fungsi animasi wave
-void drawWave() {
-    for (int x = 0; x < 128; x++) {
-        int y = 60 + (int)(sin((x + (int)millis() / 10) * 0.1) * 3);
-        lcdDrawPixel(&dev, x, y, WHITE);
-    }
-}
+
 
 // Fungsi bounce buat icon
 int getBounce(int speed, int range) {
@@ -305,26 +289,7 @@ void drawLoadingBar(int x, int y, int w, int h, int progress) {
     }
 }
 // Fungsi gambar bintang gerak (Starfield)
-void drawStarfield() {
-    if (!starInit) initStars();
-    
-    for (int i = 0; i < MAX_STARS; i++) {
-        stars[i].z -= 0.5; // Kecepatan bintang maju
-        if (stars[i].z <= 1) {
-            stars[i].z = 64;
-            stars[i].x = (rand() % 128) - 64;
-            stars[i].y = (rand() % 64) - 32;
-        }
 
-        // Proyeksi 3D ke 2D
-        int sx = (int)(stars[i].x / stars[i].z * 64 + 64);
-        int sy = (int)(stars[i].y / stars[i].z * 32 + 32);
-
-        if (sx >= 0 && sx < 128 && sy >= 10 && sy < 54) { // Filter biar gak kena header/footer
-            lcdDrawPixel(&dev, sx, sy, WHITE);
-        }
-    }
-}
 
 // Deklarasi bitmap solver yang ada di boot_system.c biar file ini bisa make juga
 
@@ -423,8 +388,8 @@ const char* subMenuGame[] = {
 void tampilkanMenuLogo() {
     lcdFillScreen(&dev, BLACK);
 draw_bruce_ui(" ROOTX - MAIN MENU ");
-    drawStarfield();
-    drawWave();
+    
+    
     
     read_battery_percentage(); // Baca tiap kali refresh layar
     char batBuf[10];
@@ -474,8 +439,8 @@ draw_bruce_ui(" ROOTX - MAIN MENU ");
 void tampilkanMenuUtama() { 
     lcdFillScreen(&dev, BLACK);
     draw_bruce_ui(" ROOTX - MAIN MENU ");
-    drawStarfield();
-    drawWave();
+    
+    
     int totalSub = 0; 
 
     if(currentMenu == 0)      { rootx_print_text(0, 0, "#> RootX: WIFI", WHITE, BLACK); totalSub = 4; }
@@ -1178,7 +1143,7 @@ void renderDinoGame() {
 void tampilkanEvilTwinScreen() {
     lcdFillScreen(&dev, BLACK);
 draw_bruce_ui(" ROOTX - MAIN MENU ");
-    drawStarfield();
+    
     
     if (evilTwinState == 0) {
     lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);

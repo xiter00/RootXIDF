@@ -15,7 +15,7 @@
 #include "photo_data.h"
 
 // Hardcode versi firmware lu saat ini (100 = v1.0.0)
-#define VERSION_SAAT_INI 104
+#define VERSION_SAAT_INI 105
 
 // URL mentah (RAW) langsung tembak ke file lu di GitHub
 #define URL_VERSION  "https://raw.githubusercontent.com/xiter00/RTXUP/main/vr.txt"
@@ -145,75 +145,84 @@ TaskHandle_t TaskWiFi;
 void task_cek_ota(void *pvParameter) {
     ESP_LOGI("OTA", "Mesin OTA nyala! Menunggu WiFi terkoneksi...");
 
-    // 1. TUNGGU SAMPAI WIFI KONEK (Ngecek tiap 2 detik)
     while (!isWiFiConnected) {
         vTaskDelay(pdMS_TO_TICKS(2000)); 
     }
+    ESP_LOGI("OTA", "WiFi Konek! Mesin OTA Super Cepat siap...");
 
-    // 2. KALO UDAH LOLOS DARI WHILE DI ATAS, BERARTI WIFI UDAH NYAMBUNG!
-    ESP_LOGI("OTA", "WiFi Konek! Gas ngecek GitHub...");
-    
-      while (1) {
+    while (1) {
         if (isWiFiConnected) {
-            
-            // VVV --- JURUS ANTI-CACHE GITHUB --- VVV
-            char url_anti_cache[128];
-            // Tambahin random number di belakang URL biar GitHub ngasih file paling fresh!
-            sprintf(url_anti_cache, "%s?t=%lu", URL_VERSION, (unsigned long)esp_random());
+            // --- 1. CEK VERSI VIA API (vr.txt) ---
+            char url_version[128];
+            snprintf(url_version, sizeof(url_version),
+                     "https://api.github.com/repos/xiter00/RTXUP/contents/vr.txt");
 
-            esp_http_client_config_t config = {
-                .url = url_anti_cache, // Pakai URL yang udah di-hack
-                .crt_bundle_attach = esp_crt_bundle_attach, 
+            esp_http_client_config_t config_version = {
+                .url = url_version,
+                .method = HTTP_METHOD_GET,
+                .crt_bundle_attach = esp_crt_bundle_attach,
+                .user_agent = "RootX_OTA_Checker",
+                .headers = (esp_http_client_header_t[]){
+                    { "Accept", "application/vnd.github.v3.raw" },
+                    { "User-Agent", "RootX-ESP32" },
+                    { NULL, NULL }
+                }
             };
-            // ^^^ ------------------------------- ^^^
 
-            esp_http_client_handle_t client = esp_http_client_init(&config);
-            esp_err_t err = esp_http_client_open(client, 0);
-
+            esp_http_client_handle_t client_version = esp_http_client_init(&config_version);
+            esp_err_t err = esp_http_client_open(client_version, 0);
+            
+            int versi_github = -1;
             if (err == ESP_OK) {
-                // ... (kodingan baca buffer lu tetep sama)
+                esp_http_client_fetch_headers(client_version);
+                char buffer[16] = {0};
+                int len = esp_http_client_read(client_version, buffer, sizeof(buffer)-1);
+                if (len > 0) {
+                    versi_github = atoi(buffer);
+                    ESP_LOGI("OTA", "Versi via API: %d | Lokal: %d", versi_github, VERSION_SAAT_INI);
+                }
+            }
+            esp_http_client_cleanup(client_version);
 
-                esp_http_client_fetch_headers(client);
-                char buffer[10] = {0};
-                esp_http_client_read(client, buffer, sizeof(buffer)-1);
-                
-                int versi_github = atoi(buffer); 
-                ESP_LOGI("OTA", "Versi ESP32: %d | Versi GitHub: %d", VERSION_SAAT_INI, versi_github);
+            if (versi_github > VERSION_SAAT_INI) {
+                ESP_LOGI("OTA", "UPDATE DITEMUKAN! Gas download core.bin via API...");
 
-                if (versi_github > VERSION_SAAT_INI) {
-                    ESP_LOGI("OTA", "Update ditemukan! Memulai download...");
+                // --- 2. DOWNLOAD core.bin VIA API (anti-cache) ---
+                char url_corebin[128];
+                snprintf(url_corebin, sizeof(url_corebin),
+                         "https://api.github.com/repos/xiter00/RTXUP/contents/core.bin");
 
-                    esp_http_client_config_t ota_client_config = {
-                        .url = URL_FIRMWARE,
-                        .crt_bundle_attach = esp_crt_bundle_attach,
-                        .keep_alive_enable = true,
-                    };
-                    esp_https_ota_config_t ota_config = {
-                        .http_config = &ota_client_config,
-                    };
-
-                    esp_err_t ret = esp_https_ota(&ota_config);
-                    if (ret == ESP_OK) {
-                        ESP_LOGI("OTA", "SUKSES! RootX akan Reboot sekarang...");
-                        vTaskDelay(pdMS_TO_TICKS(1000));
-                        esp_restart(); 
-                    } else {
-                        ESP_LOGE("OTA", "Gagal Update! Code: %d", ret);
+                esp_http_client_config_t ota_client_config = {
+                    .url = url_corebin,
+                    .method = HTTP_METHOD_GET,
+                    .crt_bundle_attach = esp_crt_bundle_attach,
+                    .user_agent = "RootX_OTA_Fetcher",
+                    .headers = (esp_http_client_header_t[]){
+                        { "Accept", "application/vnd.github.v3.raw" }, // Langsung ambil file, bukan JSON
+                        { "User-Agent", "RootX-ESP32" },
+                        { NULL, NULL }
                     }
+                };
+
+                esp_https_ota_config_t ota_config = {
+                    .http_config = &ota_client_config,
+                };
+
+                esp_err_t ret = esp_https_ota(&ota_config);
+                if (ret == ESP_OK) {
+                    ESP_LOGI("OTA", "SUKSES! RootX Reboot...");
+                    vTaskDelay(pdMS_TO_TICKS(1000));
+                    esp_restart();
                 } else {
-                    ESP_LOGI("OTA", "RootX sudah versi terbaru.");
+                    ESP_LOGE("OTA", "Gagal Update! Code: %d", ret);
                 }
             } else {
-                ESP_LOGE("OTA", "Gagal konek ke GitHub. Cek internet.");
+                ESP_LOGI("OTA", "RootX sudah versi terbaru.");
             }
-            esp_http_client_cleanup(client);
         }
-        
-        // Tidur 1 menit sebelum ngecek versi lagi
-        vTaskDelay(pdMS_TO_TICKS(10000)); 
+        vTaskDelay(pdMS_TO_TICKS(10000)); // Cek tiap 5 detik
     }
 }
-
 
 // ==========================================
 // APP MAIN LU
