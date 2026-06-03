@@ -1,4 +1,4 @@
-Name: Build RootX v6.0 Fast
+name: Build RootX v6.0 Fast
 
 on:
   push:
