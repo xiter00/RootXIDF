@@ -95,46 +95,87 @@ void init_joystick() {
         gpio_set_pull_mode(pins[i], GPIO_PULLUP_ONLY);
     }
 }
-void draw_smartwatch_ui() {
-    // 1. BACKGROUND GRID (Efek garis jaring-jaring halus)
+
+
+// Asumsikan dev dan batteryPercent sudah global (dari globals.h)
+
+void draw_smartwatch_ui(void) {
+    // 1. Bersihkan layar
     lcdFillScreen(&dev, BLACK);
-    for (int x = 0; x < 240; x += 15) {
-        for (int y = 0; y < 135; y += 15) {
-            lcdDrawPixel(&dev, x, y, WARNA_DARK); // Titik abu-abu
-        }
-    }
 
-    // 2. HEADER TOP-BAR
-    rootx_print_text(5, 4, "ROOTX // OS", WARNA_CYAN, BLACK);
-    
-    // Baterai (Pill pink di kanan atas)
-    lcdDrawFillRect(&dev, 185, 2, 235, 14, WARNA_BRUCE);
-    char bat_teks[16];
-    sprintf(bat_teks, "BAT %d%%", batteryPercent);
-    rootx_print_text(188, 4, bat_teks, WHITE, WARNA_BRUCE);
+    // 2. Grid persis seperti HTML (garis tiap 15px, warna sangat redup)
+    for (int x = 0; x < 240; x += 15)
+        lcdDrawLine(&dev, x, 0, x, 134, LGRID_COLOR);
+    for (int y = 0; y < 135; y += 15)
+        lcdDrawLine(&dev, 0, y, 239, y, LGRID_COLOR);
 
-    // 3. WIDGET PANEL KANAN (Mulai dari X = 145)
-    // Lingkaran Radar (Image Ring) - Tengahnya di X=190, Y=42
-    lcdDrawCircle(&dev, 190, 42, 20, WARNA_CYAN);  // Lingkaran dalem
-    lcdDrawCircle(&dev, 190, 42, 23, WARNA_BRUCE); // Lingkaran luar
-    rootx_print_text(182, 38, "IMG", WARNA_CYAN, BLACK); // Posisi Hex Image Lu Nanti!
+    // 3. Header top-bar
+    rootx_print_text(5, 1, "ROOTX // OS", LCYAN, BLACK);
+    // Badge baterai (pill pink)
+    lcdDrawFillRect(&dev, 185, 1, 235, 17, LPINK);
+    char bat[16];
+    sprintf(bat, "BAT %d%%", batteryPercent);
+    rootx_print_text(188, 2, bat, WHITE, LPINK);
 
-    // Kartu Data 1: CPU (Warna Pink)
-    lcdDrawFillRect(&dev, 145, 75, 235, 87, WARNA_DARK);
-    lcdDrawLine(&dev, 145, 75, 145, 87, WARNA_BRUCE); // Garis kiri pink
-    rootx_print_text(148, 77, "CPU", WARNA_BRUCE, WARNA_DARK);
-    rootx_print_text(190, 77, "240M", WHITE, WARNA_DARK);
+    // 4. Menu kiri (4 item)
+    int menu_y = 22;
+    const int item_h = 18;
+    const int gap = 3;
 
-    // Kartu Data 2: NET (Warna Cyan)
-    lcdDrawFillRect(&dev, 145, 92, 235, 104, WARNA_DARK);
-    lcdDrawLine(&dev, 145, 92, 145, 104, WARNA_CYAN); // Garis kiri cyan
-    rootx_print_text(148, 94, "NET", WARNA_CYAN, WARNA_DARK);
-    rootx_print_text(190, 94, "MON ", WHITE, WARNA_DARK);
+    // Item 1 - aktif (WIFI SCANNER)
+    lcdDrawFillRect(&dev, 5, menu_y, 135, menu_y + item_h - 1, LPINK);
+    lcdDrawFillRect(&dev, 5, menu_y, 7, menu_y + item_h - 1, LCYAN); // garis kiri LCYAN 2px
+    rootx_print_text(12, menu_y + 1, "> WIFI SCANNER", WHITE, LPINK);
 
-    // Kartu Data 3: TGT (Garis Bawah Pink)
-    lcdDrawFillRect(&dev, 145, 109, 235, 121, WARNA_DARK);
-    lcdDrawLine(&dev, 145, 121, 235, 121, WARNA_BRUCE); // Garis bawah pink
-    rootx_print_text(155, 111, "TGT: NONE", WARNA_GRAY, WARNA_DARK);
+    // Item 2 - tidak aktif
+    menu_y += item_h + gap;
+    lcdDrawRect(&dev, 5, menu_y, 135, menu_y + item_h - 1, GRAY); // border saja (transparan)
+    rootx_print_text(12, menu_y + 1, "  DEAUTH ATTACK", GRAY, BLACK);
+
+    // Item 3
+    menu_y += item_h + gap;
+    lcdDrawRect(&dev, 5, menu_y, 135, menu_y + item_h - 1, GRAY);
+    rootx_print_text(12, menu_y + 1, "  BEACON SPAM", GRAY, BLACK);
+
+    // Item 4
+    menu_y += item_h + gap;
+    lcdDrawRect(&dev, 5, menu_y, 135, menu_y + item_h - 1, GRAY);
+    rootx_print_text(12, menu_y + 1, "  EVIL TWIN", GRAY, BLACK);
+
+    // 5. Panel kanan (widget)
+    const int panel_x = 140;
+    const int panel_w = 95;
+
+    // Image ring (lingkaran ganda)
+    int ring_cx = panel_x + panel_w / 2; // 187
+    int ring_cy = 22 + 22;               // 44
+    lcdDrawCircle(&dev, ring_cx, ring_cy, 20, LCYAN);
+    lcdDrawCircle(&dev, ring_cx, ring_cy, 23, LPINK);
+    rootx_print_text(ring_cx - 8, ring_cy - 4, "IMG", LCYAN, BLACK);
+
+    // Stat boxes
+    int stat_y = 71;
+    const int stat_h = 18;
+    const int stat_gap = 3;
+
+    // Box CPU
+    lcdDrawFillRect(&dev, panel_x, stat_y, panel_x + panel_w - 1, stat_y + stat_h - 1, LDARK_BG);
+    lcdDrawFillRect(&dev, panel_x, stat_y, panel_x + 2, stat_y + stat_h - 1, LPINK); // border kiri pink
+    rootx_print_text(panel_x + 5, stat_y + 1, "CPU", LPINK, LDARK_BG);
+    rootx_print_text(panel_x + 50, stat_y + 1, "240M", WHITE, LDARK_BG);
+
+    stat_y += stat_h + stat_gap;
+    // Box NET
+    lcdDrawFillRect(&dev, panel_x, stat_y, panel_x + panel_w - 1, stat_y + stat_h - 1, LDARK_BG);
+    lcdDrawFillRect(&dev, panel_x, stat_y, panel_x + 2, stat_y + stat_h - 1, LCYAN); // border kiri LCYAN
+    rootx_print_text(panel_x + 5, stat_y + 1, "NET", LCYAN, LDARK_BG);
+    rootx_print_text(panel_x + 50, stat_y + 1, "MON", WHITE, LDARK_BG);  // "MONITOR" disingkat agar muat
+
+    stat_y += stat_h + stat_gap;
+    // Box TGT (garis bawah pink, tanpa border kiri)
+    lcdDrawFillRect(&dev, panel_x, stat_y, panel_x + panel_w - 1, stat_y + stat_h - 1, LDARK_BG);
+    lcdDrawLine(&dev, panel_x, stat_y + stat_h - 1, panel_x + panel_w - 1, stat_y + stat_h - 1, LPINK);
+    rootx_print_text(panel_x + 15, stat_y + 1, "TGT: NONE", GRAY, LDARK_BG);
 }
 
 

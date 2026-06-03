@@ -20,7 +20,11 @@ TFT_t dev; // Biar layar bisa diakses dari file mana aja
 #define WARNA_DARK    rgb565(15, 15, 15)    
 #define WARNA_DK_PINK rgb565(80, 10, 30)    
 #define WARNA_GRAY    rgb565(128, 128, 128) 
-
+// Definisi warna tambahan (jika belum ada di globals.h)
+#define LGRID_COLOR rgb565(17, 6, 9)   
+#define LPINK       rgb565(255, 30, 90) 
+#define LCYAN       rgb565(0, 255, 255) 
+#define LDARK_BG    rgb565(10, 10, 10)  
 
 
 // --- SETTING PIN JOYSTICK ---
