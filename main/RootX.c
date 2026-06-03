@@ -271,9 +271,14 @@ void perform_ota_manual(void) {
         return;
     }
     int total_read = 0;
+    
+    // Bikin variabel buat nahan print log biar gak nyepam
+    int last_print = 0; 
 
     while (total_read < content_length) {
-        int read_len = esp_http_client_read(client, buffer, sizeof(buffer));
+        // TULIS ANGKA 4096 LANGSUNG! Jangan pake sizeof(buffer)
+        int read_len = esp_http_client_read(client, buffer, 4096); 
+        
         if (read_len < 0) {
             ESP_LOGE("OTA", "Error membaca data");
             break;
@@ -286,8 +291,14 @@ void perform_ota_manual(void) {
             break;
         }
         total_read += read_len;
-        ESP_LOGI("OTA", "Progress: %d / %d", total_read, content_length);
+        
+        // TRIK NGEBUT: Jangan nge-print tiap loop! Print tiap 40KB aja (biar UART gak macet)
+        if (total_read - last_print >= 40960 || total_read == content_length) {
+            ESP_LOGI("OTA", "Download Progress: %d / %d bytes", total_read, content_length);
+            last_print = total_read;
+        }
     }
+
 
     esp_http_client_cleanup(client);
 
