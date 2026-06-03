@@ -27,7 +27,7 @@
 extern void loopWiFi(void *pvParameters);
 extern void task_display(void *pvParameters);
 extern void init_ir_system(void);
-
+void perform_ota_manual(void);
 // ==========================================
 // THE BYPASSER: JIMAT SAKTI DEAUTH & BEACON
 // ==========================================
