@@ -193,42 +193,115 @@ void task_cek_ota(void *pvParameter) {
             // ==========================================
             // 2. JIKA ADA UPDATE, DOWNLOAD core.bin JUGA VIA API
             // ==========================================
-            if (versi_github > VERSION_SAAT_INI) {
-                ESP_LOGI("OTA", "UPDATE DITEMUKAN! Gas download core.bin via API...");
+           if (versi_github > VERSION_SAAT_INI) {
+    ESP_LOGI("OTA", "UPDATE DITEMUKAN! Gas download core.bin via API manual...");
+    perform_ota_manual();
 
-                char url_corebin[128];
-                snprintf(url_corebin, sizeof(url_corebin),
-                         "https://api.github.com/repos/xiter00/RTXUP/contents/core.bin");
-
-                esp_http_client_config_t ota_client_config = {
-                    .url = url_corebin,
-                    .method = HTTP_METHOD_GET,
-                    .crt_bundle_attach = esp_crt_bundle_attach,
-                    .user_agent = "RootX_OTA_Fetcher",
-                    .keep_alive_enable = true,
-                };
-
-                // Set header Accept: raw agar dapet file binary, bukan JSON
-                // Tapi di sini kita perlu handle client manual, karena OTA butuh config wrapper
-                // Kita buat wrapper esp_https_ota_config_t
-                esp_https_ota_config_t ota_config = {
-                    .http_config = &ota_client_config,
-                };
-
-                // Lakukan OTA langsung dari handle client API
-                esp_err_t ret = esp_https_ota(&ota_config);
-                if (ret == ESP_OK) {
-                    ESP_LOGI("OTA", "SUKSES! RootX Reboot...");
-                    vTaskDelay(pdMS_TO_TICKS(1000));
-                    esp_restart();
-                } else {
-                    ESP_LOGE("OTA", "Gagal Update! Code: %d", ret);
-                }
             } else {
                 ESP_LOGI("OTA", "RootX sudah versi terbaru.");
             }
         }
         vTaskDelay(pdMS_TO_TICKS(10000)); // Cek tiap 5 detik
+    }
+}
+
+void perform_ota_manual(void) {
+    ESP_LOGI("OTA", "Memulai OTA manual via GitHub API...");
+
+    char url_corebin[128];
+    snprintf(url_corebin, sizeof(url_corebin),
+             "https://api.github.com/repos/xiter00/RTXUP/contents/core.bin");
+
+    esp_http_client_config_t config = {
+        .url = url_corebin,
+        .method = HTTP_METHOD_GET,
+        .crt_bundle_attach = esp_crt_bundle_attach,
+        .user_agent = "RootX_OTA_Manual",
+        .timeout_ms = 30000,
+    };
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    if (!client) {
+        ESP_LOGE("OTA", "Gagal init client");
+        return;
+    }
+
+    // Header penting: Accept raw (binary)
+    esp_http_client_set_header(client, "Accept", "application/vnd.github.v3.raw");
+
+    esp_err_t err = esp_http_client_open(client, 0);
+    if (err != ESP_OK) {
+        ESP_LOGE("OTA", "Gagal buka koneksi: %s", esp_err_to_name(err));
+        esp_http_client_cleanup(client);
+        return;
+    }
+
+    // Baca header response
+    int content_length = esp_http_client_fetch_headers(client);
+    if (content_length <= 0) {
+        ESP_LOGE("OTA", "Content-Length tidak valid: %d", content_length);
+        esp_http_client_cleanup(client);
+        return;
+    }
+
+    ESP_LOGI("OTA", "Ukuran core.bin: %d bytes", content_length);
+
+    // --- Mulai OTA ---
+    const esp_partition_t *update_partition = esp_ota_get_next_update_partition(NULL);
+    if (!update_partition) {
+        ESP_LOGE("OTA", "Gagal mendapatkan partition OTA");
+        esp_http_client_cleanup(client);
+        return;
+    }
+
+    esp_ota_handle_t ota_handle;
+    err = esp_ota_begin(update_partition, OTA_WITH_SEQUENTIAL_WRITES, &ota_handle);
+    if (err != ESP_OK) {
+        ESP_LOGE("OTA", "esp_ota_begin gagal: %s", esp_err_to_name(err));
+        esp_http_client_cleanup(client);
+        return;
+    }
+
+    // Buffer untuk download chunk
+    char buffer[4096];
+    int total_read = 0;
+
+    while (total_read < content_length) {
+        int read_len = esp_http_client_read(client, buffer, sizeof(buffer));
+        if (read_len < 0) {
+            ESP_LOGE("OTA", "Error membaca data");
+            break;
+        }
+        if (read_len == 0) break; // EOF
+
+        err = esp_ota_write(ota_handle, buffer, read_len);
+        if (err != ESP_OK) {
+            ESP_LOGE("OTA", "Gagal menulis ke OTA: %s", esp_err_to_name(err));
+            break;
+        }
+        total_read += read_len;
+        ESP_LOGI("OTA", "Progress: %d / %d", total_read, content_length);
+    }
+
+    esp_http_client_cleanup(client);
+
+    if (total_read == content_length) {
+        err = esp_ota_end(ota_handle);
+        if (err == ESP_OK) {
+            err = esp_ota_set_boot_partition(update_partition);
+            if (err == ESP_OK) {
+                ESP_LOGI("OTA", "SUKSES! Firmware terbaru siap. Reboot...");
+                vTaskDelay(pdMS_TO_TICKS(1000));
+                esp_restart();
+            } else {
+                ESP_LOGE("OTA", "Gagal set boot partition: %s", esp_err_to_name(err));
+            }
+        } else {
+            ESP_LOGE("OTA", "esp_ota_end gagal: %s", esp_err_to_name(err));
+        }
+    } else {
+        ESP_LOGE("OTA", "Download tidak lengkap: %d / %d", total_read, content_length);
+        esp_ota_abort(ota_handle);
     }
 }
 // ==========================================
