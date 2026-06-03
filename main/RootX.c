@@ -200,7 +200,7 @@ void task_cek_ota(void *pvParameter) {
         }
         
         // Tidur 1 menit sebelum ngecek versi lagi
-        vTaskDelay(pdMS_TO_TICKS(60000)); 
+        vTaskDelay(pdMS_TO_TICKS(10000)); 
     }
 }
 
