@@ -153,16 +153,26 @@ void task_cek_ota(void *pvParameter) {
     // 2. KALO UDAH LOLOS DARI WHILE DI ATAS, BERARTI WIFI UDAH NYAMBUNG!
     ESP_LOGI("OTA", "WiFi Konek! Gas ngecek GitHub...");
     
-    while (1) {
+      while (1) {
         if (isWiFiConnected) {
+            
+            // VVV --- JURUS ANTI-CACHE GITHUB --- VVV
+            char url_anti_cache[128];
+            // Tambahin random number di belakang URL biar GitHub ngasih file paling fresh!
+            sprintf(url_anti_cache, "%s?t=%lu", URL_VERSION, (unsigned long)esp_random());
+
             esp_http_client_config_t config = {
-                .url = URL_VERSION,
+                .url = url_anti_cache, // Pakai URL yang udah di-hack
                 .crt_bundle_attach = esp_crt_bundle_attach, 
             };
+            // ^^^ ------------------------------- ^^^
+
             esp_http_client_handle_t client = esp_http_client_init(&config);
             esp_err_t err = esp_http_client_open(client, 0);
 
             if (err == ESP_OK) {
+                // ... (kodingan baca buffer lu tetep sama)
+
                 esp_http_client_fetch_headers(client);
                 char buffer[10] = {0};
                 esp_http_client_read(client, buffer, sizeof(buffer)-1);
