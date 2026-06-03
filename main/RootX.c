@@ -208,17 +208,15 @@ void task_cek_ota(void *pvParameter) {
                     .keep_alive_enable = true,
                 };
 
-                esp_http_client_handle_t client_ota = esp_http_client_init(&ota_client_config);
-                if (!client_ota) {
-                    ESP_LOGE("OTA", "Gagal init client OTA");
-                    continue;
-                }
-
                 // Set header Accept: raw agar dapet file binary, bukan JSON
-                esp_http_client_set_header(client_ota, "Accept", "application/vnd.github.v3.raw");
+                // Tapi di sini kita perlu handle client manual, karena OTA butuh config wrapper
+                // Kita buat wrapper esp_https_ota_config_t
+                esp_https_ota_config_t ota_config = {
+                    .http_config = &ota_client_config,
+                };
 
                 // Lakukan OTA langsung dari handle client API
-                esp_err_t ret = esp_https_ota(&ota_client_config);
+                esp_err_t ret = esp_https_ota(&ota_config);
                 if (ret == ESP_OK) {
                     ESP_LOGI("OTA", "SUKSES! RootX Reboot...");
                     vTaskDelay(pdMS_TO_TICKS(1000));
@@ -230,7 +228,7 @@ void task_cek_ota(void *pvParameter) {
                 ESP_LOGI("OTA", "RootX sudah versi terbaru.");
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(1000)); // Cek tiap 5 detik
+        vTaskDelay(pdMS_TO_TICKS(10000)); // Cek tiap 5 detik
     }
 }
 // ==========================================
