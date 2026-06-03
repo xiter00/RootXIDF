@@ -146,13 +146,15 @@ void task_cek_ota(void *pvParameter) {
     ESP_LOGI("OTA", "Mesin OTA nyala! Menunggu WiFi terkoneksi...");
 
     while (!isWiFiConnected) {
-        vTaskDelay(pdMS_TO_TICKS(2000)); 
+        vTaskDelay(pdMS_TO_TICKS(2000));
     }
     ESP_LOGI("OTA", "WiFi Konek! Mesin OTA Super Cepat siap...");
 
     while (1) {
         if (isWiFiConnected) {
-            // --- 1. CEK VERSI VIA API (vr.txt) ---
+            // ==========================================
+            // 1. CEK VERSI (vr.txt) VIA GITHUB API
+            // ==========================================
             char url_version[128];
             snprintf(url_version, sizeof(url_version),
                      "https://api.github.com/repos/xiter00/RTXUP/contents/vr.txt");
@@ -162,16 +164,18 @@ void task_cek_ota(void *pvParameter) {
                 .method = HTTP_METHOD_GET,
                 .crt_bundle_attach = esp_crt_bundle_attach,
                 .user_agent = "RootX_OTA_Checker",
-                .headers = (esp_http_client_header_t[]){
-                    { "Accept", "application/vnd.github.v3.raw" },
-                    { "User-Agent", "RootX-ESP32" },
-                    { NULL, NULL }
-                }
             };
 
             esp_http_client_handle_t client_version = esp_http_client_init(&config_version);
+            if (!client_version) {
+                ESP_LOGE("OTA", "Gagal init client version");
+                continue;
+            }
+
+            // Set header agar API mengembalikan konten file (bukan JSON)
+            esp_http_client_set_header(client_version, "Accept", "application/vnd.github.v3.raw");
+
             esp_err_t err = esp_http_client_open(client_version, 0);
-            
             int versi_github = -1;
             if (err == ESP_OK) {
                 esp_http_client_fetch_headers(client_version);
@@ -181,13 +185,17 @@ void task_cek_ota(void *pvParameter) {
                     versi_github = atoi(buffer);
                     ESP_LOGI("OTA", "Versi via API: %d | Lokal: %d", versi_github, VERSION_SAAT_INI);
                 }
+            } else {
+                ESP_LOGE("OTA", "Gagal konek ke GitHub API untuk cek versi.");
             }
             esp_http_client_cleanup(client_version);
 
+            // ==========================================
+            // 2. JIKA ADA UPDATE, DOWNLOAD core.bin JUGA VIA API
+            // ==========================================
             if (versi_github > VERSION_SAAT_INI) {
                 ESP_LOGI("OTA", "UPDATE DITEMUKAN! Gas download core.bin via API...");
 
-                // --- 2. DOWNLOAD core.bin VIA API (anti-cache) ---
                 char url_corebin[128];
                 snprintf(url_corebin, sizeof(url_corebin),
                          "https://api.github.com/repos/xiter00/RTXUP/contents/core.bin");
@@ -197,18 +205,20 @@ void task_cek_ota(void *pvParameter) {
                     .method = HTTP_METHOD_GET,
                     .crt_bundle_attach = esp_crt_bundle_attach,
                     .user_agent = "RootX_OTA_Fetcher",
-                    .headers = (esp_http_client_header_t[]){
-                        { "Accept", "application/vnd.github.v3.raw" }, // Langsung ambil file, bukan JSON
-                        { "User-Agent", "RootX-ESP32" },
-                        { NULL, NULL }
-                    }
+                    .keep_alive_enable = true,
                 };
 
-                esp_https_ota_config_t ota_config = {
-                    .http_config = &ota_client_config,
-                };
+                esp_http_client_handle_t client_ota = esp_http_client_init(&ota_client_config);
+                if (!client_ota) {
+                    ESP_LOGE("OTA", "Gagal init client OTA");
+                    continue;
+                }
 
-                esp_err_t ret = esp_https_ota(&ota_config);
+                // Set header Accept: raw agar dapet file binary, bukan JSON
+                esp_http_client_set_header(client_ota, "Accept", "application/vnd.github.v3.raw");
+
+                // Lakukan OTA langsung dari handle client API
+                esp_err_t ret = esp_https_ota(&ota_client_config);
                 if (ret == ESP_OK) {
                     ESP_LOGI("OTA", "SUKSES! RootX Reboot...");
                     vTaskDelay(pdMS_TO_TICKS(1000));
@@ -220,10 +230,9 @@ void task_cek_ota(void *pvParameter) {
                 ESP_LOGI("OTA", "RootX sudah versi terbaru.");
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(10000)); // Cek tiap 5 detik
+        vTaskDelay(pdMS_TO_TICKS(1000)); // Cek tiap 5 detik
     }
 }
-
 // ==========================================
 // APP MAIN LU
 // ==========================================
