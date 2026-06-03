@@ -1,4 +1,4 @@
-name: Build RootX v6.0 Fast
+Name: Build RootX v6.0 Fast
 
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y wget git flex bison gperf python3-pip python3-setuptools cmake ninja-build ccache libffi-dev libssl-dev dfu-util python3-venv
 
-      # --- 2. CEK CACHE ESP-IDF DI GUDANG (Pake RESTORE) ---
+          # --- 2. CEK CACHE ESP-IDF DI GUDANG (Pake RESTORE) ---
       - name: Restore ESP-IDF Cache
         id: cache-restore
         uses: actions/cache/restore@v4
@@ -78,30 +78,30 @@ jobs:
             build/*/*.bin
         
       - name: Push Firmware dan Version ke Repo 2
-      env:
-        TOKEN_AKSES: ${{ secrets.REPO_RTXUP }}
-      run: |
-        # 1. Setup identitas git biar bisa commit
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git config --global user.name "github-actions[bot]"
-        
-        # 2. Clone Repo 2 ke dalam folder sementara bernama 'repo2_dir'
-        git clone https://x-access-token:$REPO_RTXUP@github.com/xiter00/RTXUP.git repo2_dir
-        
-        # 3. Copy file firmware.bin dan version.txt ke folder Repo 2
-        # (Sesuaikan 'path/to/...' dengan lokasi asli file lu di Repo 1)
-        cp build/core.bin repo2_dir/
-        cp vr.txt repo2_dir/
-        
-        # 4. Masuk ke folder Repo 2, lalu commit dan push
-        cd repo2_dir
-        
-        # Kita pakai 'git add .' aja biar semua file baru/berubah otomatis kelacak
-        git add .
-        
-        # Menggunakan nomor run build biar pesan commit-nya dinamis
-        git commit -m "Update firmware & version otomatis (Build #${{ github.run_number }})"
-        
-        # Push kembali ke branch utama (main/master)
-        git push origin main
-        
+        env:
+          TOKEN_AKSES: ${{ secrets.REPO_RTXUP }}
+          REPO_RTXUP: ${{ secrets.REPO_RTXUP }}
+        run: |
+          # 1. Setup identitas git biar bisa commit
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          
+          # 2. Clone Repo 2 ke dalam folder sementara bernama 'repo2_dir'
+          git clone https://x-access-token:$REPO_RTXUP@github.com/xiter00/RTXUP.git repo2_dir
+          
+          # 3. Copy file firmware.bin dan version.txt ke folder Repo 2
+          # (Sesuaikan 'path/to/...' dengan lokasi asli file lu di Repo 1)
+          cp build/core.bin repo2_dir/
+          cp vr.txt repo2_dir/
+          
+          # 4. Masuk ke folder Repo 2, lalu commit dan push
+          cd repo2_dir
+          
+          # Kita pakai 'git add .' aja biar semua file baru/berubah otomatis kelacak
+          git add .
+          
+          # Menggunakan nomor run build biar pesan commit-nya dinamis
+          git commit -m "Update firmware & version otomatis (Build #${{ github.run_number }})"
+          
+          # Push kembali ke branch utama (main/master)
+          git push origin main
