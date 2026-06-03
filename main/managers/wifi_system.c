@@ -12,6 +12,7 @@
 #include "lwip/sys.h"
 #include "lwip/netdb.h"
 #include "lwip/sockets.h"
+#include "esp_log.h"
 
 // Fungsi kirim jawaban DNS (Hijack)
 void dns_server_task(void* pvParameters) {
