@@ -250,7 +250,7 @@ renderDinoGame();
             renderTvBGone();              // <--- TAMBAHIN INI
         }
 
-
+lcdDrawFinish(&dev);
         // Kasih jeda dikit biar gak rakus CPU (kira-kira 30 FPS)
         vTaskDelay(pdMS_TO_TICKS(33)); 
     }
