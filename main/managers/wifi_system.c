@@ -290,6 +290,26 @@ static void sanitize_ssid(const uint8_t* input_ssid, char* output_buffer, size_t
 }
 
 // -
+// ==========================================
+// SATPAM WIFI (Event Handler buat OTA)
+// ==========================================
+static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_CONNECTED) {
+        ESP_LOGI("WIFI", "Sukses nyambung ke Router!");
+        statusKoneksi = 1;
+    } 
+    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        ESP_LOGI("WIFI", "Dapet IP Address! Internet Ready!");
+        isWiFiConnected = true; // INI YANG DITUNGGU SAMA MESIN OTA LU!
+    } 
+    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        ESP_LOGI("WIFI", "Putus dari Router! Mencoba nyambung lagi...");
+        isWiFiConnected = false;
+        statusKoneksi = 2;
+        esp_wifi_connect(); // Paksa reconnect kalau putus
+    }
+}
+
 
 
 
@@ -297,15 +317,24 @@ void loopWiFi(void * pvParameters) {
 
 
     // === INITIALIZATION SAKTI (WAJIB ADA DI ESP-IDF) ===
+      // === INITIALIZATION SAKTI (WAJIB ADA DI ESP-IDF) ===
     static bool isWifiInit = false;
     if (!isWifiInit) {
         nvs_flash_init();
         esp_netif_init();
         esp_event_loop_create_default();
         
-        esp_netif_create_default_wifi_sta(); // Biar mode STA (Scan/Track) normal
-        esp_netif_create_default_wifi_ap();  // Biar mode AP punya DHCP Server & ngasih IP
+        esp_netif_create_default_wifi_sta(); 
+        esp_netif_create_default_wifi_ap();  
+        
+        // VVV --- TAMBAHIN 2 BARIS INI COK! --- VVV
+        esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, NULL);
+        esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, NULL);
+        // ^^^ -------------------------------- ^^^
+
         wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+        // ... (sisanya biarin sama kayak kodingan lu)
+
         esp_wifi_init(&cfg);
         esp_wifi_set_storage(WIFI_STORAGE_RAM);
         isWifiInit = true;
@@ -439,6 +468,26 @@ else if (isEvilTwin) {
             // Biarin sniffer kerja di background, layar lu bakal update sendiri
             vTaskDelay(pdMS_TO_TICKS(100)); 
         }
+                // --- LOGIKA KONEK KE ROUTER RUMAH (OTA) ---
+        else if (triggerConnect) {
+            triggerConnect = false; // Turunin pelatuknya biar gak ngeloop
+            
+            ESP_LOGI("WIFI", "Menerima perintah koneksi ke: %s", connSSID);
+            
+            esp_wifi_stop(); 
+            esp_wifi_set_mode(WIFI_MODE_STA); 
+            
+            wifi_config_t wifi_config = {0};
+            strcpy((char *)wifi_config.sta.ssid, connSSID);
+            strcpy((char *)wifi_config.sta.password, inputPassword);
+            
+            esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+            esp_wifi_start();
+            esp_wifi_connect(); // GAS KONEK!
+            
+            statusKoneksi = 0; // 0 = Sedang connecting
+        }
+
 
 
                     // --- 1. BLOK SCAN STATION (Kunci Channel) ---
@@ -568,18 +617,25 @@ else if (isEvilTwin) {
         
 
         // --- MANAJEMEN RADIO WIFI (BIAR GAK PANAS) ---
-        if (!isSpamming && !isDeauthSta && !isDeauthing && !triggerScan && !isEvilTwin && !triggerEvilTwin) {
-            wifi_mode_t currentMode;
-            esp_wifi_get_mode(&currentMode);
+        // --- MANAJEMEN RADIO WIFI (BIAR GAK PANAS) ---
+        // Tambahan: Jangan matiin radio kalau lagi OTA / Konek ke Router!
+        if (!isSpamming && !isDeauthSta && !isDeauthing && !triggerScan && !isEvilTwin && !triggerEvilTwin && !triggerTrack && !triggerScanSta) {
+            
+            // Kalau kita GAK LAGI nyoba konek (statusKoneksi != 0) dan GAK konek internet, baru boleh tidur
+            if (!isWiFiConnected && statusKoneksi != 0 && statusKoneksi != 1) {
+                wifi_mode_t currentMode;
+                esp_wifi_get_mode(&currentMode);
 
-            if (currentMode != WIFI_MODE_NULL) { 
-                esp_wifi_set_promiscuous(false); 
-                esp_wifi_stop();                 
-                esp_wifi_set_mode(WIFI_MODE_NULL); 
-                spamUdahSetup = false;
-                deauthUdahSetup = false;
+                if (currentMode != WIFI_MODE_NULL) { 
+                    esp_wifi_set_promiscuous(false); 
+                    esp_wifi_stop();                 
+                    esp_wifi_set_mode(WIFI_MODE_NULL); 
+                    spamUdahSetup = false;
+                    deauthUdahSetup = false;
+                }
             }
         }
+
         
         vTaskDelay(pdMS_TO_TICKS(10)); 
     }
