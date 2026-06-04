@@ -34,7 +34,7 @@ FontxFile fx32G[2]; // Ukuran 16x32 (Gede)
 
 
 void rootx_print_text_custom(int x, int y, const char* str, uint16_t fg, uint16_t bg) {
-    lcdDrawCustomString(&dev, fontC7c13, x, y, (char*)str, fg, bg); 
+    lcdDrawCustomString(&dev, fontC7x13, x, y, (char*)str, fg, bg); 
 }
 
 void rootx_print_text_kecil(int x, int y, const char* str, uint16_t fg, uint16_t bg) {
