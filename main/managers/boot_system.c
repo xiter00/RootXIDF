@@ -67,12 +67,12 @@ void tampilkanIntroAnime() {
     lcdDrawLine(&dev, 65, 0, 65, 64, WHITE); // Ganti ke garis vertikal ST7789
 
     // Teks Firmware di Kanan (Manggil fungsi extern dari globals.h)
-    rootx_print_text_6x9(68, 6, "[FIRMWARE]", WHITE, BLACK);
-    rootx_print_text_6x9(67, 18, "Name:RootX", WHITE, BLACK);
-    rootx_print_text_6x9(67, 28, "Ver :1.0.0", WHITE, BLACK);
-    rootx_print_text_6x9(67, 38, "By  :Andyy", WHITE, BLACK);
-    rootx_print_text_6x9(67, 48, "Mode:GOD", WHITE, BLACK);
-    rootx_print_text_6x9(67, 56, "Stat:Opt", WHITE, BLACK);
+    rootx_print_text_custom(68, 6, "[FIRMWARE]", WHITE, BLACK);
+    rootx_print_text_custom(67, 18, "Name:RootX", WHITE, BLACK);
+    rootx_print_text_custom(67, 28, "Ver :1.0.0", WHITE, BLACK);
+    rootx_print_text_custom(67, 38, "By  :Andyy", WHITE, BLACK);
+    rootx_print_text_custom(67, 48, "Mode:GOD", WHITE, BLACK);
+    rootx_print_text_custom(67, 56, "Stat:Opt", WHITE, BLACK);
 
     lcdDrawFinish(&dev);
     vTaskDelay(pdMS_TO_TICKS(2500));
@@ -89,7 +89,7 @@ void ketikTeks(const char* teks, int x, int y) {
     for (int i = 0; i < panjang; i++) {
         hurufTemp[0] = teks[i]; 
         
-        rootx_print_text_6x9(currentX, y, hurufTemp, WHITE, BLACK);
+        rootx_print_text_custom(currentX, y, hurufTemp, WHITE, BLACK);
         lcdDrawFinish(&dev);
         
         currentX += 8; // Ganti 6 jadi 8, karena lebar font ST7789 lu itu 8 pixel

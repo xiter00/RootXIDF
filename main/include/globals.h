@@ -6,7 +6,7 @@
 #include "st7789.h"
 #include "esp_spiffs.h"
 #include "driver/gpio.h"
-#include "font6x9.h"
+#include "font7x13.h"
 TFT_t dev; // Biar layar bisa diakses dari file mana aja
 
 
@@ -154,7 +154,7 @@ void simpan_highscore_dino(int hs);
 extern int baca_highscore_snake();
 void simpan_highscore_snake(int hs);
 // --- EKSPOR FUNGSI TEKS ST7789 BIAR BISA DIPAKAI DI SEMUA FILE ---
-extern void rootx_print_text_6x9(int x, int y, const char* str, uint16_t fg, uint16_t bg);
+extern void rootx_print_text_custom(int x, int y, const char* str, uint16_t fg, uint16_t bg);
 extern void rootx_print_text_kecil(int x, int y, const char* str, uint16_t fg, uint16_t bg);
 extern void rootx_print_text_sedang(int x, int y, const char* str, uint16_t fg, uint16_t bg);
 extern void rootx_print_text_gede(int x, int y, const char* str, uint16_t fg, uint16_t bg);

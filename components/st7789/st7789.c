@@ -1216,17 +1216,21 @@ int lcdDrawCustomChar(TFT_t * dev, const uint8_t *font_array, int x, int y, unsi
 
     // Filter array dempet (32-126 dan 161-191)
     if (ascii >= 32 && ascii <= 126) {
-        offset = (ascii - 32) * 9;
+        // Dikali 13 karena 1 karakter butuh 13 byte (baris)
+        offset = (ascii - 32) * 13; 
     } else if (ascii >= 161 && ascii <= 191) {
-        offset = (95 + (ascii - 161)) * 9;
+        // 95 itu jumlah karakter di rentang pertama. Offset lanjut dikali 13.
+        offset = (95 + (ascii - 161)) * 13; 
     }
 
     if (offset == -1) return x; // Abaikan kalau karakter gak ada di array
 
-    // Gambar per piksel (Tinggi 9, Lebar 6)
-    for (int row = 0; row < 9; row++) {
+    // Gambar per piksel (Tinggi sekarang 13, Lebar 7)
+    for (int row = 0; row < 13; row++) {
         uint8_t b = font_array[offset + row]; 
-        for (int col = 0; col < 6; col++) {
+        
+        // Looping kolom cuma sampai 7
+        for (int col = 0; col < 7; col++) {
             if (b & (0x80 >> col)) {
                 lcdDrawPixel(dev, x + col, y + row, color);
             } else {
@@ -1234,7 +1238,8 @@ int lcdDrawCustomChar(TFT_t * dev, const uint8_t *font_array, int x, int y, unsi
             }
         }
     }
-    return x + 6; // Kembalikan posisi x untuk karakter berikutnya
+    // Geser X sejauh 7 piksel buat nulis karakter berikutnya biar gak numpuk
+    return x + 7; 
 }
 
 void lcdDrawCustomString(TFT_t * dev, const uint8_t *font_array, int x, int y, char * ascii, uint16_t color, uint16_t bg_color) {
