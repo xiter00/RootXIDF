@@ -1204,3 +1204,44 @@ void lcdDrawFinish(TFT_t *dev)
 	}
 	return;
 }
+
+
+// =========================================================
+// TAMBAHAN FUNGSI NATIVE C ARRAY (TANPA SPIFFS)
+// =========================================================
+
+// 1. Fungsi buat nggambar FONT CUSTOM 6x9 lu (Format Horizontal Byte, Lompat Indeks)
+int lcdDrawCustomChar(TFT_t * dev, const uint8_t *font_array, int x, int y, unsigned char ascii, uint16_t color, uint16_t bg_color) {
+    int offset = -1;
+
+    // Filter array dempet (32-126 dan 161-191)
+    if (ascii >= 32 && ascii <= 126) {
+        offset = (ascii - 32) * 9;
+    } else if (ascii >= 161 && ascii <= 191) {
+        offset = (95 + (ascii - 161)) * 9;
+    }
+
+    if (offset == -1) return x; // Abaikan kalau karakter gak ada di array
+
+    // Gambar per piksel (Tinggi 9, Lebar 6)
+    for (int row = 0; row < 9; row++) {
+        uint8_t b = font_array[offset + row]; 
+        for (int col = 0; col < 6; col++) {
+            if (b & (0x80 >> col)) {
+                lcdDrawPixel(dev, x + col, y + row, color);
+            } else {
+                lcdDrawPixel(dev, x + col, y + row, bg_color);
+            }
+        }
+    }
+    return x + 6; // Kembalikan posisi x untuk karakter berikutnya
+}
+
+void lcdDrawCustomString(TFT_t * dev, const uint8_t *font_array, int x, int y, char * ascii, uint16_t color, uint16_t bg_color) {
+    int length = strlen(ascii);
+    int current_x = x;
+    for(int i = 0; i < length; i++) {
+        current_x = lcdDrawCustomChar(dev, font_array, current_x, y, (unsigned char)ascii[i], color, bg_color);
+    }
+}
+

@@ -76,6 +76,7 @@ void lcdDrawFillArrow(TFT_t * dev, uint16_t x0, uint16_t y0, uint16_t x1, uint16
 int lcdDrawChar(TFT_t * dev, FontxFile *fx, uint16_t x, uint16_t y, uint8_t ascii, uint16_t color);
 int lcdDrawString(TFT_t * dev, FontxFile *fx, uint16_t x, uint16_t y, uint8_t * ascii, uint16_t color);
 int lcdDrawCode(TFT_t * dev, FontxFile *fx, uint16_t x,uint16_t y,uint8_t code,uint16_t color);
+int lcdDrawCustomChar(TFT_t * dev, const uint8_t *font_array, int x, int y, unsigned char ascii, uint16_t color, uint16_t bg_color);
 //int lcdDrawUTF8Char(TFT_t * dev, FontxFile *fx, uint16_t x, uint16_t y, uint8_t *utf8, uint16_t color);
 //int lcdDrawUTF8String(TFT_t * dev, FontxFile *fx, uint16_t x, uint16_t y, unsigned char *utfs, uint16_t color);
 void lcdSetFontDirection(TFT_t * dev, uint16_t);
@@ -94,5 +95,9 @@ void lcdSetRect(TFT_t * dev, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2,
 void lcdSetCursor(TFT_t * dev, uint16_t x0, uint16_t y0, uint16_t r, uint16_t color, uint16_t *save);
 void lcdResetCursor(TFT_t * dev, uint16_t x0, uint16_t y0, uint16_t r, uint16_t color, uint16_t *save);
 void lcdDrawFinish(TFT_t *dev);
+// Tambahan Native C Array Fonts
+
+void lcdDrawCustomString(TFT_t * dev, const uint8_t *font_array, int x, int y, char * ascii, uint16_t color, uint16_t bg_color);
+
 #endif /* MAIN_ST7789_H_ */
 

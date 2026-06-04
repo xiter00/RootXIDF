@@ -159,7 +159,7 @@ void handleJoystick() {
         if (btn == BTN_OK || btn == BTN_RIGHT) {
             // EKSEKUSI REBOOT!
             lcdFillScreen(&dev, BLACK);
-            rootx_print_text(25, 30, "REBOOTING...", WHITE, BLACK);
+            rootx_print_text_6x9(25, 30, "REBOOTING...", WHITE, BLACK);
             lcdDrawFinish(&dev);
             
             vTaskDelay(pdMS_TO_TICKS(500)); // Kasih jeda dikit biar OLED sempet nulis
