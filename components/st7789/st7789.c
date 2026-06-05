@@ -1230,13 +1230,17 @@ int lcdDrawCustomChar(TFT_t * dev, const uint8_t *font_array, int x, int y, unsi
         uint8_t b = font_array[offset + row]; 
         
         // Looping kolom cuma sampai 7
-        for (int col = 0; col < 7; col++) {
+                for (int col = 0; col < 7; col++) {
             if (b & (0x80 >> col)) {
-                lcdDrawPixel(dev, x + col, y + row, color);
+                lcdDrawPixel(dev, x + col, y + row, color); // Piksel Font
             } else {
-                lcdDrawPixel(dev, x + col, y + row, bg_color);
+                // Trik Transparan: Hanya gambar background KALAU warnanya BEDA sama font
+                if (bg_color != color) {
+                    lcdDrawPixel(dev, x + col, y + row, bg_color);
+                }
             }
         }
+
     }
     // Geser X sejauh 7 piksel buat nulis karakter berikutnya biar gak numpuk
     return x + 7; 

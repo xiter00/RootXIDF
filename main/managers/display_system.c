@@ -322,6 +322,9 @@ rootx_print_text_custom(text_x, item_y + 3, " o EVIL TWIN", GRAY_COLOR, BLACK_CO
 }
 
 
+void drawBackground(void) {
+lcdDrawMultiPixels(&dev, 0, 0, 32400, (uint16_t*)background);
+}
 
 void task_display(void *pvParameters) {
 init_joystick();
@@ -339,7 +342,7 @@ init_joystick();
     dev._width = 240;
     dev._height = 135;
     dev._offsetx = 40; 
-    dev._offsety = 52;
+    dev._offsety = 53;
 
     // Bersihin layar pakai warna hitam
     lcdFillScreen(&dev, BLACK);
@@ -389,7 +392,7 @@ ledc_channel_config(&ledc_channel);
 handleJoystick(); 
 
         if (appMode == 0) {
-            if (inSubMenu == false) draw_hacker_ui(&dev);
+            if (inSubMenu == false) tampilkanMenuLogo();
             else tampilkanMenuUtama();
         } 
         else if (appMode == 1) {
@@ -581,9 +584,7 @@ const char* subMenuGame[] = {
 
 
 void tampilkanMenuLogo() {
-    lcdFillScreen(&dev, BLACK);
-
-    
+    drawBackground();
     
     
     read_battery_percentage(); // Baca tiap kali refresh layar

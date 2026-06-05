@@ -7,6 +7,7 @@
 #include "esp_spiffs.h"
 #include "driver/gpio.h"
 #include "font7x13.h"
+#include "background.h"
 TFT_t dev; // Biar layar bisa diakses dari file mana aja
 
 
@@ -147,7 +148,7 @@ extern bool isFileExpInit;
 
 void loadSavedRemotes(void);
 
-
+extern void drawBackground(void);
 // --- VARIABEL ENGINE GAME ---
 extern int baca_highscore_dino();
 void simpan_highscore_dino(int hs);
