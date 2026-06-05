@@ -321,11 +321,11 @@ rootx_print_text_custom(text_x, item_y + 3, " o EVIL TWIN", GRAY_COLOR, BLACK_CO
     lcdDrawFinish(dev);
 }
 
-
 void drawBackground(void) {
-lcdDrawMultiPixels(&dev, 0, 0, 32400, (uint16_t*)background);
+    // Copy langsung ke frame buffer
+    memcpy(dev._frame_buffer, background, sizeof(uint16_t) * 32400);
+    lcdDrawFinish(&dev);
 }
-
 void task_display(void *pvParameters) {
 init_joystick();
 // Ganti angka pin ini sesuai wiring SPI ST7789 lu (MOSI, SCLK, CS, D
