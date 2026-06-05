@@ -324,7 +324,7 @@ rootx_print_text_custom(text_x, item_y + 3, " o EVIL TWIN", GRAY_COLOR, BLACK_CO
 void drawBackground(void) {
     // Copy langsung ke frame buffer
     memcpy(dev._frame_buffer, background, sizeof(uint16_t) * 32400);
-    lcdDrawFinish(&dev);
+    
 }
 void task_display(void *pvParameters) {
 init_joystick();
@@ -437,7 +437,7 @@ renderDinoGame();
             renderTvBGone();              // <--- TAMBAHIN INI
         }
 
-lcdDrawFinish(&dev);
+
         // Kasih jeda dikit biar gak rakus CPU (kira-kira 30 FPS)
         vTaskDelay(pdMS_TO_TICKS(33)); 
     }
@@ -580,54 +580,98 @@ const char* subMenuGame[] = {
 // ==========================================
 
 
+MenuItem menuList[5] = {
+    {wifi48, wifi32, "WIFI"},
+    {bluetooth48, bluetooth32, "BLE"},
+    {infrared48, infrared32, "IR"},
+    {settings48, settings32, "SETS"},
+    {game48, game32, "GAME"}
+};
 
+int carouselCurrentIdx = 0;
+int carouselAnimFrame = 0;
+bool carouselAnimating = false;
+uint32_t carouselAnimStart = 0;
+
+void drawIconTransparent(int x, int y, int w, int h, const uint16_t *icon) {
+    for (int row = 0; row < h; row++) {
+        for (int col = 0; col < w; col++) {
+            uint16_t pixel = icon[row * w + col];
+            if (pixel == 0x0000) continue;
+            lcdDrawPixel(&dev, x + col, y + row, pixel);
+        }
+    }
+}
+
+void updateCarouselAnimation() {
+    if (!carouselAnimating) return;
+    
+    uint32_t elapsed = input_millis() - carouselAnimStart;
+    if (elapsed < 300) {
+        carouselAnimFrame = 5 - (elapsed * 5 / 300);
+    } else {
+        carouselAnimFrame = 0;
+        carouselAnimating = false;
+    }
+}
+
+void drawCarouselIcon(int pos, int animFrame) {
+    // pos: -1=atas, 0=tengah, 1=bawah
+    int menuIdx = (carouselCurrentIdx + pos + 5) % 5;
+    
+    if (pos == -1) {  // Atas
+        int targetY = 5;
+        int startY = 43;
+        float progress = animFrame / 5.0f;
+        int currentY = targetY + (startY - targetY) * progress;
+        drawIconTransparent(10, currentY, 32, 32, menuList[menuIdx].icon_small);
+    }
+    else if (pos == 0) {  // Tengah
+        int targetY = 43;
+        int startY = (carouselCurrentIdx == 0) ? 96 : 5;
+        float progress = animFrame / 5.0f;
+        int currentY = (animFrame == 0) ? 43 : targetY + (startY - targetY) * progress;
+        drawIconTransparent(20, currentY, 48, 48, menuList[menuIdx].icon_large);
+    }
+    else if (pos == 1) {  // Bawah
+        int targetY = 96;
+        int startY = 43;
+        float progress = animFrame / 5.0f;
+        int currentY = targetY + (startY - targetY) * progress;
+        drawIconTransparent(10, currentY, 32, 32, menuList[menuIdx].icon_small);
+    }
+}
 
 
 void tampilkanMenuLogo() {
     drawBackground();
     
+    updateCarouselAnimation();
     
-    read_battery_percentage(); // Baca tiap kali refresh layar
+    read_battery_percentage();
     char batBuf[10];
     snprintf(batBuf, sizeof(batBuf), "%d%%", batteryPercent);
-    
-    // Tampilkan Persentase di pojok kanan (X=100, Y=0)
     rootx_print_text_custom(95, 0, batBuf, WHITE, BLACK);
-
-    // --- DRAW ICON BATERAI (10x10) ---
-    // Kotak luar baterai
     
     lcdDrawRect(&dev, 116, 0, 126, 6, WHITE); 
-    lcdDrawPixel(&dev, 126, 2, WHITE); // Kepala baterai
-    
-    // Isi baterai berdasarkan persen
-    int barWidth = batteryPercent / 12; // Skala 100% ke 8 pixel
+    lcdDrawPixel(&dev, 126, 2, WHITE);
+    int barWidth = batteryPercent / 12;
     if (barWidth > 8) barWidth = 8;
     lcdDrawFillRect(&dev, 117, 1, 117 + barWidth, 5, WHITE);
     
-    if(currentMenu == 0)      rootx_print_text_custom(0, 0, "#> RootX: WIFI", WHITE, BLACK);
-    else if(currentMenu == 1) rootx_print_text_custom(0, 0, "#> RootX: BLE", WHITE, BLACK);
-    else if(currentMenu == 2) rootx_print_text_custom(0, 0, "#> RootX: IR", WHITE, BLACK);
-    else if(currentMenu == 3) rootx_print_text_custom(0, 0, "#> RootX: SETS", WHITE, BLACK);
-    else                      rootx_print_text_custom(0, 0, "#> RootX: GAME", WHITE, BLACK);
+    rootx_print_text_custom(0, 0, "#> RootX:", WHITE, BLACK);
+    rootx_print_text_custom(65, 0, menuList[carouselCurrentIdx].label, WHITE, BLACK);
     
-    lcdDrawLine(&dev, 0, 9, 128, 9, WHITE);
-
-    const unsigned char* bigIcon;
-    if(currentMenu == 0)      bigIcon = logo_wifi_32; 
-    else if(currentMenu == 1) bigIcon = logo_ble_32;
-    else if(currentMenu == 2) bigIcon = logo_ir_32;
-    else if(currentMenu == 3) bigIcon = logo_settings_32;
-    else                      bigIcon = logo_game_32;
+    lcdDrawLine(&dev, 0, 9, 240, 9, WHITE);
     
-
-    int iconBounce = getBounce(300, 2); // Loncat 2 pixel
-    screen_draw_bitmap(0, 47, 20 + iconBounce, bigIcon, 32, 32, WHITE);
-
-    // Font library ini ukurannya fix, jadi kita akalin kursornya aja
-    rootx_print_text_custom(20, 30, "<", WHITE, BLACK);
-    rootx_print_text_custom(102, 30, ">", WHITE, BLACK);
-    rootx_print_text_custom(40, 56, ">SELECT<", WHITE, BLACK); 
+    // Draw 3 icon carousel
+    drawCarouselIcon(-1, carouselAnimFrame);  // Atas
+    drawCarouselIcon(0, carouselAnimFrame);   // Tengah
+    drawCarouselIcon(1, carouselAnimFrame);   // Bawah
+    
+    rootx_print_text_custom(115, 60, "UP", WHITE, BLACK);
+    rootx_print_text_custom(115, 80, "DOWN", WHITE, BLACK);
+    rootx_print_text_custom(130, 60, "SELECT", WHITE, BLACK);
     
     lcdDrawFinish(&dev);
 }

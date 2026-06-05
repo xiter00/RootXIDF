@@ -77,6 +77,21 @@ TFT_t dev; // Biar layar bisa diakses dari file mana aja
 #define MODE_IR_SNIFFER 9
 #define MODE_SAVED_REMOTE 10
 
+
+// STRUKTUR MENU
+typedef struct {
+    const uint16_t *icon_large;   // 48x48
+    const uint16_t *icon_small;   // 32x32
+    const char *label;
+} MenuItem;
+
+extern MenuItem menuList[5];
+extern int carouselCurrentIdx;
+extern int carouselAnimFrame;
+extern bool carouselAnimating;
+extern uint32_t carouselAnimStart;
+
+
 // --- STRUKTUR WIFI (String diganti char array) ---
 typedef struct {
   int id;

@@ -451,18 +451,30 @@ void handleJoystick() {
 
     if (appMode == 0) {
         if (!inSubMenu) {
-            if (btn == BTN_RIGHT) {
-                currentMenu = (currentMenu + 1) % 5; 
-            }
-            else if (btn == BTN_LEFT) {
-                currentMenu = (currentMenu - 1 + 5) % 5; 
-            }
-            else if (btn == BTN_OK) {
-                inSubMenu = true; 
-                currentSub = 0;   
-                topMenu = 0;
-            }
-        } 
+           if (btn == BTN_UP) {
+        carouselCurrentIdx = (carouselCurrentIdx - 1 + 5) % 5;
+        carouselAnimFrame = 5;
+        carouselAnimating = true;
+        carouselAnimStart = input_millis();
+        lastPress = input_millis();
+        return;
+    }
+    else if (btn == BTN_DOWN) {
+        carouselCurrentIdx = (carouselCurrentIdx + 1) % 5;
+        carouselAnimFrame = 5;
+        carouselAnimating = true;
+        carouselAnimStart = input_millis();
+        lastPress = input_millis();
+        return;
+    }
+    else if (btn == BTN_OK) {
+        inSubMenu = true;
+        currentMenu = carouselCurrentIdx;
+        currentSub = 0;
+        lastPress = input_millis();
+        return;
+    }
+        }
         else { // DI DALAM LIST SUBMENU
             if (btn == BTN_DOWN) {
                 int limitMenu = 0; 
