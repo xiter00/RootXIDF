@@ -31,7 +31,9 @@
 FontxFile fx16G[2]; // Ukuran 8x16 (Kecil)
 FontxFile fx24G[2]; // Ukuran 12x24 (Sedang)
 FontxFile fx32G[2]; // Ukuran 16x32 (Gede)
-
+uint32_t input_millis() {
+    return (uint32_t)(esp_timer_get_time() / 1000);
+}
 
 void rootx_print_text_custom(int x, int y, const char* str, uint16_t fg, uint16_t bg) {
     lcdDrawCustomString(&dev, fontC7x13, x, y, (char*)str, fg, bg); 
