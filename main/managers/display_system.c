@@ -605,42 +605,102 @@ void drawIconTransparent(int x, int y, int w, int h, const uint16_t *icon) {
     }
 }
 
-void updateCarouselAnimation() {
-    if (!carouselAnimating) return;
-    
-    uint32_t elapsed = input_millis() - carouselAnimStart;
-    if (elapsed < 300) {
-        carouselAnimFrame = 5 - (elapsed * 5 / 300);
-    } else {
-        carouselAnimFrame = 0;
-        carouselAnimating = false;
+void drawIconTransparentW(int x, int y, int w, int h, const uint16_t *icon) {
+    for (int row = 0; row < h; row++) {
+        for (int col = 0; col < w; col++) {
+            uint16_t pixel = icon[row * w + col];
+            if (pixel == 0xffff) continue;
+            lcdDrawPixel(&dev, x + col, y + row, pixel);
+        }
     }
 }
 
-void drawCarouselIcon(int pos, int animFrame) {
-    // pos: -1=atas, 0=tengah, 1=bawah
-    int menuIdx = (carouselCurrentIdx + pos + 5) % 5;
+void updateCarouselAnimation() {
+    if (!carouselAnimating) return;
+    uint32_t elapsed = millis() - carouselAnimStart;
+    if (elapsed >= 250) {
+        carouselAnimating = false;
+        carouselDirection = 0;
+    }
+}
+
+// direction: 1 = klik down (geser ke atas), -1 = klik up (geser ke bawah)
+int carouselDirection = 0;
+
+void drawCarouselAnimated(float progress) {
+    // progress: 0.0 = awal animasi, 1.0 = selesai
     
-    if (pos == -1) {  // Atas
-        int targetY = 5;
-        int startY = 43;
-        float progress = animFrame / 5.0f;
-        int currentY = targetY + (startY - targetY) * progress;
-        drawIconTransparent(10, currentY, 32, 32, menuList[menuIdx].icon_small);
-    }
-    else if (pos == 0) {  // Tengah
-        int targetY = 43;
-        int startY = (carouselCurrentIdx == 0) ? 96 : 5;
-        float progress = animFrame / 5.0f;
-        int currentY = (animFrame == 0) ? 43 : targetY + (startY - targetY) * progress;
-        drawIconTransparent(20, currentY, 48, 48, menuList[menuIdx].icon_large);
-    }
-    else if (pos == 1) {  // Bawah
-        int targetY = 96;
-        int startY = 43;
-        float progress = animFrame / 5.0f;
-        int currentY = targetY + (startY - targetY) * progress;
-        drawIconTransparent(10, currentY, 32, 32, menuList[menuIdx].icon_small);
+    // Posisi final tiap slot
+    int y_atas   = 5;
+    int y_tengah = 43;
+    int y_bawah  = 96;
+    int y_masuk_bawah = 135;   // Dari sini masuk
+    int y_keluar_atas = -32;   // Ke sini keluar
+    int y_masuk_atas  = -32;   // Dari sini masuk (klik up)
+    int y_keluar_bawah = 135;  // Ke sini keluar (klik up)
+
+    // Helper lerp
+    #define LERP(a, b, t) ((int)((a) + ((b) - (a)) * (t)))
+    #define LERP_SIZE(a, b, t) ((int)((a) + ((b) - (a)) * (t)))
+
+    if (carouselDirection == 1) {  // Klik DOWN: semua geser ke atas
+        int prev = (carouselCurrentIdx - 1 + 5) % 5;   // yg tadi tengah
+        int curr = carouselCurrentIdx;                   // yg baru tengah
+        int next = (carouselCurrentIdx + 1) % 5;        // yg baru bawah
+        int gone = (carouselCurrentIdx - 2 + 5) % 5;   // icon keluar atas
+
+        // Icon gone: atas → keluar atas
+        int goneY = LERP(y_atas, y_keluar_atas, progress);
+        drawIconTransparent(10, goneY, 32, 32, menuList[gone].icon_small);
+
+        // Icon prev (tadi tengah): tengah → atas, 48→32
+        int prevY = LERP(y_tengah, y_atas, progress);
+        int prevS = LERP_SIZE(48, 32, progress);
+        int prevX = LERP(20, 10, progress);
+        drawIconTransparent(prevX, prevY, prevS, prevS, menuList[prev].icon_large);
+
+        // Icon curr (baru tengah): bawah → tengah, 32→48
+        int currY = LERP(y_bawah, y_tengah, progress);
+        int currS = LERP_SIZE(32, 48, progress);
+        int currX = LERP(10, 20, progress);
+        drawIconTransparent(currX, currY, currS, currS, menuList[curr].icon_small);
+
+        // Icon next (baru bawah): masuk dari bawah layar → bawah
+        int nextY = LERP(y_masuk_bawah, y_bawah, progress);
+        drawIconTransparent(10, nextY, 32, 32, menuList[next].icon_small);
+
+    } else if (carouselDirection == -1) {  // Klik UP: semua geser ke bawah
+        int next = (carouselCurrentIdx + 1) % 5;        // yg tadi tengah
+        int curr = carouselCurrentIdx;                   // yg baru tengah
+        int prev = (carouselCurrentIdx - 1 + 5) % 5;   // yg baru atas
+        int gone = (carouselCurrentIdx + 2) % 5;        // icon keluar bawah
+
+        // Icon gone: bawah → keluar bawah
+        int goneY = LERP(y_bawah, y_keluar_bawah, progress);
+        drawIconTransparent(10, goneY, 32, 32, menuList[gone].icon_small);
+
+        // Icon next (tadi tengah): tengah → bawah, 48→32
+        int nextY = LERP(y_tengah, y_bawah, progress);
+        int nextS = LERP_SIZE(48, 32, progress);
+        int nextX = LERP(20, 10, progress);
+        drawIconTransparent(nextX, nextY, nextS, nextS, menuList[next].icon_large);
+
+        // Icon curr (baru tengah): atas → tengah, 32→48
+        int currY = LERP(y_atas, y_tengah, progress);
+        int currS = LERP_SIZE(32, 48, progress);
+        int currX = LERP(10, 20, progress);
+        drawIconTransparent(currX, currY, currS, currS, menuList[curr].icon_small);
+
+        // Icon prev (baru atas): masuk dari atas layar → atas
+        int prevY = LERP(y_masuk_atas, y_atas, progress);
+        drawIconTransparent(10, prevY, 32, 32, menuList[prev].icon_small);
+    } else {
+        // Gak animasi, gambar biasa
+        int above = (carouselCurrentIdx - 1 + 5) % 5;
+        int below = (carouselCurrentIdx + 1) % 5;
+        drawIconTransparent(10, y_atas, 32, 32, menuList[above].icon_small);
+        drawIconTransparentW(20, y_tengah, 48, 48, menuList[carouselCurrentIdx].icon_large);
+        drawIconTransparent(10, y_bawah, 32, 32, menuList[below].icon_small);
     }
 }
 
@@ -649,6 +709,14 @@ void tampilkanMenuLogo() {
     drawBackground();
     
     updateCarouselAnimation();
+
+float progress = 1.0f;
+if (carouselAnimating) {
+    progress = (millis() - carouselAnimStart) / 250.0f;
+    if (progress > 1.0f) progress = 1.0f;
+}
+
+drawCarouselAnimated(progress);
     
     read_battery_percentage();
     char batBuf[10];

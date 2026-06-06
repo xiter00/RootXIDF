@@ -451,22 +451,22 @@ void handleJoystick() {
 
     if (appMode == 0) {
         if (!inSubMenu) {
-           if (btn == BTN_UP) {
-        carouselCurrentIdx = (carouselCurrentIdx - 1 + 5) % 5;
-        carouselAnimFrame = 5;
-        carouselAnimating = true;
-        carouselAnimStart = input_millis();
-        lastPress = input_millis();
-        return;
-    }
-    else if (btn == BTN_DOWN) {
-        carouselCurrentIdx = (carouselCurrentIdx + 1) % 5;
-        carouselAnimFrame = 5;
-        carouselAnimating = true;
-        carouselAnimStart = input_millis();
-        lastPress = input_millis();
-        return;
-    }
+          if (btn == BTN_DOWN) {
+    carouselCurrentIdx = (carouselCurrentIdx + 1) % 5;
+    carouselDirection = 1;
+    carouselAnimating = true;
+    carouselAnimStart = input_millis();
+    lastPress = input_millis();
+    return;
+}
+else if (btn == BTN_UP) {
+    carouselCurrentIdx = (carouselCurrentIdx - 1 + 5) % 5;
+    carouselDirection = -1;
+    carouselAnimating = true;
+    carouselAnimStart = input_millis();
+    lastPress = input_millis();
+    return;
+}
     else if (btn == BTN_OK) {
         inSubMenu = true;
         currentMenu = carouselCurrentIdx;
