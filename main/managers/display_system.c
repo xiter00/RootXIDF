@@ -41,22 +41,22 @@ void rootx_print_text_custom(int x, int y, const char* str, uint16_t fg, uint16_
 }
 
 void rootx_print_text_kecil(int x, int y, const char* str, uint16_t fg, uint16_t bg) {
-    if (bg != BLACK) lcdSetFontFill(&dev, bg);
-    else lcdUnsetFontFill(&dev);
+    if (bg != fg) lcdSetFontFill(&dev, bg);
+else lcdUnsetFontFill(&dev);
     lcdDrawString(&dev, fx16G, x, y, (uint8_t*)str, fg); 
 }
 
 // 2. Fungsi Text Sedang (12x24)
 void rootx_print_text_sedang(int x, int y, const char* str, uint16_t fg, uint16_t bg) {
-    if (bg != BLACK) lcdSetFontFill(&dev, bg);
-    else lcdUnsetFontFill(&dev);
+    if (bg != fg) lcdSetFontFill(&dev, bg);
+else lcdUnsetFontFill(&dev);
     lcdDrawString(&dev, fx24G, x, y, (uint8_t*)str, fg);
 }
 
 // 3. Fungsi Text Gede (16x32)
 void rootx_print_text_gede(int x, int y, const char* str, uint16_t fg, uint16_t bg) {
-    if (bg != BLACK) lcdSetFontFill(&dev, bg);
-    else lcdUnsetFontFill(&dev);
+    if (bg != fg) lcdSetFontFill(&dev, bg);
+else lcdUnsetFontFill(&dev);
     lcdDrawString(&dev, fx32G, x, y, (uint8_t*)str, fg);
 }
 
