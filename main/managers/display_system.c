@@ -796,11 +796,9 @@ drawCarouselAnimated(progress);
         jumlah_bar = 1;
     }
 
-    // 3. GAMBAR BALOK BAR DI DALEM BORDER LU
-    // Mulai dari X=218 (dikasih space 2 pixel dari border kiri lu)
-    // Tinggi Y dari 6 sampai 10 (dikasih space 2 pixel dari border atas-bawah lu agar pas di tengah)
+
     for (int b = 0; b < jumlah_bar; b++) {
-        int bar_x_start = 218 + (b * 4); // Lebar balok 3px + jeda 1px
+        int bar_x_start = 218 + (b * 4); 
         lcdDrawFillRect(&dev, bar_x_start, 6, bar_x_start + 2, 10, warna_bar);
     }
     
@@ -815,7 +813,7 @@ drawCarouselAnimated(progress);
     
     
     rootx_print_text_kecil(75, 61, "<", ICE_CYAN, ICE_CYAN);
-    rootx_print_text_keci(86, 61, menuList[carouselCurrentIdx].label, WHITE, WHITE);
+    rootx_print_text_kecil(86, 61, menuList[carouselCurrentIdx].label, WHITE, WHITE);
     
     apply_cyber_glitch();
     lcdDrawFinish(&dev);
