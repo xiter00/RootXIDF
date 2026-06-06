@@ -598,7 +598,7 @@ uint32_t carouselAnimStart = 0;
 
 
 // Fungsi Scaling Khusus 1-Bit Vertikal (Image2cpp)
-void drawIconScaled(int x, int y, int src_w, int src_h, int dst_w, int dst_h, const uint8_t *icon, uint16_t *color) {
+void drawIconScaled(int x, int y, int src_w, int src_h, int dst_w, int dst_h, const uint8_t *icon, uint16_t color) {
     if (icon == NULL) return;
     if (dst_w <= 0 || dst_h <= 0) return;
     

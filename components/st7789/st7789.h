@@ -18,7 +18,7 @@
 #define ORANGE rgb565(255,   128, 0) 
 #define DARK_GRAY rgb565(72, 74, 74)
 #define BLOOD_RED rgb565(184, 0, 0)
-#define ICE_CYAN  rgb565(0, 252, 255)
+#define ICE_CYAN rgb565(0, 252, 255)
 
 typedef enum {DIRECTION0, DIRECTION90, DIRECTION180, DIRECTION270} DIRECTION;
 
