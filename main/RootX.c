@@ -15,7 +15,7 @@
 #include "photo_data.h"
 
 // Hardcode versi firmware lu saat ini (100 = v1.0.0)
-#define VERSION_SAAT_INI 115
+#define VERSION_SAAT_INI 116
 
 // URL mentah (RAW) langsung tembak ke file lu di GitHub
 #define URL_VERSION  "https://raw.githubusercontent.com/xiter00/RTXUP/main/vr.txt"
@@ -363,15 +363,13 @@ void app_main(void) {
     vTaskDelay(pdMS_TO_TICKS(2000));
 
     // --- 3. HACK AUTO-CONNECT WIFI BUAT DEV ---
-    strcpy(connSSID, "NOT MASTAH"); 
-    strcpy(inputPassword, "yangbrorasakan");
+    strcpy(connSSID, "AYYUBI"); 
+    strcpy(inputPassword, "rumahabi123");
     vTaskDelay(pdMS_TO_TICKS(100));
     triggerConnect = true; 
 
 
-    strcpy(connSSID, "NOT MASTAH"); 
-    strcpy(inputPassword, "yangbrorasakan");
-    triggerConnect = true; // Ini bakal mancing loopWiFi lu buat ngeksekusi koneksi
+    
 
     // --- 4. JALANIN MESIN OTA ---
     // (Tadi lu salah ketik ota_satpam_task, gw ganti jadi task_cek_ota)

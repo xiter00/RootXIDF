@@ -595,22 +595,15 @@ int carouselAnimFrame = 0;
 bool carouselAnimating = false;
 uint32_t carouselAnimStart = 0;
 
-void clearCarouselArea() {
-    // Salin ulang bagian kiri dari background ke frame buffer
-    // sebelum icon digambar
-    extern const uint16_t background[];
-    for (int row = 10; row < 135; row++) {
-        for (int col = 0; col < 85; col++) {
-            dev._frame_buffer[row * 240 + col] = background[row * 240 + col];
-        }
-    }
-}
-void drawIconTransparent(int x, int y, int w, int h, const uint16_t *icon) {
-    for (int row = 0; row < h; row++) {
-        for (int col = 0; col < w; col++) {
-            uint16_t pixel = icon[row * w + col];
+
+void drawIconScaled(int x, int y, int src_w, int src_h, int dst_w, int dst_h, const uint16_t *icon) {
+    for (int row = 0; row < dst_h; row++) {
+        for (int col = 0; col < dst_w; col++) {
+            // Nearest neighbor scaling - mapping dst ke src yang bener
+            int src_col = col * src_w / dst_w;
+            int src_row = row * src_h / dst_h;
+            uint16_t pixel = icon[src_row * src_w + src_col];
             if (pixel == 0x0000) continue;
-            // Tulis ke frame buffer, bukan lcdDrawPixel
             dev._frame_buffer[(y + row) * dev._width + (x + col)] = pixel;
         }
     }
@@ -629,86 +622,73 @@ void updateCarouselAnimation() {
 
 
 void drawCarouselAnimated(float progress) {
-    // progress: 0.0 = awal animasi, 1.0 = selesai
-    
-    // Posisi final tiap slot
     int y_atas   = 5;
     int y_tengah = 43;
     int y_bawah  = 96;
-    int y_masuk_bawah = 135;   // Dari sini masuk
-    int y_keluar_atas = -32;   // Ke sini keluar
-    int y_masuk_atas  = -32;   // Dari sini masuk (klik up)
-    int y_keluar_bawah = 135;  // Ke sini keluar (klik up)
+    int y_masuk_bawah = 135;
+    int y_keluar_atas = -32;
+    int y_masuk_atas  = -32;
+    int y_keluar_bawah = 135;
 
-    // Helper lerp
     #define LERP(a, b, t) ((int)((a) + ((b) - (a)) * (t)))
-    #define LERP_SIZE(a, b, t) ((int)((a) + ((b) - (a)) * (t)))
 
-    if (carouselDirection == 1) {  // Klik DOWN: semua geser ke atas
-        int prev = (carouselCurrentIdx - 1 + 5) % 5;   // yg tadi tengah
-        int curr = carouselCurrentIdx;                   // yg baru tengah
-        int next = (carouselCurrentIdx + 1) % 5;        // yg baru bawah
-        int gone = (carouselCurrentIdx - 2 + 5) % 5;   // icon keluar atas
+    if (carouselDirection == 1) {
+        int prev = (carouselCurrentIdx - 1 + 5) % 5;
+        int curr = carouselCurrentIdx;
+        int next = (carouselCurrentIdx + 1) % 5;
+        int gone = (carouselCurrentIdx - 2 + 5) % 5;
 
-        // Icon gone: atas → keluar atas
         int goneY = LERP(y_atas, y_keluar_atas, progress);
-        drawIconTransparent(10, goneY, 32, 32, menuList[gone].icon_small);
+        drawIconScaled(10, goneY, 32, 32, 32, 32, menuList[gone].icon_small);
 
-        // Icon prev (tadi tengah): tengah → atas, 48→32
         int prevY = LERP(y_tengah, y_atas, progress);
-        int prevS = LERP_SIZE(48, 32, progress);
+        int prevS = LERP(48, 32, progress);
         int prevX = LERP(20, 10, progress);
-        drawIconTransparent(prevX, prevY, prevS, prevS, menuList[prev].icon_large);
+        drawIconScaled(prevX, prevY, 48, 48, prevS, prevS, menuList[prev].icon_large);
 
-        // Icon curr (baru tengah): bawah → tengah, 32→48
         int currY = LERP(y_bawah, y_tengah, progress);
-        int currS = LERP_SIZE(32, 48, progress);
+        int currS = LERP(32, 48, progress);
         int currX = LERP(10, 20, progress);
-        drawIconTransparent(currX, currY, currS, currS, menuList[curr].icon_small);
+        drawIconScaled(currX, currY, 32, 32, currS, currS, menuList[curr].icon_small);
 
-        // Icon next (baru bawah): masuk dari bawah layar → bawah
         int nextY = LERP(y_masuk_bawah, y_bawah, progress);
-        drawIconTransparent(10, nextY, 32, 32, menuList[next].icon_small);
+        drawIconScaled(10, nextY, 32, 32, 32, 32, menuList[next].icon_small);
 
-    } else if (carouselDirection == -1) {  // Klik UP: semua geser ke bawah
-        int next = (carouselCurrentIdx + 1) % 5;        // yg tadi tengah
-        int curr = carouselCurrentIdx;                   // yg baru tengah
-        int prev = (carouselCurrentIdx - 1 + 5) % 5;   // yg baru atas
-        int gone = (carouselCurrentIdx + 2) % 5;        // icon keluar bawah
+    } else if (carouselDirection == -1) {
+        int next = (carouselCurrentIdx + 1) % 5;
+        int curr = carouselCurrentIdx;
+        int prev = (carouselCurrentIdx - 1 + 5) % 5;
+        int gone = (carouselCurrentIdx + 2) % 5;
 
-        // Icon gone: bawah → keluar bawah
         int goneY = LERP(y_bawah, y_keluar_bawah, progress);
-        drawIconTransparent(10, goneY, 32, 32, menuList[gone].icon_small);
+        drawIconScaled(10, goneY, 32, 32, 32, 32, menuList[gone].icon_small);
 
-        // Icon next (tadi tengah): tengah → bawah, 48→32
         int nextY = LERP(y_tengah, y_bawah, progress);
-        int nextS = LERP_SIZE(48, 32, progress);
+        int nextS = LERP(48, 32, progress);
         int nextX = LERP(20, 10, progress);
-        drawIconTransparent(nextX, nextY, nextS, nextS, menuList[next].icon_large);
+        drawIconScaled(nextX, nextY, 48, 48, nextS, nextS, menuList[next].icon_large);
 
-        // Icon curr (baru tengah): atas → tengah, 32→48
         int currY = LERP(y_atas, y_tengah, progress);
-        int currS = LERP_SIZE(32, 48, progress);
+        int currS = LERP(32, 48, progress);
         int currX = LERP(10, 20, progress);
-        drawIconTransparent(currX, currY, currS, currS, menuList[curr].icon_small);
+        drawIconScaled(currX, currY, 32, 32, currS, currS, menuList[curr].icon_small);
 
-        // Icon prev (baru atas): masuk dari atas layar → atas
         int prevY = LERP(y_masuk_atas, y_atas, progress);
-        drawIconTransparent(10, prevY, 32, 32, menuList[prev].icon_small);
+        drawIconScaled(10, prevY, 32, 32, 32, 32, menuList[prev].icon_small);
+
     } else {
-        // Gak animasi, gambar biasa
         int above = (carouselCurrentIdx - 1 + 5) % 5;
         int below = (carouselCurrentIdx + 1) % 5;
-        drawIconTransparent(10, y_atas, 32, 32, menuList[above].icon_small);
-        drawIconTransparent(20, y_tengah, 48, 48, menuList[carouselCurrentIdx].icon_large);
-        drawIconTransparent(10, y_bawah, 32, 32, menuList[below].icon_small);
+        drawIconScaled(10, y_atas, 32, 32, 32, 32, menuList[above].icon_small);
+        drawIconScaled(20, y_tengah, 48, 48, 48, 48, menuList[carouselCurrentIdx].icon_large);
+        drawIconScaled(10, y_bawah, 32, 32, 32, 32, menuList[below].icon_small);
     }
 }
 
 
 void tampilkanMenuLogo() {
     drawBackground();
-    clearCarouselArea();    
+    
     updateCarouselAnimation();
 
 float progress = 1.0f;
