@@ -614,7 +614,7 @@ void drawIconTransparentW(int x, int y, int w, int h, const uint16_t *icon) {
         }
     }
 }
-
+int carouselDirection = 0;
 void updateCarouselAnimation() {
     if (!carouselAnimating) return;
     uint32_t elapsed = millis() - carouselAnimStart;
@@ -625,7 +625,7 @@ void updateCarouselAnimation() {
 }
 
 // direction: 1 = klik down (geser ke atas), -1 = klik up (geser ke bawah)
-int carouselDirection = 0;
+
 
 void drawCarouselAnimated(float progress) {
     // progress: 0.0 = awal animasi, 1.0 = selesai

@@ -161,6 +161,7 @@ extern int sdFileCursor;
 extern int sdFileScroll;
 extern int sdFileState; // 0: List, 1: Confirm Delete
 extern bool isFileExpInit;
+extern int carouselDirection;
 
 void loadSavedRemotes(void);
 
