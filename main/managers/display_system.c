@@ -595,22 +595,23 @@ int carouselAnimFrame = 0;
 bool carouselAnimating = false;
 uint32_t carouselAnimStart = 0;
 
+void clearCarouselArea() {
+    // Salin ulang bagian kiri dari background ke frame buffer
+    // sebelum icon digambar
+    extern const uint16_t background[];
+    for (int row = 10; row < 135; row++) {
+        for (int col = 0; col < 85; col++) {
+            dev._frame_buffer[row * 240 + col] = background[row * 240 + col];
+        }
+    }
+}
 void drawIconTransparent(int x, int y, int w, int h, const uint16_t *icon) {
     for (int row = 0; row < h; row++) {
         for (int col = 0; col < w; col++) {
             uint16_t pixel = icon[row * w + col];
             if (pixel == 0x0000) continue;
-            lcdDrawPixel(&dev, x + col, y + row, pixel);
-        }
-    }
-}
-
-void drawIconTransparentW(int x, int y, int w, int h, const uint16_t *icon) {
-    for (int row = 0; row < h; row++) {
-        for (int col = 0; col < w; col++) {
-            uint16_t pixel = icon[row * w + col];
-            if (pixel == 0xffff) continue;
-            lcdDrawPixel(&dev, x + col, y + row, pixel);
+            // Tulis ke frame buffer, bukan lcdDrawPixel
+            dev._frame_buffer[(y + row) * dev._width + (x + col)] = pixel;
         }
     }
 }
@@ -707,7 +708,7 @@ void drawCarouselAnimated(float progress) {
 
 void tampilkanMenuLogo() {
     drawBackground();
-    
+    clearCarouselArea();    
     updateCarouselAnimation();
 
 float progress = 1.0f;
