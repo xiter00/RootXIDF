@@ -872,10 +872,12 @@ int lcdDrawChar(TFT_t * dev, FontxFile *fxs, uint16_t x, uint16_t y, uint8_t asc
 				if (bits < 0) continue;
 				//if(_DEBUG_)printf("xx=%d yy=%d mask=%02x fonts[%d]=%02x\n",xx,yy,mask,ofs,fxs->fonts[ofs]);
 				if (fxs->fonts[ofs] & mask) {
-					lcdDrawPixel(dev, xx, yy, color);
-				} else {
-					//if (dev->_font_fill) lcdDrawPixel(dev, xx, yy, dev->_font_fill_color);
-				}
+    lcdDrawPixel(dev, xx, yy, color);
+} else {
+    if (dev->_font_fill && dev->_font_fill_color != color) {
+        lcdDrawPixel(dev, xx, yy, dev->_font_fill_color);
+    }
+}
 				if (h == (ph-2) && dev->_font_underline)
 					lcdDrawPixel(dev, xx, yy, dev->_font_underline_color);
 				if (h == (ph-1) && dev->_font_underline)

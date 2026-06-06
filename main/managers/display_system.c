@@ -812,8 +812,8 @@ drawCarouselAnimated(progress);
     
     
     
-    rootx_print_text_kecil(75, 61, "<", ICE_CYAN, ICE_CYAN);
-    rootx_print_text_kecil(86, 61, menuList[carouselCurrentIdx].label, WHITE, WHITE);
+    rootx_print_text_kecil(75, 75, "<", ICE_CYAN, ICE_CYAN);
+    rootx_print_text_kecil(86, 75, menuList[carouselCurrentIdx].label, WHITE, WHITE);
     
     apply_cyber_glitch();
     lcdDrawFinish(&dev);
