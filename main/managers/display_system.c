@@ -714,20 +714,20 @@ void drawCarouselAnimated(float progress) {
         int gone = (carouselCurrentIdx - 2 + 5) % 5;
 
         int goneY = LERP(y_atas, y_keluar_atas, progress);
-        drawIconScaled(10, goneY, 32, 32, 32, 32, menuList[gone].icon_small, DARK_GRAY);
+        drawIconScaled(10, goneY, 32, 32, 32, 32, menuList[gone].icon_small, GRAY);
 
         int prevY = LERP(y_tengah, y_atas, progress);
         int prevS = LERP(48, 32, progress);
         int prevX = LERP(20, 10, progress);
-        drawIconScaled(prevX, prevY, 48, 48, prevS, prevS, menuList[prev].icon_large, BLOOD_RED);
+        drawIconScaled(prevX, prevY, 48, 48, prevS, prevS, menuList[prev].icon_large, WHITE);
 
         int currY = LERP(y_bawah, y_tengah, progress);
         int currS = LERP(32, 48, progress);
         int currX = LERP(10, 20, progress);
-        drawIconScaled(currX, currY, 32, 32, currS, currS, menuList[curr].icon_small, DARK_GRAY);
+        drawIconScaled(currX, currY, 32, 32, currS, currS, menuList[curr].icon_small, GRAY);
 
         int nextY = LERP(y_masuk_bawah, y_bawah, progress);
-        drawIconScaled(10, nextY, 32, 32, 32, 32, menuList[next].icon_small, DARK_GRAY);
+        drawIconScaled(10, nextY, 32, 32, 32, 32, menuList[next].icon_small, GRAY);
 
     } else if (carouselDirection == -1) {
         int next = (carouselCurrentIdx + 1) % 5;
@@ -736,27 +736,27 @@ void drawCarouselAnimated(float progress) {
         int gone = (carouselCurrentIdx + 2) % 5;
 
         int goneY = LERP(y_bawah, y_keluar_bawah, progress);
-        drawIconScaled(10, goneY, 32, 32, 32, 32, menuList[gone].icon_small, DARK_GRAY);
+        drawIconScaled(10, goneY, 32, 32, 32, 32, menuList[gone].icon_small, GRAY);
 
         int nextY = LERP(y_tengah, y_bawah, progress);
         int nextS = LERP(48, 32, progress);
         int nextX = LERP(20, 10, progress);
-        drawIconScaled(nextX, nextY, 48, 48, nextS, nextS, menuList[next].icon_large, BLOOD_RED);
+        drawIconScaled(nextX, nextY, 48, 48, nextS, nextS, menuList[next].icon_large, WHITE);
 
         int currY = LERP(y_atas, y_tengah, progress);
         int currS = LERP(32, 48, progress);
         int currX = LERP(10, 20, progress);
-        drawIconScaled(currX, currY, 32, 32, currS, currS, menuList[curr].icon_small, DARK_GRAY);
+        drawIconScaled(currX, currY, 32, 32, currS, currS, menuList[curr].icon_small, GRAY);
 
         int prevY = LERP(y_masuk_atas, y_atas, progress);
-        drawIconScaled(10, prevY, 32, 32, 32, 32, menuList[prev].icon_small, DARK_GRAY);
+        drawIconScaled(10, prevY, 32, 32, 32, 32, menuList[prev].icon_small, GRAY);
 
     } else {
         int above = (carouselCurrentIdx - 1 + 5) % 5;
         int below = (carouselCurrentIdx + 1) % 5;
-        drawIconScaled(10, y_atas, 32, 32, 32, 32, menuList[above].icon_small, DARK_GRAY);
-        drawIconScaled(20, y_tengah, 48, 48, 48, 48, menuList[carouselCurrentIdx].icon_large, BLOOD_RED);
-        drawIconScaled(10, y_bawah, 32, 32, 32, 32, menuList[below].icon_small, DARK_GRAY);
+        drawIconScaled(10, y_atas, 32, 32, 32, 32, menuList[above].icon_small, GRAY);
+        drawIconScaled(20, y_tengah, 48, 48, 48, 48, menuList[carouselCurrentIdx].icon_large, WHITE);
+        drawIconScaled(10, y_bawah, 32, 32, 32, 32, menuList[below].icon_small, GRAY);
     }
 }
 
@@ -806,21 +806,16 @@ drawCarouselAnimated(progress);
     
     
     
-    lcdDrawRect(&dev, 116, 0, 126, 6, WHITE); 
-    lcdDrawPixel(&dev, 126, 2, WHITE);
-    int barWidth = batteryPercent / 12;
-    if (barWidth > 8) barWidth = 8;
-    lcdDrawFillRect(&dev, 117, 1, 117 + barWidth, 5, WHITE);
     
     
-    rootx_print_text_custom(95, 2, "<RootX>", ICE_CYAN, ICE_CYAN);
-    rootx_print_text_custom(95, 122, "Dev: Andyy", ICE_CYAN, ICE_CYAN);
+    rootx_print_text_custom(95, 2, "<RootX>", RED, RED);
+    rootx_print_text_custom(85, 122, "Dev: Andyy", WHITE, WHITE);
     
     
     
     
-    rootx_print_text_custom(75, 61, "<", ICE_CYAN, ICE_CYAN);
-    rootx_print_text_custom(86, 61, menuList[carouselCurrentIdx].label, WHITE, WHITE);
+    rootx_print_text_kecil(75, 61, "<", ICE_CYAN, ICE_CYAN);
+    rootx_print_text_keci(86, 61, menuList[carouselCurrentIdx].label, WHITE, WHITE);
     
     apply_cyber_glitch();
     lcdDrawFinish(&dev);
