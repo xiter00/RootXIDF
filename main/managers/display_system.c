@@ -584,7 +584,7 @@ const char* subMenuGame[] = {
 
 
 MenuItem menuList[5] = {
-    {wifi48, wifi32, "WIFI"},
+    {wifi48, wifi32, "WI-FI"},
     {ble48, ble32, "BLE"},
     {infrared48, infrared32, "IR"},
     {setting48, setting32, "SETS"},
@@ -598,7 +598,7 @@ uint32_t carouselAnimStart = 0;
 
 
 // Fungsi Scaling Khusus 1-Bit Vertikal (Image2cpp)
-void drawIconScaled(int x, int y, int src_w, int src_h, int dst_w, int dst_h, const uint8_t *icon) {
+void drawIconScaled(int x, int y, int src_w, int src_h, int dst_w, int dst_h, const uint8_t *icon, uint16_t *color) {
     if (icon == NULL) return;
     if (dst_w <= 0 || dst_h <= 0) return;
     
@@ -622,7 +622,7 @@ void drawIconScaled(int x, int y, int src_w, int src_h, int dst_w, int dst_h, co
             
             // Kalau bit-nya bernilai 1, tembak warnanya ke Frame Buffer
             if ((icon[byteIdx] >> bitIdx) & 0x01) {
-                dev._frame_buffer[screen_y * dev._width + screen_x] = WHITE;
+                dev._frame_buffer[screen_y * dev._width + screen_x] = color;
             }
             // Kalau 0, otomatis di-skip (Transparan Sempurna!)
         }
@@ -714,20 +714,20 @@ void drawCarouselAnimated(float progress) {
         int gone = (carouselCurrentIdx - 2 + 5) % 5;
 
         int goneY = LERP(y_atas, y_keluar_atas, progress);
-        drawIconScaled(10, goneY, 32, 32, 32, 32, menuList[gone].icon_small);
+        drawIconScaled(10, goneY, 32, 32, 32, 32, menuList[gone].icon_small, DARK_GRAY);
 
         int prevY = LERP(y_tengah, y_atas, progress);
         int prevS = LERP(48, 32, progress);
         int prevX = LERP(20, 10, progress);
-        drawIconScaled(prevX, prevY, 48, 48, prevS, prevS, menuList[prev].icon_large);
+        drawIconScaled(prevX, prevY, 48, 48, prevS, prevS, menuList[prev].icon_large, BLOOD_RED);
 
         int currY = LERP(y_bawah, y_tengah, progress);
         int currS = LERP(32, 48, progress);
         int currX = LERP(10, 20, progress);
-        drawIconScaled(currX, currY, 32, 32, currS, currS, menuList[curr].icon_small);
+        drawIconScaled(currX, currY, 32, 32, currS, currS, menuList[curr].icon_small, DARK_GRAY);
 
         int nextY = LERP(y_masuk_bawah, y_bawah, progress);
-        drawIconScaled(10, nextY, 32, 32, 32, 32, menuList[next].icon_small);
+        drawIconScaled(10, nextY, 32, 32, 32, 32, menuList[next].icon_small, DARK_GRAY);
 
     } else if (carouselDirection == -1) {
         int next = (carouselCurrentIdx + 1) % 5;
@@ -736,27 +736,27 @@ void drawCarouselAnimated(float progress) {
         int gone = (carouselCurrentIdx + 2) % 5;
 
         int goneY = LERP(y_bawah, y_keluar_bawah, progress);
-        drawIconScaled(10, goneY, 32, 32, 32, 32, menuList[gone].icon_small);
+        drawIconScaled(10, goneY, 32, 32, 32, 32, menuList[gone].icon_small, DARK_GRAY);
 
         int nextY = LERP(y_tengah, y_bawah, progress);
         int nextS = LERP(48, 32, progress);
         int nextX = LERP(20, 10, progress);
-        drawIconScaled(nextX, nextY, 48, 48, nextS, nextS, menuList[next].icon_large);
+        drawIconScaled(nextX, nextY, 48, 48, nextS, nextS, menuList[next].icon_large, BLOOD_RED);
 
         int currY = LERP(y_atas, y_tengah, progress);
         int currS = LERP(32, 48, progress);
         int currX = LERP(10, 20, progress);
-        drawIconScaled(currX, currY, 32, 32, currS, currS, menuList[curr].icon_small);
+        drawIconScaled(currX, currY, 32, 32, currS, currS, menuList[curr].icon_small, DARK_GRAY);
 
         int prevY = LERP(y_masuk_atas, y_atas, progress);
-        drawIconScaled(10, prevY, 32, 32, 32, 32, menuList[prev].icon_small);
+        drawIconScaled(10, prevY, 32, 32, 32, 32, menuList[prev].icon_small, DARK_GRAY);
 
     } else {
         int above = (carouselCurrentIdx - 1 + 5) % 5;
         int below = (carouselCurrentIdx + 1) % 5;
-        drawIconScaled(10, y_atas, 32, 32, 32, 32, menuList[above].icon_small);
-        drawIconScaled(20, y_tengah, 48, 48, 48, 48, menuList[carouselCurrentIdx].icon_large);
-        drawIconScaled(10, y_bawah, 32, 32, 32, 32, menuList[below].icon_small);
+        drawIconScaled(10, y_atas, 32, 32, 32, 32, menuList[above].icon_small, DARK_GRAY);
+        drawIconScaled(20, y_tengah, 48, 48, 48, 48, menuList[carouselCurrentIdx].icon_large, BLOOD_RED);
+        drawIconScaled(10, y_bawah, 32, 32, 32, 32, menuList[below].icon_small, DARK_GRAY);
     }
 }
 
@@ -775,9 +775,36 @@ if (carouselAnimating) {
 drawCarouselAnimated(progress);
     
     read_battery_percentage();
-    char batBuf[10];
-    snprintf(batBuf, sizeof(batBuf), "%d%%", batteryPercent);
-    rootx_print_text_custom(95, 0, batBuf, WHITE, BLACK);
+  
+    lcdDrawRect(&dev, 216, 4, 234, 12, WHITE);
+    lcdDrawFillRect(&dev, 235, 7, 237, 9, WHITE);
+    
+    uint16_t warna_bar = WHITE;
+    int jumlah_bar = 0;
+
+    if (batteryPercent > 75) {
+        warna_bar = GREEN;  
+        jumlah_bar = 4;
+    } else if (batteryPercent > 50) {
+        warna_bar = YELLOW; 
+        jumlah_bar = 3;
+    } else if (batteryPercent > 25) {
+        warna_bar = ORANGE; 
+        jumlah_bar = 2;
+    } else {
+        warna_bar = RED;    
+        jumlah_bar = 1;
+    }
+
+    // 3. GAMBAR BALOK BAR DI DALEM BORDER LU
+    // Mulai dari X=218 (dikasih space 2 pixel dari border kiri lu)
+    // Tinggi Y dari 6 sampai 10 (dikasih space 2 pixel dari border atas-bawah lu agar pas di tengah)
+    for (int b = 0; b < jumlah_bar; b++) {
+        int bar_x_start = 218 + (b * 4); // Lebar balok 3px + jeda 1px
+        lcdDrawFillRect(&dev, bar_x_start, 6, bar_x_start + 2, 10, warna_bar);
+    }
+    
+    
     
     lcdDrawRect(&dev, 116, 0, 126, 6, WHITE); 
     lcdDrawPixel(&dev, 126, 2, WHITE);
@@ -785,16 +812,16 @@ drawCarouselAnimated(progress);
     if (barWidth > 8) barWidth = 8;
     lcdDrawFillRect(&dev, 117, 1, 117 + barWidth, 5, WHITE);
     
-    rootx_print_text_custom(0, 0, "#> RootX:", WHITE, BLACK);
-    rootx_print_text_custom(65, 0, menuList[carouselCurrentIdx].label, WHITE, BLACK);
     
-    lcdDrawLine(&dev, 0, 9, 240, 9, WHITE);
-    
+    rootx_print_text_custom(95, 2, "<RootX>", ICE_CYAN, ICE_CYAN);
+    rootx_print_text_custom(95, 122, "Dev: Andyy", ICE_CYAN, ICE_CYAN);
     
     
-    rootx_print_text_custom(115, 60, "UP", WHITE, BLACK);
-    rootx_print_text_custom(115, 80, "DOWN", WHITE, BLACK);
-    rootx_print_text_custom(130, 60, "SELECT", WHITE, BLACK);
+    
+    
+    rootx_print_text_custom(75, 61, "<", ICE_CYAN, ICE_CYAN);
+    rootx_print_text_custom(86, 61, menuList[carouselCurrentIdx].label, WHITE, WHITE);
+    
     apply_cyber_glitch();
     lcdDrawFinish(&dev);
 }
