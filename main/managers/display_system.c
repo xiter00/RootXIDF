@@ -597,14 +597,24 @@ uint32_t carouselAnimStart = 0;
 
 
 void drawIconScaled(int x, int y, int src_w, int src_h, int dst_w, int dst_h, const uint16_t *icon) {
+    if (icon == NULL) return;
+    if (dst_w <= 0 || dst_h <= 0) return;
+    
     for (int row = 0; row < dst_h; row++) {
+        int screen_y = y + row;
+        if (screen_y < 0) continue;        // Skip kalau di atas layar
+        if (screen_y >= dev._height) break; // Stop kalau udah lewat bawah layar
+        
         for (int col = 0; col < dst_w; col++) {
-            // Nearest neighbor scaling - mapping dst ke src yang bener
+            int screen_x = x + col;
+            if (screen_x < 0) continue;        // Skip kiri
+            if (screen_x >= dev._width) break;  // Stop kanan
+            
             int src_col = col * src_w / dst_w;
             int src_row = row * src_h / dst_h;
             uint16_t pixel = icon[src_row * src_w + src_col];
             if (pixel == 0x0000) continue;
-            dev._frame_buffer[(y + row) * dev._width + (x + col)] = pixel;
+            dev._frame_buffer[screen_y * dev._width + screen_x] = pixel;
         }
     }
 }
