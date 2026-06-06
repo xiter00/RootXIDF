@@ -81,8 +81,8 @@ TFT_t dev; // Biar layar bisa diakses dari file mana aja
 
 // STRUKTUR MENU
 typedef struct {
-    const uint16_t *icon_large;   // 48x48
-    const uint16_t *icon_small;   // 32x32
+    const uint8_t *icon_large;   // 48x48
+    const uint8_t *icon_small;   // 32x32
     const char *label;
 } MenuItem;
 
