@@ -700,7 +700,7 @@ void drawCarouselAnimated(float progress) {
         int above = (carouselCurrentIdx - 1 + 5) % 5;
         int below = (carouselCurrentIdx + 1) % 5;
         drawIconTransparent(10, y_atas, 32, 32, menuList[above].icon_small);
-        drawIconTransparentW(20, y_tengah, 48, 48, menuList[carouselCurrentIdx].icon_large);
+        drawIconTransparent(20, y_tengah, 48, 48, menuList[carouselCurrentIdx].icon_large);
         drawIconTransparent(10, y_bawah, 32, 32, menuList[below].icon_small);
     }
 }
