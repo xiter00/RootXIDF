@@ -734,10 +734,7 @@ drawCarouselAnimated(progress);
     
     lcdDrawLine(&dev, 0, 9, 240, 9, WHITE);
     
-    // Draw 3 icon carousel
-    drawCarouselIcon(-1, carouselAnimFrame);  // Atas
-    drawCarouselIcon(0, carouselAnimFrame);   // Tengah
-    drawCarouselIcon(1, carouselAnimFrame);   // Bawah
+    
     
     rootx_print_text_custom(115, 60, "UP", WHITE, BLACK);
     rootx_print_text_custom(115, 80, "DOWN", WHITE, BLACK);
