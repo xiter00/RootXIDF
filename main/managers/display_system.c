@@ -793,14 +793,12 @@ drawCarouselAnimated(progress);
         jumlah_bar = 2;
     } else {
         warna_bar = RED;    
-        jumlah_bar = 1
+        jumlah_bar = 1;
     }
 
-<<<<<<< HEAD
 
-=======
     //BAR
->>>>>>> branch 'main' of git@github.com:xiter00/RootXIDF.git
+
     for (int b = 0; b < jumlah_bar; b++) {
         int bar_x_start = 218 + (b * 4); 
         lcdDrawFillRect(&dev, bar_x_start, 6, bar_x_start + 2, 10, warna_bar);
