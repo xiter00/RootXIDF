@@ -29,6 +29,8 @@ void screen_draw_bitmap(uint8_t id, int16_t x, int16_t y, const uint8_t *bitmap,
     }
 }
 
+
+
 // ========================================================
 // 1. Fungsi Tampilan Logo Saja
 // ========================================================

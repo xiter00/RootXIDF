@@ -14,6 +14,7 @@
 #include "driver/ledc.h"
 #include <math.h>
 #include <sys/statvfs.h> // Wajib buat baca kapasitas memori
+#include "esp_random.h"
 
 
 
@@ -584,9 +585,9 @@ const char* subMenuGame[] = {
 
 MenuItem menuList[5] = {
     {wifi48, wifi32, "WIFI"},
-    {bluetooth48, bluetooth32, "BLE"},
+    {ble48, ble32, "BLE"},
     {infrared48, infrared32, "IR"},
-    {settings48, settings32, "SETS"},
+    {setting48, setting32, "SETS"},
     {game48, game32, "GAME"}
 };
 
@@ -596,7 +597,8 @@ bool carouselAnimating = false;
 uint32_t carouselAnimStart = 0;
 
 
-void drawIconScaled(int x, int y, int src_w, int src_h, int dst_w, int dst_h, const uint16_t *icon) {
+// Fungsi Scaling Khusus 1-Bit Vertikal (Image2cpp)
+void drawIconScaled(int x, int y, int src_w, int src_h, int dst_w, int dst_h, const uint8_t *icon) {
     if (icon == NULL) return;
     if (dst_w <= 0 || dst_h <= 0) return;
     
@@ -610,14 +612,23 @@ void drawIconScaled(int x, int y, int src_w, int src_h, int dst_w, int dst_h, co
             if (screen_x < 0) continue;        // Skip kiri
             if (screen_x >= dev._width) break;  // Stop kanan
             
+            // Cari koordinat titik sumber sebelum di-scale
             int src_col = col * src_w / dst_w;
             int src_row = row * src_h / dst_h;
-            uint16_t pixel = icon[src_row * src_w + src_col];
-            if (pixel == 0x0000) continue;
-            dev._frame_buffer[screen_y * dev._width + screen_x] = pixel;
+            
+            // --- LOGIKA BACA 1-BIT VERTIKAL ---
+            int byteIdx = (src_row / 8) * src_w + src_col;
+            int bitIdx = src_row % 8;
+            
+            // Kalau bit-nya bernilai 1, tembak warnanya ke Frame Buffer
+            if ((icon[byteIdx] >> bitIdx) & 0x01) {
+                dev._frame_buffer[screen_y * dev._width + screen_x] = WHITE;
+            }
+            // Kalau 0, otomatis di-skip (Transparan Sempurna!)
         }
     }
 }
+
 int carouselDirection = 0;
 void updateCarouselAnimation() {
     if (!carouselAnimating) return;
@@ -629,6 +640,60 @@ void updateCarouselAnimation() {
 }
 
 // direction: 1 = klik down (geser ke atas), -1 = klik up (geser ke bawah)
+
+
+// FUNGSI POST-PROCESSING GLITCH (Bikin Layar Sobek & Distorsi Neon)
+void apply_cyber_glitch() {
+    // 1. TIMING ACAK: Cuma aktif 10% dari total frame biar natural kagetnya
+    if (esp_random() % 100 > 10) return; 
+
+    // 2. TEARING EFFECT (Layar Sobek & Geser Horizontal)
+    int jumlah_sobekan = (esp_random() % 3) + 1; // 1 sampe 3 sobekan
+    
+    for (int s = 0; s < jumlah_sobekan; s++) {
+        int y_start = 20 + (esp_random() % 90);  // Di area menu (hindari header atas/baterai)
+        int height = 2 + (esp_random() % 6);     // Tebal sobekan (2-7 pixel)
+        int shift_x = (esp_random() % 20) - 10;  // Geser kiri/kanan (-10 sampe 10 pixel)
+        
+        if (shift_x == 0) shift_x = 5;
+
+        for (int y = y_start; y < y_start + height; y++) {
+            if (y >= dev._height) break;
+            
+            uint16_t temp_row[240];
+            // Kopi baris asli dengan pergeseran (Dislokasi)
+            for (int x = 0; x < dev._width; x++) {
+                int src_x = x - shift_x;
+                if (src_x >= 0 && src_x < dev._width) {
+                    temp_row[x] = dev._frame_buffer[y * dev._width + src_x];
+                } else {
+                    temp_row[x] = BLACK; 
+                }
+            }
+            // Timpa balik ke Frame Buffer
+            for (int x = 0; x < dev._width; x++) {
+                dev._frame_buffer[y * dev._width + x] = temp_row[x];
+            }
+        }
+    }
+
+    // 3. CHROMATIC ABERRATION (Garis Neon Rusak)
+    int jumlah_neon = (esp_random() % 3) + 1;
+    for (int n = 0; n < jumlah_neon; n++) {
+        int y_neon = 20 + (esp_random() % 90);
+        int length = 10 + (esp_random() % 60);
+        int x_start = esp_random() % 150;
+        
+        // Pake warna dari kamus lu biar masuk tema
+        uint16_t warna_glitch = (esp_random() % 2 == 0) ? CYAN : RED; 
+        
+        for (int x = x_start; x < x_start + length; x++) {
+            if (x < dev._width) {
+                dev._frame_buffer[y_neon * dev._width + x] = warna_glitch;
+            }
+        }
+    }
+}
 
 
 void drawCarouselAnimated(float progress) {
@@ -730,7 +795,7 @@ drawCarouselAnimated(progress);
     rootx_print_text_custom(115, 60, "UP", WHITE, BLACK);
     rootx_print_text_custom(115, 80, "DOWN", WHITE, BLACK);
     rootx_print_text_custom(130, 60, "SELECT", WHITE, BLACK);
-    
+    apply_cyber_glitch();
     lcdDrawFinish(&dev);
 }
 
