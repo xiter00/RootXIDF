@@ -29,7 +29,7 @@ TFT_t dev; // Biar layar bisa diakses dari file mana aja
 #define RM_NROWS       12   // Baris simulasi (> 135/13=10.3 biar smooth)
 #define RM_ITEM_H      22   // Tinggi satu item menu (px)
 #define RM_ITEM_BAR    20   // Tinggi blok highlight aktif
-#define RM_ITEM_Y0     18   // Y item pertama (setelah header)
+#define RM_ITEM_Y0     20   // Y item pertama (setelah header)
 #define RM_MAX_VIS      6   // Maks item terlihat sekaligus
 
 

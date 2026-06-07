@@ -14,8 +14,8 @@
 #include "globals.h"
 #include "photo_data.h"
 
-// Hardcode versi firmware lu saat ini (100 = v1.0.0)
-#define VERSION_SAAT_INI 125
+// Hardcode versi firmware lu saat ini (00 = v1.0.0)
+#define VERSION_SAAT_INI 126
 
 // URL mentah (RAW) langsung tembak ke file lu di GitHub
 #define URL_VERSION  "https://raw.githubusercontent.com/xiter00/RTXUP/main/vr.txt"

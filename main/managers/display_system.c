@@ -625,68 +625,38 @@ static void rm_cyan_border(int y_start, int y_end) {
 
 static void rm_draw_item(int yPos, bool isActive,
                          const unsigned char *icon, const char *label) {
-    uint16_t *fb = dev._frame_buffer;
-    int w = dev._width, h = dev._height;
-    uint16_t GRAY_C  = rgb565(55, 55, 55);
-    uint16_t WHITE_C = rgb565(255, 255, 255);
-    uint16_t BLACK_C = rgb565(0, 0, 0);
-    uint16_t SEP_C   = rgb565(18, 3, 8);
+    
+    
+
 
     if (isActive) {
-        // ── A. Pink gradient horizontal (mockup: 205,25,73 → transparent) ──
-        for (int x = 0; x < RM_PANEL_W - 2; x++) {
-            float ratio = (float)x / (RM_PANEL_W - 3);
-            float alpha = 0.82f * (1.0f - ratio * ratio); // Quadratic
-            uint8_t r = (uint8_t)(205 * alpha);
-            uint8_t g = (uint8_t)(25  * alpha);
-            uint8_t b = (uint8_t)(73  * alpha);
-            for (int y = yPos; y < yPos + RM_ITEM_BAR && y < h; y++) {
-                uint16_t bg = fb[y*w+x];
-                uint8_t rb = (((bg>>11)&0x1F)<<3);
-                uint8_t gb = (((bg>> 5)&0x3F)<<2);
-                uint8_t bb = (( bg     &0x1F)<<3);
-                fb[y*w+x] = rgb565(
-                    (uint8_t)(rb*(1.0f-alpha)+r),
-                    (uint8_t)(gb*(1.0f-alpha)+g),
-                    (uint8_t)(bb*(1.0f-alpha)+b)
-                );
-            }
-        }
+        
 
         // ── B. Cyan border kiri + glow (8px gradient, identik mockup) ──
         rm_cyan_border(yPos, yPos + RM_ITEM_BAR);
 
         // ── C. Data stream glitch (2 blok hitam ngalir kanan→kiri) ──
-        int slide = (int)(millis() / 35) % (RM_PANEL_W / 2);
-        int ax = (RM_PANEL_W - 22) - slide;
-        if (ax > 9 && ax + 14 < RM_PANEL_W - 3) {
-            lcdDrawFillRect(&dev, ax,    yPos, ax+3,  yPos+RM_ITEM_BAR-1, BLACK_C);
-            lcdDrawFillRect(&dev, ax+8,  yPos, ax+13, yPos+RM_ITEM_BAR-1, BLACK_C);
-        }
 
         // ── D. Icon glow + icon bounce (text-shadow: 0 0 8px #00ffff) ──
         if (icon) {
-            int bounce = getBounce(200, 2);
-            int ix = 9, iy = yPos + 5 + bounce;
+            int bounce = getBounce(350, 2);
+            int ix = 9, iy = yPos + bounce;
             
-            screen_draw_bitmap(0, ix, iy, icon, 18, 18,             // Icon di atas
+            screen_draw_bitmap(0, ix, iy, icon, 20, 20,             // Icon di atas
                                rgb565(0, 255, 255));
         }
 
         // ── E. Label putih ──
-        rootx_print_text_kecil(25, yPos + 10, label, WHITE_C, WHITE_C);
+        rootx_print_text_kecil(35, yPos + 40, label, WHITE, WHITE);
 
     } else {
         // Non-aktif: icon abu + teks abu (no glow)
-        if (icon) screen_draw_bitmap(0, 9, yPos+5, icon, 10, 10, GRAY_C);
-        rootx_print_text_kecil(25, yPos+10, label, GRAY_C, GRAY_C);
+        if (icon) screen_draw_bitmap(0, 9, yPos, icon, 18, 18, GRAY);
+        rootx_print_text_custom(35, yPos, label, GRAY, GRAY);
     }
 
     // Separator bawah item
-    for (int x = 6; x < RM_PANEL_W - 6; x++) {
-        int sy = yPos + RM_ITEM_H - 1;
-        if (sy < h) fb[sy*w+x] = SEP_C;
-    }
+
 }
 
 void tampilkanMenuUtama(void) {
