@@ -19,7 +19,12 @@
 
 
 #define MAX_STARS 15
-
+#define PANEL_W 150  
+#define PANEL_DARK 4  
+#define ITEM_H   22    // Tinggi per item (px)
+#define ICON_X    5    // X icon
+#define TEXT_X   20    // X teks label
+#define BAR_H    (ITEM_H - 3)  // Tinggi blok highlight
 // --- WRAPPER SAKTI BUAT FONT ST7789 ---
 
 
@@ -145,183 +150,52 @@ static void draw_dashed_circle_to_buffer(TFT_t *dev, int xc, int yc, int r, uint
     }
 }
 
-// Fungsi utama: menggambar UI hacker seperti pada desain HTML
-void draw_hacker_ui(TFT_t *dev) {
-    // Pastikan frame buffer aktif
-    lcdEnableFrameBuffer(dev);
-    uint16_t *buf = dev->_frame_buffer;
-    int w = dev->_width;
-    int h = dev->_height;
+static void draw_hacker_panel(void) {
+    uint16_t *buf = dev._frame_buffer;
+    int w = dev._width;   // 240
+    int h = dev._height;  // 135
 
-    // 1. Background dasar
-    lcdFillScreen(dev, BG_COLOR);
-
-    // 2. Grid 15px (horizontal & vertical)
-    for (int y = 0; y < h; y += 15) {
-        for (int x = 0; x < w; x++) {
-            buf[y * w + x] = GRID_COLOR;
+    // --- 1. Darken panel kiri ---
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < PANEL_W; x++) {
+            uint16_t px = buf[y * w + x];
+            uint8_t r = (((px >> 11) & 0x1F) << 3) / PANEL_DARK;
+            uint8_t g = (((px >> 5)  & 0x3F) << 2) / PANEL_DARK;
+            uint8_t b = ((px & 0x1F) << 3)          / PANEL_DARK;
+            buf[y * w + x] = rgb565(r, g, b);
         }
     }
-    for (int x = 0; x < w; x += 15) {
+
+    // --- 2. Grid halus di panel kiri (12px pitch) ---
+    uint16_t GRID_C = rgb565(13, 2, 5);
+    for (int y = 0; y < h; y += 12) {
+        for (int x = 0; x < PANEL_W; x++) {
+            buf[y * w + x] = GRID_C;
+        }
+    }
+    for (int x = 0; x < PANEL_W; x += 12) {
         for (int y = 0; y < h; y++) {
-            buf[y * w + x] = GRID_COLOR;
+            buf[y * w + x] = GRID_C;
         }
     }
 
-    // 3. Efek radial pink di pojok kanan atas (240,0)
-    float radius1 = 100.0f;
+    // --- 3. Garis pembatas kanan panel (pink tipis) ---
+    uint16_t PINK  = rgb565(255, 30, 90);
+    uint16_t CYAN  = rgb565(0, 255, 255);
     for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-            float dx = (float)(x - 240);
-            float dy = (float)(y - 0);
-            float dist = sqrtf(dx*dx + dy*dy);
-            if (dist < radius1) {
-                float factor = 1.0f - dist / radius1;
-                float alpha = 0.15f * factor;
-                // Ambil warna latar saat ini
-                uint16_t bg = buf[y * w + x];
-                uint8_t r_bg = ((bg >> 11) & 0x1F) << 3;
-                uint8_t g_bg = ((bg >> 5) & 0x3F) << 2;
-                uint8_t b_bg = (bg & 0x1F) << 3;
-                // Pink (255,30,90)
-                uint8_t r_pk = 255, g_pk = 30, b_pk = 90;
-                uint8_t r_new = (uint8_t)(r_bg * (1.0f - alpha) + r_pk * alpha);
-                uint8_t g_new = (uint8_t)(g_bg * (1.0f - alpha) + g_pk * alpha);
-                uint8_t b_new = (uint8_t)(b_bg * (1.0f - alpha) + b_pk * alpha);
-                buf[y * w + x] = rgb565(r_new, g_new, b_new);
-            }
-        }
+        buf[y * w + (PANEL_W - 1)] = PINK;
     }
 
-    // 4. Efek radial cyan di pojok kiri bawah (0,135)
-    float radius2 = 100.0f;
-    for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-            float dx = (float)(x - 0);
-            float dy = (float)(y - 135);
-            float dist = sqrtf(dx*dx + dy*dy);
-            if (dist < radius2) {
-                float factor = 1.0f - dist / radius2;
-                float alpha = 0.1f * factor;
-                uint16_t bg = buf[y * w + x];
-                uint8_t r_bg = ((bg >> 11) & 0x1F) << 3;
-                uint8_t g_bg = ((bg >> 5) & 0x3F) << 2;
-                uint8_t b_bg = (bg & 0x1F) << 3;
-                // Cyan (0,255,255)
-                uint8_t r_cy = 0, g_cy = 255, b_cy = 255;
-                uint8_t r_new = (uint8_t)(r_bg * (1.0f - alpha) + r_cy * alpha);
-                uint8_t g_new = (uint8_t)(g_bg * (1.0f - alpha) + g_cy * alpha);
-                uint8_t b_new = (uint8_t)(b_bg * (1.0f - alpha) + b_cy * alpha);
-                buf[y * w + x] = rgb565(r_new, g_new, b_new);
-            }
-        }
+    // --- 4. Top bar: garis merah di atas panel ---
+    for (int x = 0; x < PANEL_W; x++) {
+        buf[0 * w + x] = PINK;
+        buf[1 * w + x] = PINK;
     }
 
-    // 5. Top bar: teks kiri
-    
-rootx_print_text_custom(5, 4, "ROOTX // OS", CYAN_COLOR, BLACK_COLOR);
-
-    // Badge baterai (kanan atas)
-    int badge_x1 = 195, badge_x2 = 235, badge_y1 = 2, badge_y2 = 13;
-    lcdDrawFillRect(dev, badge_x1, badge_y1, badge_x2, badge_y2, PINK_COLOR);
-    rootx_print_text_custom(199, 4, "BAT 98%", WHITE_COLOR, BLACK_COLOR);
-
-    // 6. Menu kiri
-    int menu_x = 5, menu_w = 130;
-    int item_y = 22, item_h = 22, gap = 3;
-
-    // Item 1 aktif: gradasi horizontal
-    for (int x = menu_x; x < menu_x + menu_w; x++) {
-        float ratio = (float)(x - menu_x) / (float)(menu_w - 1);
-        // Interpolasi warna dari MENU_ACTIVE_BG_START ke MENU_ACTIVE_BG_END
-        uint16_t start = MENU_ACTIVE_BG_START;
-        uint16_t end = MENU_ACTIVE_BG_END;
-        uint8_t r_st = ((start >> 11) & 0x1F) << 3;
-        uint8_t g_st = ((start >> 5) & 0x3F) << 2;
-        uint8_t b_st = (start & 0x1F) << 3;
-        uint8_t r_ed = ((end >> 11) & 0x1F) << 3;
-        uint8_t g_ed = ((end >> 5) & 0x3F) << 2;
-        uint8_t b_ed = (end & 0x1F) << 3;
-
-        uint8_t r = (uint8_t)(r_st * (1.0f - ratio) + r_ed * ratio);
-        uint8_t g = (uint8_t)(g_st * (1.0f - ratio) + g_ed * ratio);
-        uint8_t b = (uint8_t)(b_st * (1.0f - ratio) + b_ed * ratio);
-        uint16_t color = rgb565(r, g, b);
-
-        for (int y = item_y; y < item_y + item_h; y++) {
-            if (x >= 0 && x < w && y >= 0 && y < h) {
-                buf[y * w + x] = color;
-            }
-        }
+    // --- 5. Bottom bar: garis cyan di bawah panel ---
+    for (int x = 0; x < PANEL_W; x++) {
+        buf[(h-1) * w + x] = CYAN;
     }
-    // Border kiri cyan 2px
-    lcdDrawFillRect(dev, menu_x, item_y, menu_x + 1, item_y + item_h - 1, CYAN_COLOR);
-    lcdDrawFillRect(dev, menu_x + 1, item_y, menu_x + 2, item_y + item_h - 1, CYAN_COLOR);
-    // Teks item 1
-    int text_x = menu_x + 5 + 2; // padding + border
-    int text_y = item_y + 3;
-    
-rootx_print_text_custom(text_x, text_y, " >", CYAN_COLOR, BLACK_COLOR); // icon
-    
-rootx_print_text_custom(text_x + 16, text_y, "WIFI SCANNER", WHITE_COLOR, BLACK_COLOR);
-
-    // Item 2 non-aktif
-    item_y += item_h + gap; // 22+3=25 -> 47
-    
-rootx_print_text_custom(text_x, item_y + 3, " o DEAUTH ATTACK", GRAY_COLOR, BLACK_COLOR);
-
-    // Item 3 non-aktif
-    item_y += item_h + gap; // 72
-    
-rootx_print_text_custom(text_x, item_y + 3, " o BEACON SPAM", GRAY_COLOR, BLACK_COLOR);
-
-    // Item 4 non-aktif
-    item_y += item_h + gap; // 97
-    
-rootx_print_text_custom(text_x, item_y + 3, " o EVIL TWIN", GRAY_COLOR, BLACK_COLOR);
-
-    // 7. Widget kanan
-    int widget_x = 140, widget_w = 95;
-    int center_x = widget_x + widget_w / 2; // 187
-    int center_y = 44;
-    int r_outer = 25;
-    int r_inner = 22;
-
-    // Lingkaran luar pink tipis
-    lcdDrawCircle(dev, center_x, center_y, r_outer, OUTER_RING_COLOR);
-
-    // Lingkaran dalam dashed cyan
-    draw_dashed_circle_to_buffer(dev, center_x, center_y, r_inner, CYAN_COLOR, 10, 10);
-
-    // Teks "IMG" di tengah
-    int img_w = 15; // 3 karakter * 5 pixel (font 5x7)
-    int img_h = 7;
-    rootx_print_text_custom(center_x - img_w/2, center_y - img_h/2, "IMG", CYAN_COLOR, BLACK_COLOR);
-
-    // 8. Stat boxes
-    // Box 1
-    int box1_y = 74;
-    lcdDrawFillRect(dev, 140, box1_y, 235, box1_y + 10, BLACK_COLOR);
-    lcdDrawFillRect(dev, 140, box1_y, 141, box1_y + 10, PINK_COLOR); // border kiri
-    rootx_print_text_custom(144, box1_y + 2, "CPU", CYAN_COLOR, BLACK_COLOR);
-    rootx_print_text_custom(144 + 15 + 2, box1_y + 2, "240MHz", WHITE_COLOR, BLACK_COLOR);
-
-    // Box 2
-    int box2_y = 88;
-    lcdDrawFillRect(dev, 140, box2_y, 235, box2_y + 10, BLACK_COLOR);
-    lcdDrawFillRect(dev, 140, box2_y, 141, box2_y + 10, CYAN_COLOR);
-    rootx_print_text_custom(144, box2_y + 2, "NET", CYAN_COLOR, BLACK_COLOR);
-    rootx_print_text_custom(144 + 15 + 2, box2_y + 2, "MONITOR", WHITE_COLOR, BLACK_COLOR);
-
-    // Box 3
-    int box3_y = 102;
-    lcdDrawFillRect(dev, 140, box3_y, 235, box3_y + 10, BLACK_COLOR);
-    lcdDrawLine(dev, 140, box3_y + 10, 235, box3_y + 10, PINK_COLOR); // border bawah
-    rootx_print_text_custom(144, box3_y + 2, "TGT:", GRAY_COLOR, BLACK_COLOR);
-    rootx_print_text_custom(144 + 20 + 2, box3_y + 2, "NONE", WHITE_COLOR, BLACK_COLOR);
-
-    // Kirim frame buffer ke layar
-    lcdDrawFinish(dev);
 }
 
 void drawBackground(void) {
@@ -819,79 +693,212 @@ drawCarouselAnimated(progress);
     lcdDrawFinish(&dev);
 }
 
-void tampilkanMenuUtama() { 
-    lcdFillScreen(&dev, BLACK);
-    
-    
-    
-    int totalSub = 0; 
+static void draw_menu_item(int yPos, bool isActive,
+                           const unsigned char* icon, const char* label) {
+    uint16_t *buf = dev._frame_buffer;
+    int w = dev._width;
 
-    if(currentMenu == 0)      { rootx_print_text_custom(0, 0, "#> RootX: WIFI", WHITE, BLACK); totalSub = 4; }
-    else if(currentMenu == 1) { rootx_print_text_custom(0, 0, "#> RootX: BLE ", WHITE, BLACK); totalSub = 3; }
-    else if(currentMenu == 2) { rootx_print_text_custom(0, 0, "#> RootX: IR", WHITE, BLACK);   totalSub = 5; }
-    else if(currentMenu == 3)  { rootx_print_text_custom(0, 0, "#> RootX: SETS", WHITE, BLACK); totalSub = 4; }
-    else                      { rootx_print_text_custom(0, 0, "#> RootX: GAME", WHITE, BLACK); totalSub = 3; }
-    
-    lcdDrawLine(&dev, 0, 9, 128, 9, WHITE);
+    uint16_t PINK  = rgb565(255, 30, 90);
+    uint16_t CYAN  = rgb565(0, 255, 255);
+    uint16_t GRAY  = rgb565(60, 60, 60);
+    uint16_t WHITE = rgb565(255, 255, 255);
+    uint16_t BLACK = rgb565(0, 0, 0);
 
-        for(int i = 0; i < 5; i++) {
-        int itemIndex = topMenu + i;
-        if(itemIndex >= totalSub) break; 
+    if (isActive) {
+        // --- Gradasi horizontal pink → transparan ---
+        for (int x = 0; x < PANEL_W - 1; x++) {
+            float ratio = (float)x / (float)(PANEL_W - 2);
+            // Makin ke kanan makin gelap/transparan
+            float alpha = 0.85f * (1.0f - ratio * ratio);
+            // Target warna pink gelap: rgb(205, 25, 73)
+            uint8_t r = (uint8_t)(205 * alpha);
+            uint8_t g = (uint8_t)(25  * alpha);
+            uint8_t b = (uint8_t)(73  * alpha);
+            for (int y = yPos; y < yPos + BAR_H; y++) {
+                if (y < dev._height) {
+                    // Blend ke atas pixel background yg ada
+                    uint16_t bg = buf[y * w + x];
+                    uint8_t rb = (((bg >> 11) & 0x1F) << 3);
+                    uint8_t gb = (((bg >> 5)  & 0x3F) << 2);
+                    uint8_t bb = ((bg & 0x1F) << 3);
+                    uint8_t rf = (uint8_t)(rb * (1.0f - alpha) + r);
+                    uint8_t gf = (uint8_t)(gb * (1.0f - alpha) + g);
+                    uint8_t bf = (uint8_t)(bb * (1.0f - alpha) + b);
+                    buf[y * w + x] = rgb565(rf, gf, bf);
+                }
+            }
+        }
 
-        int yPos = 13 + (i * 10); 
-        int textColor = WHITE;
-        int bgColor = BLACK;
-        int iconBounce = 0; // Default: Icon diem kaga gerak
-        int tambahansu = 0;
-        
-        // --- LOGIKA MENU YANG DIPILIH (YANG ADA BLOK PUTIHNYA) ---
-        if(itemIndex == currentSub) { 
-            // 1. Gambar blok putih dasar
-            lcdDrawFillRect(&dev, 0, yPos - 1, 128, yPos + 9, WHITE);
-            
-            // 2. Animasi "Data Stream / Glitch" di ujung kanan blok
-            // Bikin garis hitam jalan mundur dari X=125 ke X=105
-            int slide = (millis() / 40) % 20; 
-            int animX = 125 - slide;
-            
-            // Garis tipis ngalir
-            lcdDrawFillRect(&dev, animX, yPos - 1, animX + 2, yPos + 9, BLACK); 
-            // Kotak agak tebel ngikutin di belakangnya
-            lcdDrawFillRect(&dev, animX + 6, yPos - 1, animX + 10, yPos + 9, BLACK); 
-            
-            // 3. Icon loncat cuma buat menu ini aja
-            iconBounce = getBounce(200, 2); 
-            tambahansu = 4;
-            
-            textColor = BLACK; 
-            bgColor = WHITE;
-        } 
-        
-        // Setting Icon
-        const unsigned char* iconSmall;
-        if(currentMenu == 0)      iconSmall = iconListWiFi[itemIndex]; 
-        else if(currentMenu == 1) iconSmall = iconListBLE[itemIndex];
-        else if(currentMenu == 2) iconSmall = iconListIR[itemIndex];
-        else if(currentMenu == 3) iconSmall = iconListSet[itemIndex]; 
-        else iconSmall = iconListGame[itemIndex];
+        // --- Cyan border kiri 2px (glow effect) ---
+        for (int y = yPos; y < yPos + BAR_H; y++) {
+            if (y < dev._height) {
+                buf[y * w + 0] = CYAN;
+                buf[y * w + 1] = CYAN;
+                // Pixel ke-3 setengah cyan (soft glow)
+                buf[y * w + 2] = rgb565(0, 128, 128);
+            }
+        }
 
-        // Gambar Icon (Kalo diselect dia ada iconBounce-nya, kalo ngga ya + 0)
-        screen_draw_bitmap(0, 2 + tambahansu, (yPos - 1) + iconBounce, iconSmall, 10, 10, textColor);
-        
-        // Setting Teks
-        const char* textToPrint = "";
-        if(currentMenu == 0)      textToPrint = subMenuWiFi[itemIndex];
-        else if(currentMenu == 1) textToPrint = subMenuBLE[itemIndex];
-        else if(currentMenu == 2) textToPrint = subMenuIR[itemIndex];
-        else if(currentMenu == 3) textToPrint = subMenuSet[itemIndex];
-        else textToPrint = subMenuGame[itemIndex];
+        // --- Data stream glitch: kotak hitam ngalir dari kanan ke kiri ---
+        int slide   = (millis() / 40) % (PANEL_W / 2);
+        int animX   = (PANEL_W - 15) - slide;
+        if (animX > 3 && animX + 8 < PANEL_W) {
+            lcdDrawFillRect(&dev, animX,     yPos, animX + 2, yPos + BAR_H - 1, BLACK);
+            lcdDrawFillRect(&dev, animX + 5, yPos, animX + 8, yPos + BAR_H - 1, BLACK);
+        }
 
-        // Gambar Teks (Kalo diselect, text-nya ikutan goyang dikit biar asik)
-        rootx_print_text_custom(18 + tambahansu, yPos, (char*)textToPrint, textColor, bgColor);
+        // --- Icon bounce (naik-turun 2px) ---
+        int bounce = getBounce(200, 2);
+        if (icon) screen_draw_bitmap(0, ICON_X, yPos + 5 + bounce, icon, 10, 10, CYAN);
+
+        // --- Teks putih ---
+        rootx_print_text_custom(TEXT_X, yPos + 6, label, WHITE, BLACK);
+
+        // --- Titik cursor di ujung kanan ---
+        int dotX = PANEL_W - 8;
+        int dotY = yPos + BAR_H / 2 - 1;
+        lcdDrawFillRect(&dev, dotX, dotY, dotX + 3, dotY + 3, CYAN);
+
+    } else {
+        // --- Item non-aktif: icon & teks abu-abu ---
+        if (icon) screen_draw_bitmap(0, ICON_X, yPos + 5, icon, 10, 10, GRAY);
+        rootx_print_text_custom(TEXT_X, yPos + 6, label, GRAY, BLACK);
     }
 
+    // --- Garis pembatas bawah item (sangat tipis) ---
+    uint16_t SEP = rgb565(20, 5, 10);
+    for (int x = 4; x < PANEL_W - 4; x++) {
+        int sepY = yPos + ITEM_H - 1;
+        if (sepY < dev._height) buf[sepY * dev._width + x] = SEP;
+    }
+}
+
+
+// ----------------------------------------------------------------
+// FUNGSI UTAMA — Ganti tampilkanMenuUtama() yang lama dengan ini
+// ----------------------------------------------------------------
+void tampilkanMenuUtama(void) {
+
+    // === 1. ANIME BACKGROUND TETAP ===
+    drawBackground();   // <-- sama kayak menu logo
+
+    // === 2. PANEL KIRI DARK OVERLAY ===
+    draw_hacker_panel();
+
+    // === 3. BATTERY INDICATOR (kanan atas, sama kayak menu logo) ===
+    read_battery_percentage();
+
+    lcdDrawRect(&dev, 216, 4, 234, 12, rgb565(255,255,255));
+    lcdDrawFillRect(&dev, 235, 7, 237, 9, rgb565(255,255,255));
+
+    uint16_t warna_bar;
+    int jumlah_bar;
+    if      (batteryPercent > 75) { warna_bar = GREEN;  jumlah_bar = 4; }
+    else if (batteryPercent > 50) { warna_bar = YELLOW; jumlah_bar = 3; }
+    else if (batteryPercent > 25) { warna_bar = ORANGE; jumlah_bar = 2; }
+    else                          { warna_bar = RED;    jumlah_bar = 1; }
+
+    for (int b = 0; b < jumlah_bar; b++) {
+        int bx = 218 + (b * 4);
+        lcdDrawFillRect(&dev, bx, 6, bx + 2, 10, warna_bar);
+    }
+
+    // === 4. HEADER KATEGORI ===
+    // Contoh:  "> WI-FI // NETWORK TOOLS"
+    // Format:  CYAN ">" RED "NAMA" GRAY "// SUB"
+    uint16_t CYAN  = rgb565(0, 255, 255);
+    uint16_t PINK  = rgb565(255, 30, 90);
+    uint16_t GRAY  = rgb565(80, 80, 80);
+    uint16_t WHITE = rgb565(255, 255, 255);
+    uint16_t BLACK = rgb565(0, 0, 0);
+
+    // Teks ">" cyan
+    rootx_print_text_custom(3, 4, ">", CYAN, BLACK);
+
+    // Nama kategori merah/pink
+    const char* catLabel = "";
+    const char* catSub   = "";
+    int totalSub = 0;
+
+    if      (currentMenu == 0) { catLabel = "WI-FI";    catSub = "NETWORK"; totalSub = 4; }
+    else if (currentMenu == 1) { catLabel = "BLE";      catSub = "BLUETOOTH"; totalSub = 3; }
+    else if (currentMenu == 2) { catLabel = "IR";       catSub = "INFRARED"; totalSub = 5; }
+    else if (currentMenu == 3) { catLabel = "SETTINGS"; catSub = "SYSTEM"; totalSub = 4; }
+    else                       { catLabel = "GAME";     catSub = "ARCADE"; totalSub = 3; }
+
+    rootx_print_text_custom(12, 4, catLabel, PINK, BLACK);
+
+    // Sub-label abu
+    int subX = 12 + strlen(catLabel) * 6 + 4;
+    rootx_print_text_custom(subX, 4, "//", GRAY, BLACK);
+    rootx_print_text_custom(subX + 14, 4, catSub, GRAY, BLACK);
+
+    // Garis pembatas header (pink fade)
+    for (int x = 0; x < PANEL_W - 1; x++) {
+        float t = (float)x / (PANEL_W - 2);
+        uint8_t r = (uint8_t)(255 * (1.0f - t * 0.8f));
+        uint8_t g = (uint8_t)(30  * (1.0f - t));
+        uint8_t b = (uint8_t)(90  * (1.0f - t));
+        int lineY = 14;
+        dev._frame_buffer[lineY * dev._width + x] = rgb565(r, g, b);
+        // Garis kedua lebih tipis
+        if (x < PANEL_W / 2)
+            dev._frame_buffer[(lineY+1) * dev._width + x] = rgb565(r/3, g/3, b/3);
+    }
+
+    // === 5. LIST ITEM MENU ===
+    int maxVisible = 5;
+    int start_y    = 18;   // Y mulai item pertama (setelah header)
+
+    for (int i = 0; i < maxVisible; i++) {
+        int itemIndex = topMenu + i;
+        if (itemIndex >= totalSub) break;
+
+        bool isActive = (itemIndex == currentSub);
+        int  yPos     = start_y + (i * ITEM_H);
+
+        // Ambil icon sesuai kategori
+        const unsigned char* iconSmall = NULL;
+        if      (currentMenu == 0) iconSmall = iconListWiFi[itemIndex];
+        else if (currentMenu == 1) iconSmall = iconListBLE[itemIndex];
+        else if (currentMenu == 2) iconSmall = iconListIR[itemIndex];
+        else if (currentMenu == 3) iconSmall = iconListSet[itemIndex];
+        else                       iconSmall = iconListGame[itemIndex];
+
+        // Ambil label teks
+        const char* label = "";
+        if      (currentMenu == 0) label = subMenuWiFi[itemIndex];
+        else if (currentMenu == 1) label = subMenuBLE[itemIndex];
+        else if (currentMenu == 2) label = subMenuIR[itemIndex];
+        else if (currentMenu == 3) label = subMenuSet[itemIndex];
+        else                       label = subMenuGame[itemIndex];
+
+        draw_menu_item(yPos, isActive, iconSmall, label);
+    }
+
+    // === 6. SCROLL INDICATOR (titik-titik di tepi kanan panel) ===
+    // Kalau item > maxVisible, kasih scroll dots biar tau posisi
+    if (totalSub > maxVisible) {
+        int dot_x = PANEL_W - 5;
+        for (int d = 0; d < totalSub; d++) {
+            int dot_y = start_y + (d * (dev._height - start_y - 4) / totalSub);
+            if (d == currentSub) {
+                // Dot aktif: cyan
+                lcdDrawFillRect(&dev, dot_x, dot_y, dot_x + 3, dot_y + 3, CYAN);
+            } else {
+                // Dot biasa: dark pink
+                lcdDrawFillRect(&dev, dot_x, dot_y, dot_x + 2, dot_y + 2, PINK);
+            }
+        }
+    }
+
+    // === 7. GLITCH EFFECT TERAKHIR ===
+    apply_cyber_glitch();
+
+    // === 8. FLUSH KE LAYAR ===
     lcdDrawFinish(&dev);
 }
+
 
 // --- TARUH INI DI ATAS FUNGSI ---
 

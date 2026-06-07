@@ -16,13 +16,19 @@ TFT_t dev; // Biar layar bisa diakses dari file mana aja
 
 
 //COLOR
-// Racikan warna Pink-Merah khas Hacker
-#define WARNA_BRUCE   rgb565(255, 30, 90)   
-#define WARNA_CYAN    rgb565(0, 255, 255)   
-#define WARNA_DARK    rgb565(15, 15, 15)    
-#define WARNA_DK_PINK rgb565(80, 10, 30)    
-#define WARNA_GRAY    rgb565(128, 128, 128) 
-// Definisi warna tambahan (jika belum ada di globals.h)
+#define RED    rgb565(255,   0,   0) // 0xf800
+#define GREEN  rgb565(  0, 255,   0) // 0x07e0
+#define BLUE   rgb565(  0,   0, 255) // 0x001f
+#define BLACK  rgb565(  0,   0,   0) // 0x0000
+#define WHITE  rgb565(255, 255, 255) // 0xffff
+#define GRAY   rgb565(128, 128, 128) // 0x8410
+#define YELLOW rgb565(255, 255,   0) // 0xFFE0
+#define CYAN   rgb565(  0, 156, 209) // 0x04FA 
+#define PURPLE rgb565(128,   0, 128) // 0x8010
+#define ORANGE rgb565(255,   128, 0) 
+#define DARK_GRAY rgb565(72, 74, 74)
+#define BLOOD_RED rgb565(184, 0, 0)
+#define ICE_CYAN rgb565(0, 252, 255)
 #define LGRID_COLOR rgb565(17, 6, 9)   
 #define LPINK       rgb565(255, 30, 90) 
 #define LCYAN       rgb565(0, 255, 255) 
