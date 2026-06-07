@@ -801,11 +801,7 @@ void tampilkanMenuUtama(void) {
     // === 4. HEADER KATEGORI ===
     // Contoh:  "> WI-FI // NETWORK TOOLS"
     // Format:  CYAN ">" RED "NAMA" GRAY "// SUB"
-    uint16_t CYAN  = rgb565(0, 255, 255);
-    uint16_t PINK  = rgb565(255, 30, 90);
-    uint16_t GRAY  = rgb565(80, 80, 80);
-    uint16_t WHITE = rgb565(255, 255, 255);
-    uint16_t BLACK = rgb565(0, 0, 0);
+    
 
     // Teks ">" cyan
     rootx_print_text_custom(3, 4, ">", CYAN, BLACK);
