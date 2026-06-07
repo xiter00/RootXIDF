@@ -35,8 +35,11 @@ uint32_t input_millis() {
     return (uint32_t)(esp_timer_get_time() / 1000);
 }
 
-void rootx_print_text_custom(int x, int y, const char* str, uint16_t fg, uint16_t bg) {
+void rootx_print_text_c(int x, int y, const char* str, uint16_t fg, uint16_t bg) {
     lcdDrawCustomString(&dev, fontC7x13, x, y, (char*)str, fg, bg); 
+}
+void rootx_print_text_cb(int x, int y, const char* str, uint16_t fg, uint16_t bg) {
+    lcdDrawCustomString(&dev, fontC7x13B, x, y, (char*)str, fg, bg); 
 }
 
 void rootx_print_text_kecil(int x, int y, const char* str, uint16_t fg, uint16_t bg) {
@@ -299,37 +302,37 @@ long map(long x, long in_min, long in_max, long out_min, long out_max) {
 // DATA MENU 
 // ==========================================
 const unsigned char* iconListWiFi[] = {
-iconSmall_scan,
-iconSmall_sniff,
-iconSmall_spam,
-iconSmall_wifi
+ics_scan,
+ics_sniff,
+ics_spam,
+ics_wifi
 };
 
 const unsigned char* iconListBLE[]  = {
-iconSmall_scan,
-iconSmall_apple,
-iconSmall_android
+ics_scan,
+ics_apple,
+ics_android
 };
 
 const unsigned char* iconListIR[]   = {
-iconSmall_ir,
-iconSmall_tv,
-iconSmall_ac,
-iconSmall_lock,
-iconSmall_saved 
+ics_ir,
+ics_tv,
+ics_ac,
+ics_lock,
+ics_saved 
 };
 
 const unsigned char* iconListSet[]  = {
-iconSmall_bright,
-iconSmall_saved,
-iconSmall_info,
-iconSmall_repeat 
+ics_bright,
+ics_file,
+ics_info,
+ics_repeat 
 };
 
 const unsigned char* iconListGame[]  = {
-iconSmall_bright,
-iconSmall_bright,
-iconSmall_bright
+ics_game,
+ics_game,
+ics_game
 };
 
 
@@ -640,19 +643,19 @@ static void rm_draw_item(int yPos, bool isActive,
         // ── D. Icon glow + icon bounce (text-shadow: 0 0 8px #00ffff) ──
         if (icon) {
             int bounce = getBounce(350, 2);
-            int ix = 9, iy = yPos + bounce;
+            int ix = 9, iy = yPos - 1 + bounce;
             
-            screen_draw_bitmap(0, ix, iy, icon, 20, 20,             // Icon di atas
+            screen_draw_bitmap(0, ix, iy, icon, 18, 18,             // Icon di atas
                                rgb565(0, 255, 255));
         }
 
         // ── E. Label putih ──
-        rootx_print_text_kecil(35, yPos + 40, label, WHITE, WHITE);
+        rootx_print_text_cb(35, yPos + 5, label, WHITE, WHITE);
 
     } else {
         // Non-aktif: icon abu + teks abu (no glow)
-        if (icon) screen_draw_bitmap(0, 9, yPos, icon, 18, 18, GRAY);
-        rootx_print_text_custom(35, yPos, label, GRAY, GRAY);
+        if (icon) screen_draw_bitmap(0, 9, yPos - 1, icon, 18, 18, GRAY);
+        rootx_print_text_custom(35, yPos+3, label, GRAY, GRAY);
     }
 
     // Separator bawah item
@@ -769,7 +772,7 @@ void tampilkanTrackScreen() {
     
     // --- ANIMASI FLOATING ICON (Icon WiFi naik turun pelan) ---
     int floatY = 15 + (int)(sin(millis() / 300.0) * 3);
-    screen_draw_bitmap(0, 105, floatY, iconSmall_wifi, 10, 10, WHITE);
+    screen_draw_bitmap(0, 105, floatY, ics_wifi, 10, 10, WHITE);
 
     // Header
     lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
@@ -915,11 +918,11 @@ void tampilkanWifiScanner() {
             const unsigned char* icon;
             
             // Set Teks dan Icon
-            if(i == 0)      { teks = "DEAUTH "; icon = iconSmall_skull; }
-            else if(i == 1) { teks = "EVIL TWIN"; icon = iconSmall_conn; }
-            else if(i == 2) { teks = "CLIENTS"; icon = iconSmall_sniff; }
-            else if(i == 3) { teks = "TRACK  "; icon = iconSmall_wifi;  } 
-            else            { teks = "DETAILS"; icon = iconSmall_info;  }
+            if(i == 0)      { teks = "DEAUTH "; icon = ics_skull; }
+            else if(i == 1) { teks = "EVIL TWIN"; icon = ics_conn; }
+            else if(i == 2) { teks = "CLIENTS"; icon = ics_sniff; }
+            else if(i == 3) { teks = "TRACK  "; icon = ics_wifi;  } 
+            else            { teks = "DETAILS"; icon = ics_info;  }
 
             // Hitung jarak index ini dari kursor yang lagi aktif
             int diff = i - contextCursor; 
@@ -1059,8 +1062,8 @@ void tampilkanStationScanner() {
             const unsigned char* icon;
             
             // Set Teks dan Icon
-              if(i == 0)      { teks = "KICK CLIENT";  icon = iconSmall_skull; }
-            else            { teks = "DETAILS"; icon = iconSmall_info;  }
+              if(i == 0)      { teks = "KICK CLIENT";  icon = ics_skull; }
+            else            { teks = "DETAILS"; icon = ics_info;  }
 
             // Hitung jarak index ini dari kursor yang lagi aktif
             int diff = i - contextCursor; 
