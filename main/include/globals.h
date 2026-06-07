@@ -30,7 +30,7 @@ TFT_t dev; // Biar layar bisa diakses dari file mana aja
 #define BLOOD_RED rgb565(184, 0, 0)
 #define ICE_CYAN rgb565(0, 252, 255)
 #define LGRID_COLOR rgb565(17, 6, 9)   
-#define LPINK       rgb565(255, 30, 90) 
+#define PINK       rgb565(255, 30, 90) 
 #define LCYAN       rgb565(0, 255, 255) 
 #define LDARK_BG    rgb565(10, 10, 10)  
 

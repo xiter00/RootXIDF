@@ -180,8 +180,7 @@ static void draw_hacker_panel(void) {
     }
 
     // --- 3. Garis pembatas kanan panel (pink tipis) ---
-    uint16_t PINK  = rgb565(255, 30, 90);
-    uint16_t CYAN  = rgb565(0, 255, 255);
+   
     for (int y = 0; y < h; y++) {
         buf[y * w + (PANEL_W - 1)] = PINK;
     }
@@ -698,11 +697,7 @@ static void draw_menu_item(int yPos, bool isActive,
     uint16_t *buf = dev._frame_buffer;
     int w = dev._width;
 
-    uint16_t PINK  = rgb565(255, 30, 90);
-    uint16_t CYAN  = rgb565(0, 255, 255);
-    uint16_t GRAY  = rgb565(60, 60, 60);
-    uint16_t WHITE = rgb565(255, 255, 255);
-    uint16_t BLACK = rgb565(0, 0, 0);
+
 
     if (isActive) {
         // --- Gradasi horizontal pink → transparan ---
