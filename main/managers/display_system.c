@@ -18,13 +18,7 @@
 
 
 
-#define MAX_STARS 15
-#define PANEL_W 150  
-#define PANEL_DARK 4  
-#define ITEM_H   22    // Tinggi per item (px)
-#define ICON_X    5    // X icon
-#define TEXT_X   20    // X teks label
-#define BAR_H    (ITEM_H - 3)  // Tinggi blok highlight
+
 // --- WRAPPER SAKTI BUAT FONT ST7789 ---
 
 
@@ -64,7 +58,6 @@ void rootx_print_text_gede(int x, int y, const char* str, uint16_t fg, uint16_t 
 else lcdUnsetFontFill(&dev);
     lcdDrawString(&dev, fx32G, x, y, (uint8_t*)str, fg);
 }
-
 
 
 void renderFileExplorer(void);
@@ -109,15 +102,6 @@ void init_joystick() {
 }
 
 
-// Asumsikan dev dan batteryPercent sudah global (dari globals.h)
-
-
-
-// Definisikan font yang digunakan (contoh, sesuaikan dengan file font yang tersedia)
-// #include "font8x16.h"
-// #include "font5x7.h"
-
-// Warna khusus
 #define BG_COLOR      rgb565(5, 5, 5)       // #050505
 #define GRID_COLOR    rgb565(13, 2, 5)       // grid sangat redup
 #define PINK_COLOR    rgb565(255, 30, 90)    // #ff1e5a
@@ -130,7 +114,7 @@ void init_joystick() {
 #define MENU_ACTIVE_BG_END    rgb565(30, 8, 14)     // hasil blending pink 10% + bg
 #define OUTER_RING_COLOR      rgb565(77, 9, 27)     // pink 30%
 
-// Fungsi bantu: menggambar dashed circle langsung ke buffer (jika frame buffer aktif)
+
 static void draw_dashed_circle_to_buffer(TFT_t *dev, int xc, int yc, int r, uint16_t color, int dash_deg, int gap_deg) {
     if (!dev->_use_frame_buffer || dev->_frame_buffer == NULL) return;
     uint16_t *buf = dev->_frame_buffer;
@@ -152,10 +136,10 @@ static void draw_dashed_circle_to_buffer(TFT_t *dev, int xc, int yc, int r, uint
 
 static void draw_hacker_panel(void) {
     uint16_t *buf = dev._frame_buffer;
-    int w = dev._width;   // 240
-    int h = dev._height;  // 135
+    int w = dev._width;   
+    int h = dev._height;  
 
-    // --- 1. Darken panel kiri ---
+    
     for (int y = 0; y < h; y++) {
         for (int x = 0; x < PANEL_W; x++) {
             uint16_t px = buf[y * w + x];
@@ -166,7 +150,7 @@ static void draw_hacker_panel(void) {
         }
     }
 
-    // --- 2. Grid halus di panel kiri (12px pitch) ---
+    
     uint16_t GRID_C = rgb565(13, 2, 5);
     for (int y = 0; y < h; y += 12) {
         for (int x = 0; x < PANEL_W; x++) {
@@ -179,7 +163,7 @@ static void draw_hacker_panel(void) {
         }
     }
 
-    // --- 3. Garis pembatas kanan panel (pink tipis) ---
+
    
     for (int y = 0; y < h; y++) {
         buf[y * w + (PANEL_W - 1)] = PINK;
@@ -319,10 +303,26 @@ renderDinoGame();
     }
 }
 
-// --- DATA UNTUK ANIMASI BINTANG ---
+static const uint16_t RM_RAIN_CLR[RM_NTRAIL] = {
+    // rgb565(R, G, B)  — 8-bit input ke macro
+    /* j=0 head  */ 0xFFFF,                    // WHITE — dikasih glow pink terpisah
+    /* j=1       */ 0xF813, // rgb565(255,30,90)  — pink terang
+    /* j=2 a=.48 */ 0x5801, // rgb565( 86, 5,24)
+    /* j=3 a=.42 */ 0x4C01, // rgb565( 76, 4,21)
+    /* j=4 a=.36 */ 0x4001, // rgb565( 64, 4,18)
+    /* j=5 a=.30 */ 0x3401, // rgb565( 52, 3,15)
+    /* j=6 a=.24 */ 0x2800, // rgb565( 40, 2,12)
+    /* j=7 a=.18 */ 0x2000, // rgb565( 32, 1, 9)
+    /* j=8 a=.12 */ 0x1000, // rgb565( 16, 1, 5)
+};
 
+static int     rm_head [RM_NCOLS];
+static char    rm_chars[RM_NCOLS][RM_NTRAIL];
+static uint8_t rm_spd  [RM_NCOLS];
+static uint8_t rm_tick [RM_NCOLS];
+static bool    rm_ready = false;
 
-
+static const char RM_HEX[] = "0123456789ABCDEF";
 // Inisialisasi bintang pertama kali
 extern void screen_draw_bitmap(uint8_t id, int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t color);
 
@@ -691,204 +691,452 @@ drawCarouselAnimated(progress);
     apply_cyber_glitch();
     lcdDrawFinish(&dev);
 }
+static void rm_init(void) {
+    for (int c = 0; c < RM_NCOLS; c++) {
+        rm_head[c]  = -(int)(esp_random() % (RM_NTRAIL + 5));
+        rm_spd[c]   = 2 + (uint8_t)(esp_random() % 4); // 2-5 frame/langkah
+        rm_tick[c]  = 0;
+        for (int j = 0; j < RM_NTRAIL; j++)
+            rm_chars[c][j] = RM_HEX[esp_random() % 16];
+    }
+    rm_ready = true;
+}
 
-static void draw_menu_item(int yPos, bool isActive,
-                           const unsigned char* icon, const char* label) {
-    uint16_t *buf = dev._frame_buffer;
-    int w = dev._width;
+// ---------------------------------------------------------------
+//  HELPER: Gambar glow outline (concentric frames) di frame buffer
+//  Glow hanya di sisi KANAN dari x0 (biar gak masuk panel kiri)
+// ---------------------------------------------------------------
+static inline void rm_glow_lr(int x0, int x1, int y0, int y1,
+                               uint8_t cr, uint8_t cg, uint8_t cb,
+                               int radius, int x_clamp_left) {
+    // Approximasi gaussian: quadratic falloff per ring
+    uint16_t *fb = dev._frame_buffer;
+    int sw = dev._width, sh = dev._height;
+    for (int r = 1; r <= radius; r++) {
+        float f = (float)(radius - r + 1) / (float)(radius + 1);
+        f = f * f;
+        uint16_t gc = rgb565((uint8_t)(cr*f), (uint8_t)(cg*f), (uint8_t)(cb*f));
+        int lx = x0 - r, rx = x1 + r;
+        int ty = y0 - r, by = y1 + r;
+        if (lx < x_clamp_left) lx = x_clamp_left;
+        // Top row
+        if (ty >= 0 && ty < sh)
+            for (int px = (lx<0?0:lx); px <= rx && px < sw; px++) fb[ty*sw+px] = gc;
+        // Bottom row
+        if (by >= 0 && by < sh)
+            for (int px = (lx<0?0:lx); px <= rx && px < sw; px++) fb[by*sw+px] = gc;
+        // Left col
+        if (lx >= 0 && lx < sw)
+            for (int py = ty+1; py < by && py >= 0 && py < sh; py++) fb[py*sw+lx] = gc;
+        // Right col
+        if (rx >= 0 && rx < sw)
+            for (int py = ty+1; py < by && py >= 0 && py < sh; py++) fb[py*sw+rx] = gc;
+    }
+}
 
+// ---------------------------------------------------------------
+//  HELPER: Cyan border glow kiri — identik sama mockup
+//  box-shadow: 0 0 8px #00ffff, 0 0 15px rgba(0,255,255,0.5)
+//  Simulasi: 8px gradient dari x=0 ke kanan
+// ---------------------------------------------------------------
+static void rm_cyan_border(int y_start, int y_end) {
+    uint16_t *fb = dev._frame_buffer;
+    int sw = dev._width, sh = dev._height;
+    // Intensitas per pixel (gaussian approximation, 8px glow)
+    static const uint8_t G[8] = {255, 255, 160, 92, 48, 22, 9, 3};
+    for (int y = y_start; y < y_end && y < sh; y++)
+        for (int p = 0; p < 8 && p < sw; p++)
+            fb[y * sw + p] = rgb565(0, G[p], G[p]);
+}
 
+// ---------------------------------------------------------------
+//  HELPER: Cursor dot + glow
+//  box-shadow: 0 0 6px #00ffff
+// ---------------------------------------------------------------
+static void rm_cursor_dot(int dx, int dy) {
+    uint16_t *fb = dev._frame_buffer;
+    int sw = dev._width, sh = dev._height;
+    // Glow rings r=5..1, intensitas meningkat ke dalam
+    static const uint8_t DG[5] = {3, 9, 24, 58, 130};
+    for (int r = 5; r >= 1; r--) {
+        uint8_t cv = DG[5-r];
+        uint16_t gc = rgb565(0, cv, cv);
+        int x0 = dx-r, x1 = dx+4+r, y0 = dy-r, y1 = dy+4+r;
+        if (y0 >= 0 && y0 < sh)
+            for (int px=(x0<0?0:x0); px<=x1 && px<sw; px++) fb[y0*sw+px] = gc;
+        if (y1 >= 0 && y1 < sh)
+            for (int px=(x0<0?0:x0); px<=x1 && px<sw; px++) fb[y1*sw+px] = gc;
+        for (int py=y0+1; py<y1 && py>=0 && py<sh; py++) {
+            if (x0>=0 && x0<sw) fb[py*sw+x0] = gc;
+            if (x1>=0 && x1<sw) fb[py*sw+x1] = gc;
+        }
+    }
+    // Dot inti (5x5 solid cyan)
+    for (int y = dy; y < dy+5 && y < sh; y++)
+        for (int x = dx; x < dx+5 && x < sw; x++)
+            if (x >= 0 && y >= 0) fb[y*sw+x] = rgb565(0, 255, 255);
+}
+
+// ---------------------------------------------------------------
+//  HELPER: Icon glow (10x10 icon dengan cyan halo)
+//  text-shadow: 0 0 8px #00ffff
+// ---------------------------------------------------------------
+static void rm_icon_glow(int ix, int iy) {
+    // Sama logika rm_glow_lr tapi khusus 10x10 icon, no x clamp
+    rm_glow_lr(ix, ix+9, iy, iy+9, 0, 255, 255, 5, 0);
+}
+
+// ---------------------------------------------------------------
+//  HELPER: Rain head pink glow (sebelum gambar char head)
+//  shadowColor: #ff1e5a, shadowBlur: 6
+// ---------------------------------------------------------------
+static void rm_head_glow(int xPos, int yPos) {
+    rm_glow_lr(xPos, xPos+RM_CW-1, yPos, yPos+RM_CH-1,
+               255, 30, 90, 5, RM_RAIN_X0);
+}
+
+// ---------------------------------------------------------------
+//  HELPER: Update + render rain (dipanggil tiap frame)
+// ---------------------------------------------------------------
+static void rm_tick_draw(void) {
+    char s[2] = {0, 0};
+    for (int c = 0; c < RM_NCOLS; c++) {
+        rm_tick[c]++;
+        if (rm_tick[c] >= rm_spd[c]) {
+            rm_tick[c] = 0;
+            // Shift chars (trail ngikut ke bawah)
+            for (int j = RM_NTRAIL-1; j > 0; j--)
+                rm_chars[c][j] = rm_chars[c][j-1];
+            rm_chars[c][0] = RM_HEX[esp_random() % 16];
+            // Mutasi acak di trail tengah (bikin "glitchy")
+            if (esp_random() % 3 == 0)
+                rm_chars[c][1 + esp_random() % (RM_NTRAIL-2)] = RM_HEX[esp_random() % 16];
+            rm_head[c]++;
+            if (rm_head[c] > RM_NROWS + RM_NTRAIL) {
+                rm_head[c] = -(int)(esp_random() % 5 + 1);
+                rm_spd[c]  = 2 + (uint8_t)(esp_random() % 4);
+            }
+        }
+        int xPos = RM_RAIN_X0 + c * RM_CW;
+        if (xPos + RM_CW > dev._width) continue;
+        for (int j = 0; j < RM_NTRAIL; j++) {
+            int row = rm_head[c] - j;
+            if (row < 0 || row >= RM_NROWS) continue;
+            int yPos = row * RM_CH;
+            if (yPos >= dev._height) continue;
+            // Head: gambar glow pink dulu, baru char putih di atas
+            if (j == 0) rm_head_glow(xPos, yPos);
+            s[0] = rm_chars[c][j];
+            rootx_print_text_custom(xPos, yPos, s, RM_RAIN_CLR[j], BLACK);
+        }
+    }
+}
+
+// ---------------------------------------------------------------
+//  HELPER: Panel kiri (background + grid + borders)
+//  Identik sama mockup: #030105 base, grid rgba(13,2,5), borders
+// ---------------------------------------------------------------
+static void rm_draw_panel(void) {
+    uint16_t *fb = dev._frame_buffer;
+    int w = dev._width, h = dev._height;
+    uint16_t BG_C   = rgb565(3, 1, 5);     // #030105
+    uint16_t GRID_C = rgb565(13, 2, 5);    // Grid sangat redup
+    uint16_t PINK_C = rgb565(255, 30, 90);
+    uint16_t CYAN_C = rgb565(0, 255, 255);
+
+    // 1. Background panel kiri (hitam keunguan)
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < RM_PANEL_W; x++)
+            fb[y*w+x] = BG_C;
+
+    // 2. Grid vertikal
+    for (int x = 0; x < RM_PANEL_W; x += 24)
+        for (int y = 0; y < h; y++)
+            fb[y*w+x] = GRID_C;
+
+    // 3. Grid horizontal
+    for (int y = 0; y < h; y += 24)
+        for (int x = 0; x < RM_PANEL_W; x++)
+            fb[y*w+x] = GRID_C;
+
+    // 4. Top bar (2px pink)
+    for (int x = 0; x < RM_PANEL_W; x++) {
+        fb[0*w+x] = PINK_C;
+        fb[1*w+x] = PINK_C;
+    }
+
+    // 5. Bottom bar (2px cyan, fade ke kanan) — sama kayak mockup
+    for (int x = 0; x < RM_PANEL_W; x++) {
+        float t = 1.0f - (float)x / RM_PANEL_W;
+        uint8_t cv = (uint8_t)(255 * t);
+        uint16_t c2 = rgb565(0, cv, cv);
+        fb[(h-2)*w+x] = c2;
+        fb[(h-1)*w+x] = c2;
+    }
+
+    // 6. Divider kanan panel: pink gradient fade atas/bawah
+    //    Mockup: rgba(255,30,90,0.5) solid dari 30% ke 70% height
+    for (int y = 0; y < h; y++) {
+        float t = (float)y / (h - 1);
+        float iv;
+        if      (t < 0.30f) iv = t / 0.30f;
+        else if (t > 0.70f) iv = (1.0f - t) / 0.30f;
+        else                iv = 1.0f;
+        iv *= 0.55f;
+        uint8_t r = (uint8_t)(255 * iv);
+        uint8_t g = (uint8_t)(30  * iv);
+        uint8_t b = (uint8_t)(90  * iv);
+        fb[y*w + (RM_PANEL_W-1)] = rgb565(r, g, b);
+        fb[y*w + (RM_PANEL_W-2)] = rgb565(r/3, g/3, b/3);
+    }
+}
+
+// ---------------------------------------------------------------
+//  HELPER: Pink radial glow pojok kanan atas
+//  Mockup: createRadialGradient(W, H/2, 0, W, H/2, 180)
+//  rgba(255,30,90,0.08) — 8% pink di kanan
+// ---------------------------------------------------------------
+static void rm_pink_glow_right(void) {
+    uint16_t *fb = dev._frame_buffer;
+    int w = dev._width, h = dev._height;
+    float R = 85.0f; // Skala ke 240px display
+    float cx = (float)w, cy = (float)(h/2);
+    for (int y = 0; y < h; y++) {
+        for (int x = RM_RAIN_X0; x < w; x++) {
+            float dx = (float)x - cx;
+            float dy = (float)y - cy;
+            float dist = sqrtf(dx*dx + dy*dy);
+            if (dist < R) {
+                float f = (1.0f - dist/R) * 0.09f; // 9% max intensity
+                uint16_t px = fb[y*w+x];
+                uint8_t r = (uint8_t)(((( px>>11)&0x1F)<<3)*(1-f) + 255*f);
+                uint8_t g = (uint8_t)((((px>> 5)&0x3F)<<2)*(1-f) +  30*f);
+                uint8_t b = (uint8_t)((( px      &0x1F)<<3)*(1-f) +  90*f);
+                fb[y*w+x] = rgb565(r, g, b);
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------
+//  HELPER: Scanlines (tiap 4 baris, 2 baris terakhir digelap 12%)
+//  Identik sama CSS: repeating-linear-gradient tiap 4px
+// ---------------------------------------------------------------
+static void rm_scanlines(void) {
+    uint16_t *fb = dev._frame_buffer;
+    int sw = dev._width, sh = dev._height;
+    for (int y = 2; y < sh; y += 4) {
+        for (int row = y; row <= y+1 && row < sh; row++) {
+            for (int x = 0; x < sw; x++) {
+                uint16_t px = fb[row*sw+x];
+                // Semua channel ×0.88 (12% darker), operasi di 5/6/5 space
+                uint8_t r = ((px>>11)&0x1F) * 22/25;
+                uint8_t g = ((px>> 5)&0x3F) * 22/25;
+                uint8_t b = ( px     &0x1F) * 22/25;
+                fb[row*sw+x] = (uint16_t)((r<<11)|(g<<5)|b);
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------
+//  HELPER: Gambar satu item menu dengan semua efek glow
+// ---------------------------------------------------------------
+static void rm_draw_item(int yPos, bool isActive,
+                         const unsigned char *icon, const char *label) {
+    uint16_t *fb = dev._frame_buffer;
+    int w = dev._width, h = dev._height;
+    uint16_t GRAY_C  = rgb565(55, 55, 55);
+    uint16_t WHITE_C = rgb565(255, 255, 255);
+    uint16_t BLACK_C = rgb565(0, 0, 0);
+    uint16_t SEP_C   = rgb565(18, 3, 8);
 
     if (isActive) {
-        // --- Gradasi horizontal pink → transparan ---
-        for (int x = 0; x < PANEL_W - 1; x++) {
-            float ratio = (float)x / (float)(PANEL_W - 2);
-            // Makin ke kanan makin gelap/transparan
-            float alpha = 0.85f * (1.0f - ratio * ratio);
-            // Target warna pink gelap: rgb(205, 25, 73)
+        // ── A. Pink gradient horizontal (mockup: 205,25,73 → transparent) ──
+        for (int x = 0; x < RM_PANEL_W - 2; x++) {
+            float ratio = (float)x / (RM_PANEL_W - 3);
+            float alpha = 0.82f * (1.0f - ratio * ratio); // Quadratic
             uint8_t r = (uint8_t)(205 * alpha);
             uint8_t g = (uint8_t)(25  * alpha);
             uint8_t b = (uint8_t)(73  * alpha);
-            for (int y = yPos; y < yPos + BAR_H; y++) {
-                if (y < dev._height) {
-                    // Blend ke atas pixel background yg ada
-                    uint16_t bg = buf[y * w + x];
-                    uint8_t rb = (((bg >> 11) & 0x1F) << 3);
-                    uint8_t gb = (((bg >> 5)  & 0x3F) << 2);
-                    uint8_t bb = ((bg & 0x1F) << 3);
-                    uint8_t rf = (uint8_t)(rb * (1.0f - alpha) + r);
-                    uint8_t gf = (uint8_t)(gb * (1.0f - alpha) + g);
-                    uint8_t bf = (uint8_t)(bb * (1.0f - alpha) + b);
-                    buf[y * w + x] = rgb565(rf, gf, bf);
+            for (int y = yPos; y < yPos + RM_ITEM_BAR && y < h; y++) {
+                uint16_t bg = fb[y*w+x];
+                uint8_t rb = (((bg>>11)&0x1F)<<3);
+                uint8_t gb = (((bg>> 5)&0x3F)<<2);
+                uint8_t bb = (( bg     &0x1F)<<3);
+                fb[y*w+x] = rgb565(
+                    (uint8_t)(rb*(1.0f-alpha)+r),
+                    (uint8_t)(gb*(1.0f-alpha)+g),
+                    (uint8_t)(bb*(1.0f-alpha)+b)
+                );
+            }
+        }
+
+        // ── B. Cyan border kiri + glow (8px gradient, identik mockup) ──
+        rm_cyan_border(yPos, yPos + RM_ITEM_BAR);
+
+        // ── C. Data stream glitch (2 blok hitam ngalir kanan→kiri) ──
+        int slide = (int)(millis() / 35) % (RM_PANEL_W / 2);
+        int ax = (RM_PANEL_W - 22) - slide;
+        if (ax > 9 && ax + 14 < RM_PANEL_W - 3) {
+            lcdDrawFillRect(&dev, ax,    yPos, ax+3,  yPos+RM_ITEM_BAR-1, BLACK_C);
+            lcdDrawFillRect(&dev, ax+8,  yPos, ax+13, yPos+RM_ITEM_BAR-1, BLACK_C);
+        }
+
+        // ── D. Icon glow + icon bounce (text-shadow: 0 0 8px #00ffff) ──
+        if (icon) {
+            int bounce = getBounce(200, 2);
+            int ix = 9, iy = yPos + 5 + bounce;
+            rm_icon_glow(ix, iy);                                    // Glow dulu
+            screen_draw_bitmap(0, ix, iy, icon, 10, 10,             // Icon di atas
+                               rgb565(0, 255, 255));
+        }
+
+        // ── E. Label putih ──
+        rootx_print_text_custom(25, yPos + 5, label, WHITE_C, BLACK_C);
+
+        // ── F. Cursor dot + glow (box-shadow: 0 0 6px #00ffff) ──
+        rm_cursor_dot(RM_PANEL_W - 11, yPos + RM_ITEM_BAR/2 - 2);
+
+    } else {
+        // Non-aktif: icon abu + teks abu (no glow)
+        if (icon) screen_draw_bitmap(0, 9, yPos+5, icon, 10, 10, GRAY_C);
+        rootx_print_text_custom(25, yPos+5, label, GRAY_C, BLACK_C);
+    }
+
+    // Separator bawah item
+    for (int x = 6; x < RM_PANEL_W - 6; x++) {
+        int sy = yPos + RM_ITEM_H - 1;
+        if (sy < h) fb[sy*w+x] = SEP_C;
+    }
+}
+
+// ================================================================
+//  FUNGSI UTAMA — Ganti void tampilkanMenuUtama() yang lama
+// ================================================================
+void tampilkanMenuUtama(void) {
+
+    // ── 1. Init rain pertama kali ───────────────────────────────
+    if (!rm_ready) rm_init();
+
+    // ── 2. Background hitam (seluruh layar) ────────────────────
+    lcdFillScreen(&dev, BLACK);
+
+    // ── 3. Panel kiri + grid + borders ─────────────────────────
+    rm_draw_panel();
+
+    // ── 4. Hex code rain (kanan panel, X 148-239) ───────────────
+    rm_tick_draw();
+
+    // ── 5. Pink radial glow sisi kanan ─────────────────────────
+    rm_pink_glow_right();
+
+    // ── 6. Header: "> WIFI // NETWORK" ─────────────────────────
+    {
+        uint16_t CYAN_C  = rgb565(0, 255, 255);
+        uint16_t PINK_C  = rgb565(255, 30, 90);
+        uint16_t GRAY_C  = rgb565(65, 65, 65);
+        uint16_t BLACK_C = rgb565(0, 0, 0);
+        uint16_t *fb     = dev._frame_buffer;
+        int w            = dev._width;
+
+        const char *catLabel = "", *catSub = "";
+        int totalSub = 0;
+        if      (currentMenu == 0) { catLabel="WI-FI";    catSub="NETWORK";   totalSub=4; }
+        else if (currentMenu == 1) { catLabel="BLE";      catSub="BLUETOOTH"; totalSub=3; }
+        else if (currentMenu == 2) { catLabel="IR";       catSub="INFRARED";  totalSub=5; }
+        else if (currentMenu == 3) { catLabel="SETTINGS"; catSub="SYSTEM";    totalSub=4; }
+        else                       { catLabel="GAME";     catSub="ARCADE";    totalSub=3; }
+
+        // ">" cyan + nama kategori pink
+        rootx_print_text_custom(4,  4, ">",      CYAN_C, BLACK_C);
+        rootx_print_text_custom(14, 4, catLabel, PINK_C, BLACK_C);
+
+        // Sub-label abu
+        int subX = 14 + (int)strlen(catLabel) * 7 + 4;
+        rootx_print_text_custom(subX,      4, "//",    GRAY_C, BLACK_C);
+        rootx_print_text_custom(subX + 15, 4, catSub,  GRAY_C, BLACK_C);
+
+        // Underline: pink fade kanan — sama kayak mockup
+        for (int x = 0; x < RM_PANEL_W - 2; x++) {
+            float t = (float)x / (RM_PANEL_W - 3);
+            float iv = 1.0f - t * 0.82f;
+            uint8_t r = (uint8_t)(255 * iv);
+            uint8_t g = (uint8_t)(30  * iv);
+            uint8_t b = (uint8_t)(90  * iv);
+            fb[14*w+x] = rgb565(r, g, b);             // Garis tebal
+            fb[15*w+x] = rgb565(r/3, g/3, b/3);       // Shadow tipis
+        }
+
+        // ── 7. List item menu ─────────────────────────────────
+        for (int i = 0; i < RM_MAX_VIS; i++) {
+            int idx = topMenu + i;
+            if (idx >= totalSub) break;
+            bool isAct = (idx == currentSub);
+            int  yPos  = RM_ITEM_Y0 + i * RM_ITEM_H;
+
+            const unsigned char *ico = NULL;
+            if      (currentMenu == 0) ico = iconListWiFi[idx];
+            else if (currentMenu == 1) ico = iconListBLE[idx];
+            else if (currentMenu == 2) ico = iconListIR[idx];
+            else if (currentMenu == 3) ico = iconListSet[idx];
+            else                       ico = iconListGame[idx];
+
+            const char *lbl = "";
+            if      (currentMenu == 0) lbl = subMenuWiFi[idx];
+            else if (currentMenu == 1) lbl = subMenuBLE[idx];
+            else if (currentMenu == 2) lbl = subMenuIR[idx];
+            else if (currentMenu == 3) lbl = subMenuSet[idx];
+            else                       lbl = subMenuGame[idx];
+
+            rm_draw_item(yPos, isAct, ico, lbl);
+        }
+
+        // ── 8. Scroll dots (kalau item > 5) ──────────────────
+        if (totalSub > RM_MAX_VIS) {
+            int avail_h = dev._height - RM_ITEM_Y0 - 8;
+            for (int d = 0; d < totalSub; d++) {
+                int dotY = RM_ITEM_Y0 + d * avail_h / totalSub;
+                int dotX = RM_PANEL_W - 7;
+                if (d == currentSub) {
+                    // Dot aktif: cyan 4x6 + mini glow
+                    lcdDrawFillRect(&dev, dotX-1, dotY-1, dotX+4, dotY+6,
+                                    rgb565(0, 40, 40));            // Glow dim
+                    lcdDrawFillRect(&dev, dotX, dotY, dotX+3, dotY+5,
+                                    rgb565(0, 255, 255));          // Inti
+                } else {
+                    lcdDrawFillRect(&dev, dotX, dotY+1, dotX+2, dotY+4,
+                                    rgb565(128, 10, 40));          // Dot kecil pink
                 }
             }
         }
-
-        // --- Cyan border kiri 2px (glow effect) ---
-        for (int y = yPos; y < yPos + BAR_H; y++) {
-            if (y < dev._height) {
-                buf[y * w + 0] = CYAN;
-                buf[y * w + 1] = CYAN;
-                // Pixel ke-3 setengah cyan (soft glow)
-                buf[y * w + 2] = rgb565(0, 128, 128);
-            }
-        }
-
-        // --- Data stream glitch: kotak hitam ngalir dari kanan ke kiri ---
-        int slide   = (millis() / 40) % (PANEL_W / 2);
-        int animX   = (PANEL_W - 15) - slide;
-        if (animX > 3 && animX + 8 < PANEL_W) {
-            lcdDrawFillRect(&dev, animX,     yPos, animX + 2, yPos + BAR_H - 1, BLACK);
-            lcdDrawFillRect(&dev, animX + 5, yPos, animX + 8, yPos + BAR_H - 1, BLACK);
-        }
-
-        // --- Icon bounce (naik-turun 2px) ---
-        int bounce = getBounce(200, 2);
-        if (icon) screen_draw_bitmap(0, ICON_X, yPos + 5 + bounce, icon, 10, 10, CYAN);
-
-        // --- Teks putih ---
-        rootx_print_text_custom(TEXT_X, yPos + 6, label, WHITE, BLACK);
-
-        // --- Titik cursor di ujung kanan ---
-        int dotX = PANEL_W - 8;
-        int dotY = yPos + BAR_H / 2 - 1;
-        lcdDrawFillRect(&dev, dotX, dotY, dotX + 3, dotY + 3, CYAN);
-
-    } else {
-        // --- Item non-aktif: icon & teks abu-abu ---
-        if (icon) screen_draw_bitmap(0, ICON_X, yPos + 5, icon, 10, 10, GRAY);
-        rootx_print_text_custom(TEXT_X, yPos + 6, label, GRAY, BLACK);
     }
 
-    // --- Garis pembatas bawah item (sangat tipis) ---
-    uint16_t SEP = rgb565(20, 5, 10);
-    for (int x = 4; x < PANEL_W - 4; x++) {
-        int sepY = yPos + ITEM_H - 1;
-        if (sepY < dev._height) buf[sepY * dev._width + x] = SEP;
-    }
-}
-
-
-// ----------------------------------------------------------------
-// FUNGSI UTAMA — Ganti tampilkanMenuUtama() yang lama dengan ini
-// ----------------------------------------------------------------
-void tampilkanMenuUtama(void) {
-
-    // === 1. ANIME BACKGROUND TETAP ===
-    drawBackground();   // <-- sama kayak menu logo
-
-    // === 2. PANEL KIRI DARK OVERLAY ===
-    draw_hacker_panel();
-
-    // === 3. BATTERY INDICATOR (kanan atas, sama kayak menu logo) ===
+    // ── 9. Battery (identik sama tampilkanMenuLogo) ────────────
     read_battery_percentage();
-
-    lcdDrawRect(&dev, 216, 4, 234, 12, rgb565(255,255,255));
-    lcdDrawFillRect(&dev, 235, 7, 237, 9, rgb565(255,255,255));
-
-    uint16_t warna_bar;
-    int jumlah_bar;
-    if      (batteryPercent > 75) { warna_bar = GREEN;  jumlah_bar = 4; }
-    else if (batteryPercent > 50) { warna_bar = YELLOW; jumlah_bar = 3; }
-    else if (batteryPercent > 25) { warna_bar = ORANGE; jumlah_bar = 2; }
-    else                          { warna_bar = RED;    jumlah_bar = 1; }
-
-    for (int b = 0; b < jumlah_bar; b++) {
-        int bx = 218 + (b * 4);
-        lcdDrawFillRect(&dev, bx, 6, bx + 2, 10, warna_bar);
-    }
-
-    // === 4. HEADER KATEGORI ===
-    // Contoh:  "> WI-FI // NETWORK TOOLS"
-    // Format:  CYAN ">" RED "NAMA" GRAY "// SUB"
-    
-
-    // Teks ">" cyan
-    rootx_print_text_custom(3, 4, ">", CYAN, BLACK);
-
-    // Nama kategori merah/pink
-    const char* catLabel = "";
-    const char* catSub   = "";
-    int totalSub = 0;
-
-    if      (currentMenu == 0) { catLabel = "WI-FI";    catSub = "NETWORK"; totalSub = 4; }
-    else if (currentMenu == 1) { catLabel = "BLE";      catSub = "BLUETOOTH"; totalSub = 3; }
-    else if (currentMenu == 2) { catLabel = "IR";       catSub = "INFRARED"; totalSub = 5; }
-    else if (currentMenu == 3) { catLabel = "SETTINGS"; catSub = "SYSTEM"; totalSub = 4; }
-    else                       { catLabel = "GAME";     catSub = "ARCADE"; totalSub = 3; }
-
-    rootx_print_text_custom(12, 4, catLabel, PINK, BLACK);
-
-    // Sub-label abu
-    int subX = 12 + strlen(catLabel) * 6 + 4;
-    rootx_print_text_custom(subX, 4, "//", GRAY, BLACK);
-    rootx_print_text_custom(subX + 14, 4, catSub, GRAY, BLACK);
-
-    // Garis pembatas header (pink fade)
-    for (int x = 0; x < PANEL_W - 1; x++) {
-        float t = (float)x / (PANEL_W - 2);
-        uint8_t r = (uint8_t)(255 * (1.0f - t * 0.8f));
-        uint8_t g = (uint8_t)(30  * (1.0f - t));
-        uint8_t b = (uint8_t)(90  * (1.0f - t));
-        int lineY = 14;
-        dev._frame_buffer[lineY * dev._width + x] = rgb565(r, g, b);
-        // Garis kedua lebih tipis
-        if (x < PANEL_W / 2)
-            dev._frame_buffer[(lineY+1) * dev._width + x] = rgb565(r/3, g/3, b/3);
-    }
-
-    // === 5. LIST ITEM MENU ===
-    int maxVisible = 5;
-    int start_y    = 18;   // Y mulai item pertama (setelah header)
-
-    for (int i = 0; i < maxVisible; i++) {
-        int itemIndex = topMenu + i;
-        if (itemIndex >= totalSub) break;
-
-        bool isActive = (itemIndex == currentSub);
-        int  yPos     = start_y + (i * ITEM_H);
-
-        // Ambil icon sesuai kategori
-        const unsigned char* iconSmall = NULL;
-        if      (currentMenu == 0) iconSmall = iconListWiFi[itemIndex];
-        else if (currentMenu == 1) iconSmall = iconListBLE[itemIndex];
-        else if (currentMenu == 2) iconSmall = iconListIR[itemIndex];
-        else if (currentMenu == 3) iconSmall = iconListSet[itemIndex];
-        else                       iconSmall = iconListGame[itemIndex];
-
-        // Ambil label teks
-        const char* label = "";
-        if      (currentMenu == 0) label = subMenuWiFi[itemIndex];
-        else if (currentMenu == 1) label = subMenuBLE[itemIndex];
-        else if (currentMenu == 2) label = subMenuIR[itemIndex];
-        else if (currentMenu == 3) label = subMenuSet[itemIndex];
-        else                       label = subMenuGame[itemIndex];
-
-        draw_menu_item(yPos, isActive, iconSmall, label);
-    }
-
-    // === 6. SCROLL INDICATOR (titik-titik di tepi kanan panel) ===
-    // Kalau item > maxVisible, kasih scroll dots biar tau posisi
-    if (totalSub > maxVisible) {
-        int dot_x = PANEL_W - 5;
-        for (int d = 0; d < totalSub; d++) {
-            int dot_y = start_y + (d * (dev._height - start_y - 4) / totalSub);
-            if (d == currentSub) {
-                // Dot aktif: cyan
-                lcdDrawFillRect(&dev, dot_x, dot_y, dot_x + 3, dot_y + 3, CYAN);
-            } else {
-                // Dot biasa: dark pink
-                lcdDrawFillRect(&dev, dot_x, dot_y, dot_x + 2, dot_y + 2, PINK);
-            }
+    lcdDrawRect(&dev, 216, 4, 234, 12, WHITE);
+    lcdDrawFillRect(&dev, 235, 7, 237, 9, WHITE);
+    {
+        uint16_t warna_bar;
+        int jumlah_bar;
+        if      (batteryPercent > 75) { warna_bar = GREEN;  jumlah_bar = 4; }
+        else if (batteryPercent > 50) { warna_bar = YELLOW; jumlah_bar = 3; }
+        else if (batteryPercent > 25) { warna_bar = ORANGE; jumlah_bar = 2; }
+        else                          { warna_bar = RED;    jumlah_bar = 1; }
+        for (int b = 0; b < jumlah_bar; b++) {
+            int bx = 218 + b * 4;
+            lcdDrawFillRect(&dev, bx, 6, bx+2, 10, warna_bar);
         }
     }
 
-    // === 7. GLITCH EFFECT TERAKHIR ===
-    apply_cyber_glitch();
+    // ── 10. Scanlines overlay (identik CSS mockup) ─────────────
+    rm_scanlines();
 
-    // === 8. FLUSH KE LAYAR ===
+    // ── 11. Cyber glitch + flush ────────────────────────────────
+    apply_cyber_glitch();
     lcdDrawFinish(&dev);
 }
+
 
 
 // --- TARUH INI DI ATAS FUNGSI ---

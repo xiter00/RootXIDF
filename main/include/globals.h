@@ -13,6 +13,24 @@ TFT_t dev; // Biar layar bisa diakses dari file mana aja
 
 
 
+#define MAX_STARS 15
+#define PANEL_W 150  
+#define PANEL_DARK 4  
+#define ITEM_H   22    // Tinggi per item (px)
+#define ICON_X    5    // X icon
+#define TEXT_X   20    // X teks label
+#define BAR_H    (ITEM_H - 3)  // Tinggi blok highlight
+#define RM_PANEL_W    148   // Lebar panel menu kiri
+#define RM_RAIN_X0    148   // Rain mulai dari X ini (= RM_PANEL_W)
+#define RM_CW           7   // Lebar 1 karakter fontC7x13
+#define RM_CH          13   // Tinggi 1 karakter fontC7x13
+#define RM_NCOLS       13   // (240-148)/7 = 13.1 → 13 kolom
+#define RM_NTRAIL       9   // Panjang ekor tiap kolom
+#define RM_NROWS       12   // Baris simulasi (> 135/13=10.3 biar smooth)
+#define RM_ITEM_H      22   // Tinggi satu item menu (px)
+#define RM_ITEM_BAR    20   // Tinggi blok highlight aktif
+#define RM_ITEM_Y0     18   // Y item pertama (setelah header)
+#define RM_MAX_VIS      5   // Maks item terlihat sekaligus
 
 
 //COLOR
