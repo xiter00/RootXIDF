@@ -1,5 +1,6 @@
 #ifndef BACKGROUND
 #define BACKGROUND 
+#include <stdint.h>
 const uint16_t background[] = {
 	
 

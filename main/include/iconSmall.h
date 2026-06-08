@@ -1,6 +1,6 @@
 #ifndef ICON_SMALL
 #define ICON_SMALL
-
+#include <stdint.h>
 
 
 static const unsigned char ics_android[] = {
