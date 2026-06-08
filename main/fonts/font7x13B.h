@@ -1,5 +1,5 @@
-#ifndef FONT_CUSTOM_H
-#define FONT_CUSTOM_H
+#ifndef FONT_CUSTOM_H1
+#define FONT_CUSTOM_H1
 #include <stdint.h>
 const uint8_t fontC7x13B[] = {
     // ASCII 116 ('t')
