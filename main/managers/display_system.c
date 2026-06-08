@@ -599,8 +599,8 @@ drawCarouselAnimated(progress);
     
     
     
-    rootx_print_text_custom(95, 2, "<RootX>", RED, RED);
-    rootx_print_text_custom(85, 122, "Dev: Andyy", WHITE, WHITE);
+    rootx_print_text_c(95, 2, "<RootX>", RED, RED);
+    rootx_print_text_c(85, 122, "Dev: Andyy", WHITE, WHITE);
     
     
     
@@ -653,7 +653,7 @@ static void rm_draw_item(int yPos, bool isActive,
     } else {
         // Non-aktif: icon abu + teks abu (no glow)
         if (icon) screen_draw_bitmap(0, 9, yPos - 1, icon, 18, 18, GRAY);
-        rootx_print_text_custom(35, yPos+3, label, GRAY, GRAY);
+        rootx_print_text_c(35, yPos+3, label, GRAY, GRAY);
     }
 
     // Separator bawah item
@@ -677,8 +677,8 @@ void tampilkanMenuUtama(void) {
         else                       { catLabel="GAME";  totalSub=3; }
 
         // ">" cyan + nama kategori pink
-        rootx_print_text_custom(4,  4, ">",      CYAN, CYAN);
-        rootx_print_text_custom(14, 4, catLabel, PINK, PINK);
+        rootx_print_text_c(4,  4, ">",      CYAN, CYAN);
+        rootx_print_text_c(14, 4, catLabel, PINK, PINK);
 
         // Sub-label abu
         
@@ -772,7 +772,7 @@ void tampilkanTrackScreen() {
 
     // Header
     lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-    rootx_print_text_custom(30, 1, "TRACKING RSSI", BLACK, WHITE);
+    rootx_print_text_c(30, 1, "TRACKING RSSI", BLACK, WHITE);
     
     // --- ANIMASI RADAR PULSING ---
     static int r = 0;
@@ -782,11 +782,11 @@ void tampilkanTrackScreen() {
 
     // Data RSSI
     snprintf(buf, sizeof(buf), "%d", targetTerkunci.rssi);
-    rootx_print_text_custom(50, 30, buf, WHITE, BLACK);
+    rootx_print_text_c(50, 30, buf, WHITE, BLACK);
 
     // Footer
     lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-    rootx_print_text_custom(5, 55, "< BACK", BLACK, WHITE);
+    rootx_print_text_c(5, 55, "< BACK", BLACK, WHITE);
     
     lcdDrawFinish(&dev);
 }
@@ -799,32 +799,32 @@ void tampilkanWifiScanner() {
 
     if (scannerState == 0) {
         lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-        rootx_print_text_custom(2, 1, "WIFI SCANNER", BLACK, WHITE);
+        rootx_print_text_c(2, 1, "WIFI SCANNER", BLACK, WHITE);
 
-        rootx_print_text_custom(40, 25, "Yakin??", WHITE, BLACK);
+        rootx_print_text_c(40, 25, "Yakin??", WHITE, BLACK);
 
         lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-        rootx_print_text_custom(2, 55, "< CANCEL", BLACK, WHITE);
-        rootx_print_text_custom(95, 55, "YES >", BLACK, WHITE);
+        rootx_print_text_c(2, 55, "< CANCEL", BLACK, WHITE);
+        rootx_print_text_c(95, 55, "YES >", BLACK, WHITE);
     }
     else if (scannerState == 1) {
-        rootx_print_text_custom(20, 25, "Scanning Air...", WHITE, BLACK);
+        rootx_print_text_c(20, 25, "Scanning Air...", WHITE, BLACK);
         if (scanDone) scannerState = 2; 
     }
     else if (scannerState == 2) {
         if (totalWiFi == 0) {
             lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-            rootx_print_text_custom(2, 1, "SAVED NETWORKS", BLACK, WHITE);
-            rootx_print_text_custom(15, 25, "BELUM ADA DATA!", WHITE, BLACK);
-            rootx_print_text_custom(10, 35, "Scan WiFi dulu", WHITE, BLACK);
+            rootx_print_text_c(2, 1, "SAVED NETWORKS", BLACK, WHITE);
+            rootx_print_text_c(15, 25, "BELUM ADA DATA!", WHITE, BLACK);
+            rootx_print_text_c(10, 35, "Scan WiFi dulu", WHITE, BLACK);
             lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-            rootx_print_text_custom(2, 55, "< BACK", BLACK, WHITE);
+            rootx_print_text_c(2, 55, "< BACK", BLACK, WHITE);
         } else {
           
 
             lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
             snprintf(buf, sizeof(buf), "SCANNER - %d", totalWiFi);
-            rootx_print_text_custom(2, 1, buf, BLACK, WHITE);
+            rootx_print_text_c(2, 1, buf, BLACK, WHITE);
             
             for (int i = 0; i < 3; i++) {
                 int itemIdx = scrollPosScanner + i;
@@ -840,7 +840,7 @@ void tampilkanWifiScanner() {
                     }
 
                     snprintf(buf, sizeof(buf), "%d.", listWiFi[itemIdx].id);
-                    rootx_print_text_custom(1, yPos + 1, buf, textColor, bgColor);
+                    rootx_print_text_c(1, yPos + 1, buf, textColor, bgColor);
                     
                     int maxChar = 8;
                     int len = strlen(listWiFi[itemIdx].ssid);
@@ -855,26 +855,26 @@ void tampilkanWifiScanner() {
                         if (len > maxChar) strncpy(textShow, listWiFi[itemIdx].ssid, maxChar);
                         else               strcpy(textShow, listWiFi[itemIdx].ssid);
                     }
-                    rootx_print_text_custom(16, yPos + 1, textShow, textColor, bgColor);
+                    rootx_print_text_c(16, yPos + 1, textShow, textColor, bgColor);
 
                     snprintf(buf, sizeof(buf), "C:%d", listWiFi[itemIdx].channel);
-                    rootx_print_text_custom(66, yPos + 1, buf, textColor, bgColor);
+                    rootx_print_text_c(66, yPos + 1, buf, textColor, bgColor);
                     snprintf(buf, sizeof(buf), "%ddB", listWiFi[itemIdx].rssi);
-                    rootx_print_text_custom(95, yPos + 1, buf, textColor, bgColor);
+                    rootx_print_text_c(95, yPos + 1, buf, textColor, bgColor);
                 }
             }
             lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-            rootx_print_text_custom(2, 55, "< BACK", BLACK, WHITE);
-            rootx_print_text_custom(53, 55, "[OK]", BLACK, WHITE);
+            rootx_print_text_c(2, 55, "< BACK", BLACK, WHITE);
+            rootx_print_text_c(53, 55, "[OK]", BLACK, WHITE);
         }
     }
     else if (scannerState == 3) {
         lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-        rootx_print_text_custom(22, 1, "DETAIL TARGET", BLACK, WHITE);
+        rootx_print_text_c(22, 1, "DETAIL TARGET", BLACK, WHITE);
 
         int xSide = 5; 
         
-        rootx_print_text_custom(xSide, 13, "SSID: ", WHITE, BLACK);
+        rootx_print_text_c(xSide, 13, "SSID: ", WHITE, BLACK);
         int lenSSID = strlen(targetTerkunci.ssid);
         char tmpSSID[20] = {0};
         if (lenSSID > 14) {
@@ -885,24 +885,24 @@ void tampilkanWifiScanner() {
         } else {
             strcpy(tmpSSID, targetTerkunci.ssid);
         }
-        rootx_print_text_custom(xSide + 35, 13, tmpSSID, WHITE, BLACK);
+        rootx_print_text_c(xSide + 35, 13, tmpSSID, WHITE, BLACK);
 
-        rootx_print_text_custom(xSide, 23, "MAC : ", WHITE, BLACK);
-        rootx_print_text_custom(xSide + 35, 23, targetTerkunci.mac, WHITE, BLACK);
+        rootx_print_text_c(xSide, 23, "MAC : ", WHITE, BLACK);
+        rootx_print_text_c(xSide + 35, 23, targetTerkunci.mac, WHITE, BLACK);
         
         snprintf(buf, sizeof(buf), "CH  : %d", targetTerkunci.channel);
-        rootx_print_text_custom(xSide, 33, buf, WHITE, BLACK);
+        rootx_print_text_c(xSide, 33, buf, WHITE, BLACK);
 
         snprintf(buf, sizeof(buf), "SIG : %d dBm", targetTerkunci.rssi);
-        rootx_print_text_custom(xSide, 43, buf, WHITE, BLACK);
+        rootx_print_text_c(xSide, 43, buf, WHITE, BLACK);
 
         lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-        rootx_print_text_custom(2, 55, "[<] BACK", BLACK, WHITE);
+        rootx_print_text_c(2, 55, "[<] BACK", BLACK, WHITE);
     } 
                 else if (scannerState == 4) { // Atau scannerStateSta == 4, sesuaikan aja
         // --- 1. HEADER ---
         lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-        rootx_print_text_custom(42, 1, "ACTIONS", BLACK, WHITE);
+        rootx_print_text_c(42, 1, "ACTIONS", BLACK, WHITE);
 
         // --- 2. BLOK PUTIH STATIS DI TENGAH ---
         // Y mulai dari 24, tinggi 16 piksel (Bener-bener pas di center OLED 128x64)
@@ -933,26 +933,26 @@ void tampilkanWifiScanner() {
                     // --- MENU TERPILIH (DI TENGAH BLOK PUTIH) ---
                     // Warna dibalik (Hitam di atas Putih)
                     screen_draw_bitmap(0, 26, yPos - 1, icon, 10, 10, BLACK); 
-                    rootx_print_text_custom(42, yPos, (char*)teks, BLACK, WHITE);
+                    rootx_print_text_c(42, yPos, (char*)teks, BLACK, WHITE);
                     
                     // Tambahan efek panah biar kelihatan lebih "Gede/Lebar"
-                    rootx_print_text_custom(10, yPos, ">", BLACK, WHITE);
-                    rootx_print_text_custom(110, yPos, "<", BLACK, WHITE);
+                    rootx_print_text_c(10, yPos, ">", BLACK, WHITE);
+                    rootx_print_text_c(110, yPos, "<", BLACK, WHITE);
                 } 
                 else { 
                     // --- MENU GAK TERPILIH (DI ATAS / DI BAWAH) ---
                     // Warna normal (Putih di atas Hitam)
                     // Posisinya digeser X-nya (+4) biar seakan-akan mundur/mengecil
                     screen_draw_bitmap(0, 30, yPos, icon, 10, 10, WHITE);
-                    rootx_print_text_custom(46, yPos + 1, (char*)teks, WHITE, BLACK);
+                    rootx_print_text_c(46, yPos + 1, (char*)teks, WHITE, BLACK);
                 }
             }
         }
 
         // --- 4. FOOTER ---
         lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-        rootx_print_text_custom(2, 55, "< BACK", BLACK, WHITE);
-        rootx_print_text_custom(85, 55, "[OK] GO", BLACK, WHITE);
+        rootx_print_text_c(2, 55, "< BACK", BLACK, WHITE);
+        rootx_print_text_c(85, 55, "[OK] GO", BLACK, WHITE);
     }
 
 
@@ -970,28 +970,28 @@ void tampilkanStationScanner() {
 
     if (scannerStateSta == 0) {
         lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-        rootx_print_text_custom(2, 1, "STATION SCANNER", BLACK, WHITE);
-        rootx_print_text_custom(30, 25, "Scan Clients?", WHITE, BLACK);
+        rootx_print_text_c(2, 1, "STATION SCANNER", BLACK, WHITE);
+        rootx_print_text_c(30, 25, "Scan Clients?", WHITE, BLACK);
         lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-        rootx_print_text_custom(2, 55, "< BACK", BLACK, WHITE);
-        rootx_print_text_custom(95, 55, "YES >", BLACK, WHITE);
+        rootx_print_text_c(2, 55, "< BACK", BLACK, WHITE);
+        rootx_print_text_c(95, 55, "YES >", BLACK, WHITE);
     }
     else if (scannerStateSta == 1) {
-        rootx_print_text_custom(10, 20, "SNIFFING TARGET:", WHITE, BLACK);
-        rootx_print_text_custom(10, 35, targetTerkunci.ssid, WHITE, BLACK); 
+        rootx_print_text_c(10, 20, "SNIFFING TARGET:", WHITE, BLACK);
+        rootx_print_text_c(10, 35, targetTerkunci.ssid, WHITE, BLACK); 
         if (scanStaDone) scannerStateSta = 2; 
     }
     else if (scannerStateSta == 2) {
         if (totalStation == 0) {
             lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-            rootx_print_text_custom(2, 1, "CLIENT LIST", BLACK, WHITE);
-            rootx_print_text_custom(15, 25, "NO CLIENTS FOUND!", WHITE, BLACK);
+            rootx_print_text_c(2, 1, "CLIENT LIST", BLACK, WHITE);
+            rootx_print_text_c(15, 25, "NO CLIENTS FOUND!", WHITE, BLACK);
             lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-            rootx_print_text_custom(2, 55, "< RESCAN", BLACK, WHITE);
+            rootx_print_text_c(2, 55, "< RESCAN", BLACK, WHITE);
         } else {
             lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
             snprintf(buf, sizeof(buf), "CLIENTS: %d", totalStation);
-            rootx_print_text_custom(2, 1, buf, BLACK, WHITE);
+            rootx_print_text_c(2, 1, buf, BLACK, WHITE);
             
             for (int i = 0; i < 3; i++) {
                 int itemIdx = scrollPosScanner + i;
@@ -1003,50 +1003,50 @@ void tampilkanStationScanner() {
                     if (i == cursorInScanSta) lcdDrawFillRect(&dev, 0, yPos - 1, 128, yPos + 11, WHITE);
 
                     snprintf(buf, sizeof(buf), "%d.", listStation[itemIdx].id);
-                    rootx_print_text_custom(1, yPos + 1, buf, txtCol, bgCol);
+                    rootx_print_text_c(1, yPos + 1, buf, txtCol, bgCol);
 
                     snprintf(buf, sizeof(buf), "%02X:%02X..%02X:%02X", 
                              listStation[itemIdx].mac[0], listStation[itemIdx].mac[1],
                              listStation[itemIdx].mac[4], listStation[itemIdx].mac[5]);
                    
                   
-                    rootx_print_text_custom(18, yPos + 1, buf, txtCol, bgCol);
+                    rootx_print_text_c(18, yPos + 1, buf, txtCol, bgCol);
 
                     snprintf(buf, sizeof(buf), "%ddBm", listStation[itemIdx].rssi);
-                    rootx_print_text_custom(90, yPos + 1, buf, txtCol, bgCol);
+                    rootx_print_text_c(90, yPos + 1, buf, txtCol, bgCol);
                 }
             }
             lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-            rootx_print_text_custom(2, 55, "< BACK", BLACK, WHITE);
-            rootx_print_text_custom(53, 55, "[OK] ACTION", BLACK, WHITE);
+            rootx_print_text_c(2, 55, "< BACK", BLACK, WHITE);
+            rootx_print_text_c(53, 55, "[OK] ACTION", BLACK, WHITE);
         }
     }
     else if (scannerStateSta == 3) {
         lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-        rootx_print_text_custom(22, 1, "TARGET DETAILS", BLACK, WHITE);
+        rootx_print_text_c(22, 1, "TARGET DETAILS", BLACK, WHITE);
 
         snprintf(buf, sizeof(buf), "MC:%02X:%02X:%02X:%02X:%02X:%02X", 
                  targetSta.mac[0], targetSta.mac[1], targetSta.mac[2],
                  targetSta.mac[3], targetSta.mac[4], targetSta.mac[5]);
                  
         
-        rootx_print_text_custom(5, 17, buf, WHITE, BLACK);
+        rootx_print_text_c(5, 17, buf, WHITE, BLACK);
         
 
         snprintf(buf, sizeof(buf), "RSSI: %d dBm", targetSta.rssi);
-        rootx_print_text_custom(5, 25, buf, WHITE, BLACK);
+        rootx_print_text_c(5, 25, buf, WHITE, BLACK);
 
         snprintf(buf, sizeof(buf), "PACKETS: %d", targetSta.paket_count);
-        rootx_print_text_custom(5, 35, buf, WHITE, BLACK);
+        rootx_print_text_c(5, 35, buf, WHITE, BLACK);
 
         lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-        rootx_print_text_custom(2, 55, "< BACK", BLACK, WHITE);
+        rootx_print_text_c(2, 55, "< BACK", BLACK, WHITE);
     } 
     
         else if (scannerStateSta == 4) { // Atau scannerStateSta == 4, sesuaikan aja
         // --- 1. HEADER ---
         lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-        rootx_print_text_custom(42, 1, "ACTIONS", BLACK, WHITE);
+        rootx_print_text_c(42, 1, "ACTIONS", BLACK, WHITE);
 
         // --- 2. BLOK PUTIH STATIS DI TENGAH ---
         // Y mulai dari 24, tinggi 16 piksel (Bener-bener pas di center OLED 128x64)
@@ -1074,26 +1074,26 @@ void tampilkanStationScanner() {
                     // --- MENU TERPILIH (DI TENGAH BLOK PUTIH) ---
                     // Warna dibalik (Hitam di atas Putih)
                     screen_draw_bitmap(0, 26, yPos - 1, icon, 10, 10, BLACK); 
-                    rootx_print_text_custom(42, yPos, (char*)teks, BLACK, WHITE);
+                    rootx_print_text_c(42, yPos, (char*)teks, BLACK, WHITE);
                     
                     // Tambahan efek panah biar kelihatan lebih "Gede/Lebar"
-                    rootx_print_text_custom(10, yPos, ">", BLACK, WHITE);
-                    rootx_print_text_custom(110, yPos, "<", BLACK, WHITE);
+                    rootx_print_text_c(10, yPos, ">", BLACK, WHITE);
+                    rootx_print_text_c(110, yPos, "<", BLACK, WHITE);
                 } 
                 else { 
                     // --- MENU GAK TERPILIH (DI ATAS / DI BAWAH) ---
                     // Warna normal (Putih di atas Hitam)
                     // Posisinya digeser X-nya (+4) biar seakan-akan mundur/mengecil
                     screen_draw_bitmap(0, 30, yPos, icon, 10, 10, WHITE);
-                    rootx_print_text_custom(46, yPos + 1, (char*)teks, WHITE, BLACK);
+                    rootx_print_text_c(46, yPos + 1, (char*)teks, WHITE, BLACK);
                 }
             }
         }
 
         // --- 4. FOOTER ---
         lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-        rootx_print_text_custom(2, 55, "< BACK", BLACK, WHITE);
-        rootx_print_text_custom(85, 55, "[OK] GO", BLACK, WHITE);
+        rootx_print_text_c(2, 55, "< BACK", BLACK, WHITE);
+        rootx_print_text_c(85, 55, "[OK] GO", BLACK, WHITE);
     }
     
    
@@ -1112,15 +1112,15 @@ void tampilkandeauthsta() {
     char buf[64];
     
         lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-        rootx_print_text_custom(2, 1, "ATTACKING STATION...", BLACK, WHITE);
+        rootx_print_text_c(2, 1, "ATTACKING STATION...", BLACK, WHITE);
         
         snprintf(buf, sizeof(buf), "Target:%02X:%02X:%02X:%02X:%02X:%02X", 
                  targetSta.mac[0], targetSta.mac[1], targetSta.mac[2],
                  targetSta.mac[3], targetSta.mac[4], targetSta.mac[5]);
 
-        rootx_print_text_custom(0, 20, buf, WHITE, BLACK);
+        rootx_print_text_c(0, 20, buf, WHITE, BLACK);
         snprintf(buf, sizeof(buf), "Ch: %d", targetTerkunci.channel);
-        rootx_print_text_custom(0, 30, buf, WHITE, BLACK);
+        rootx_print_text_c(0, 30, buf, WHITE, BLACK);
         
         int animasiProgress = (millis() / 30) % 100; 
 
@@ -1128,7 +1128,7 @@ void tampilkandeauthsta() {
         
         
         lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-        rootx_print_text_custom(2, 55, "< STOP ATTACK", BLACK, WHITE);
+        rootx_print_text_c(2, 55, "< STOP ATTACK", BLACK, WHITE);
     
     lcdDrawFinish(&dev);
 }
@@ -1140,27 +1140,27 @@ void tampilkanDeauthScreen() {
     
     if (deauthState == 0) {
         lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-        rootx_print_text_custom(26, 1, "DEAUTH ATTACK", BLACK, WHITE);
+        rootx_print_text_c(26, 1, "DEAUTH ATTACK", BLACK, WHITE);
         
-        rootx_print_text_custom(10, 25, "Attack Target?", WHITE, BLACK);
+        rootx_print_text_c(10, 25, "Attack Target?", WHITE, BLACK);
         
         char shortSsid[16];
         strncpy(shortSsid, targetTerkunci.ssid, 15);
         shortSsid[15] = '\0';
-        rootx_print_text_custom(10, 35, shortSsid, WHITE, BLACK);
+        rootx_print_text_c(10, 35, shortSsid, WHITE, BLACK);
 
         lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-        rootx_print_text_custom(2, 55, "< NO", BLACK, WHITE);
-        rootx_print_text_custom(95, 55, "YES >", BLACK, WHITE);
+        rootx_print_text_c(2, 55, "< NO", BLACK, WHITE);
+        rootx_print_text_c(95, 55, "YES >", BLACK, WHITE);
     } 
     else if (deauthState == 1) {
         lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-        rootx_print_text_custom(2, 1, "ATTACKING...", BLACK, WHITE);
+        rootx_print_text_c(2, 1, "ATTACKING...", BLACK, WHITE);
 
         snprintf(buf, sizeof(buf), "Target: %s", targetTerkunci.ssid);
-        rootx_print_text_custom(0, 20, buf, WHITE, BLACK);
+        rootx_print_text_c(0, 20, buf, WHITE, BLACK);
         snprintf(buf, sizeof(buf), "Ch: %d", targetTerkunci.channel);
-        rootx_print_text_custom(0, 30, buf, WHITE, BLACK);
+        rootx_print_text_c(0, 30, buf, WHITE, BLACK);
         
         
         int animasiProgress = (millis() / 30) % 100; 
@@ -1168,7 +1168,7 @@ void tampilkanDeauthScreen() {
         drawLoadingBar(14, 42, 100, 8, animasiProgress);
         
         lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-        rootx_print_text_custom(2, 55, "< STOP ATTACK", BLACK, WHITE);
+        rootx_print_text_c(2, 55, "< STOP ATTACK", BLACK, WHITE);
     }
     lcdDrawFinish(&dev);
 }
@@ -1179,7 +1179,7 @@ void tampilkanBrightness() {
     char buf[16];
 
     lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-    rootx_print_text_custom(35, 1, "BRIGHTNESS", BLACK, WHITE);
+    rootx_print_text_c(35, 1, "BRIGHTNESS", BLACK, WHITE);
 
     lcdDrawRect(&dev, 14, 28, 114, 40, WHITE); 
     
@@ -1188,11 +1188,11 @@ void tampilkanBrightness() {
 
     int persen = map(brightnessValue, 0, 255, 0, 100);
     snprintf(buf, sizeof(buf), "%d%%", persen);
-    rootx_print_text_custom(55, 45, buf, WHITE, BLACK);
+    rootx_print_text_c(55, 45, buf, WHITE, BLACK);
 
     lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-    rootx_print_text_custom(5, 55, "[<] BACK", BLACK, WHITE);
-    rootx_print_text_custom(75, 55, "[UP/DN] SET", BLACK, WHITE);
+    rootx_print_text_c(5, 55, "[<] BACK", BLACK, WHITE);
+    rootx_print_text_c(75, 55, "[UP/DN] SET", BLACK, WHITE);
 
     lcdDrawFinish(&dev);
 }
@@ -1217,27 +1217,27 @@ void tampilkanSpamScreen(const char* judul, const char* subTeks) {
     
     if (spamState == 0) {
         lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-        rootx_print_text_custom(2, 1, (char*)judul, BLACK, WHITE);
+        rootx_print_text_c(2, 1, (char*)judul, BLACK, WHITE);
         
-        rootx_print_text_custom(10, 25, (char*)subTeks, WHITE, BLACK);
+        rootx_print_text_c(10, 25, (char*)subTeks, WHITE, BLACK);
 
         lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-        rootx_print_text_custom(2, 55, "< NO", BLACK, WHITE);
-        rootx_print_text_custom(95, 55, "YES >", BLACK, WHITE);
+        rootx_print_text_c(2, 55, "< NO", BLACK, WHITE);
+        rootx_print_text_c(95, 55, "YES >", BLACK, WHITE);
     } 
     else if (spamState == 1) {
         lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-        rootx_print_text_custom(2, 1, "RUNNING...", BLACK, WHITE);
+        rootx_print_text_c(2, 1, "RUNNING...", BLACK, WHITE);
 
         snprintf(buf, sizeof(buf), "Mode: %s", subTeks);
-        rootx_print_text_custom(0, 25, buf, WHITE, BLACK);
+        rootx_print_text_c(0, 25, buf, WHITE, BLACK);
         
         
         int animasiProgress = (millis() / 30) % 100; 
         drawLoadingBar(14, 42, 100, 8, animasiProgress);
         
         lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-        rootx_print_text_custom(2, 55, "< STOP", BLACK, WHITE);
+        rootx_print_text_c(2, 55, "< STOP", BLACK, WHITE);
     }
     lcdDrawFinish(&dev);
 }
@@ -1256,30 +1256,30 @@ void tampilkanEvilTwinScreen() {
     
     if (evilTwinState == 0) {
     lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-        rootx_print_text_custom(2, 1, "EVIL TWIN", BLACK, WHITE);
+        rootx_print_text_c(2, 1, "EVIL TWIN", BLACK, WHITE);
         
-        rootx_print_text_custom(10, 25, "Start Evil Twin?", WHITE, BLACK);
+        rootx_print_text_c(10, 25, "Start Evil Twin?", WHITE, BLACK);
 
      
         
-        rootx_print_text_custom(10, 35, targetTerkunci.ssid, WHITE, BLACK);
+        rootx_print_text_c(10, 35, targetTerkunci.ssid, WHITE, BLACK);
         lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-        rootx_print_text_custom(2, 55, "< NO", BLACK, WHITE);
-        rootx_print_text_custom(95, 55, "YES >", BLACK, WHITE);
+        rootx_print_text_c(2, 55, "< NO", BLACK, WHITE);
+        rootx_print_text_c(95, 55, "YES >", BLACK, WHITE);
     } 
     else if (evilTwinState == 1) {
-        rootx_print_text_custom(15, 20, "WAITING FOR DATA...", WHITE, BLACK);
+        rootx_print_text_c(15, 20, "WAITING FOR DATA...", WHITE, BLACK);
         int bounce = (millis() / 200) % 5;
-        rootx_print_text_custom(50, 40 + bounce, "...", WHITE, BLACK);
-        rootx_print_text_custom(2, 55, "< STOP", WHITE, BLACK);
+        rootx_print_text_c(50, 40 + bounce, "...", WHITE, BLACK);
+        rootx_print_text_c(2, 55, "< STOP", WHITE, BLACK);
     }
     else if (evilTwinState == 2) {
         lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-        rootx_print_text_custom(20, 1, "PW EXPLOITED!", BLACK, WHITE);
-        rootx_print_text_custom(5, 25, "Target:", WHITE, BLACK);
-        rootx_print_text_custom(50, 25, targetTerkunci.ssid, WHITE, BLACK);
-        rootx_print_text_custom(5, 40, "Pass  :", WHITE, BLACK);
-        rootx_print_text_custom(50, 40, stolenPassword, WHITE, BLACK);
+        rootx_print_text_c(20, 1, "PW EXPLOITED!", BLACK, WHITE);
+        rootx_print_text_c(5, 25, "Target:", WHITE, BLACK);
+        rootx_print_text_c(50, 25, targetTerkunci.ssid, WHITE, BLACK);
+        rootx_print_text_c(5, 40, "Pass  :", WHITE, BLACK);
+        rootx_print_text_c(50, 40, stolenPassword, WHITE, BLACK);
     }
     lcdDrawFinish(&dev);
 }
@@ -1332,10 +1332,10 @@ void tampilkanMenuSavedIR() {
         // --- HEADER (BLOK PUTIH) ---
         // Format library lu: (ID, X, Y, Teks, Warna Teks, Warna Background)
         lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-        rootx_print_text_custom(2, 1, "SAVED REMOTE", BLACK, WHITE);
+        rootx_print_text_c(2, 1, "SAVED REMOTE", BLACK, WHITE);
 
         if (totalSavedRemotes == 0) {
-            rootx_print_text_custom(10, 25, "Data Kosong!", WHITE, BLACK);
+            rootx_print_text_c(10, 25, "Data Kosong!", WHITE, BLACK);
         } else {
             // Tampilkan max 3 item biar rapi (Paging logic)
             int startIdx = (savedRemoteIndex / 3) * 3;
@@ -1349,14 +1349,14 @@ void tampilkanMenuSavedIR() {
                 } else {
                     snprintf(buf, sizeof(buf), "  %s", listSavedRemotes[curr].nama);
                 }
-                rootx_print_text_custom(0, 16 + (i * 12), buf, WHITE, BLACK);
+                rootx_print_text_c(0, 16 + (i * 12), buf, WHITE, BLACK);
             }
         }
 
         // --- FOOTER (BLOK PUTIH) ---
         lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-        rootx_print_text_custom(2, 55, "< NO", BLACK, WHITE);
-        rootx_print_text_custom(95, 55, "OK >", BLACK, WHITE);
+        rootx_print_text_c(2, 55, "< NO", BLACK, WHITE);
+        rootx_print_text_c(95, 55, "OK >", BLACK, WHITE);
     } 
     else if (currentIRSavedState == IR_SAVED_STATE_ACTION) {
         char buf[32];
@@ -1365,22 +1365,22 @@ void tampilkanMenuSavedIR() {
         // Header
         
         lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-        rootx_print_text_custom(2, 1, buf, BLACK, WHITE);
+        rootx_print_text_c(2, 1, buf, BLACK, WHITE);
 
         // Menu Transmit / Hapus
         if (actionMenuIndex == 0) {
-            rootx_print_text_custom(15, 20, "> 1. TRANSMIT", WHITE, BLACK);
-            rootx_print_text_custom(15, 35, "  2. HAPUS", WHITE, BLACK);
+            rootx_print_text_c(15, 20, "> 1. TRANSMIT", WHITE, BLACK);
+            rootx_print_text_c(15, 35, "  2. HAPUS", WHITE, BLACK);
         } else {
-            rootx_print_text_custom(15, 20, "  1. TRANSMIT", WHITE, BLACK);
-            rootx_print_text_custom(15, 35, "> 2. HAPUS", WHITE, BLACK);
+            rootx_print_text_c(15, 20, "  1. TRANSMIT", WHITE, BLACK);
+            rootx_print_text_c(15, 35, "> 2. HAPUS", WHITE, BLACK);
         }
         lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-        rootx_print_text_custom(2, 55, "< NO", BLACK, WHITE);
+        rootx_print_text_c(2, 55, "< NO", BLACK, WHITE);
     } 
     else if (currentIRSavedState == IR_SAVED_STATE_SENDING) {
         // Layar Polos, Tulisan di Tengah!
-        rootx_print_text_custom(25, 25, "IR SEND!", WHITE, BLACK);
+        rootx_print_text_c(25, 25, "IR SEND!", WHITE, BLACK);
     }
 
     // Refresh layar ID 0, dan force update (true)
@@ -1394,26 +1394,26 @@ void tampilkanMenuIR() {
 
     if (currentIRState == IR_STATE_CONFIRM) {
         lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
-        rootx_print_text_custom(2, 1, "SNIFF IR SIGNAL", BLACK, WHITE);
-        rootx_print_text_custom(10, 25, "Start Sniff??", WHITE, BLACK);
+        rootx_print_text_c(2, 1, "SNIFF IR SIGNAL", BLACK, WHITE);
+        rootx_print_text_c(10, 25, "Start Sniff??", WHITE, BLACK);
         
         lcdDrawFillRect(&dev, 0, 54, 128, 64, WHITE);
-        rootx_print_text_custom(2, 55, "< NO", BLACK, WHITE);
-        rootx_print_text_custom(95, 55, "OK >", BLACK, WHITE);
+        rootx_print_text_c(2, 55, "< NO", BLACK, WHITE);
+        rootx_print_text_c(95, 55, "OK >", BLACK, WHITE);
     
     } 
     else if (currentIRState == IR_STATE_WAITING) {
-        rootx_print_text_custom(5, 20, "Menunggu", WHITE, BLACK);
-        rootx_print_text_custom(5, 40, "sinyal masuk...", WHITE, BLACK);
+        rootx_print_text_c(5, 20, "Menunggu", WHITE, BLACK);
+        rootx_print_text_c(5, 40, "sinyal masuk...", WHITE, BLACK);
     } 
     else if (currentIRState == IR_STATE_RESULT) {
-        rootx_print_text_custom(0, 0, "== IR RESULT ==", WHITE, BLACK);
-        rootx_print_text_custom(0, 16, "Type: RAW CLONER", WHITE, BLACK);
+        rootx_print_text_c(0, 0, "== IR RESULT ==", WHITE, BLACK);
+        rootx_print_text_c(0, 16, "Type: RAW CLONER", WHITE, BLACK);
         
         snprintf(buf, sizeof(buf), "Pulses: %d", last_ir_data.num_pulses);
-        rootx_print_text_custom(0, 30, buf, WHITE, BLACK);
+        rootx_print_text_c(0, 30, buf, WHITE, BLACK);
         
-        rootx_print_text_custom(0, 56, "> SD Card Saved <", WHITE, BLACK);
+        rootx_print_text_c(0, 56, "> SD Card Saved <", WHITE, BLACK);
     }
     lcdDrawFinish(&dev);
 }
@@ -1436,16 +1436,16 @@ void renderAboutScreen() {
     lcdDrawRect(&dev, 2, 2, 126, 62, WHITE); // Border dalem (double line)
 
     // Judul
-    rootx_print_text_custom(32, 8, "ROOTX OS", WHITE, BLACK);
+    rootx_print_text_c(32, 8, "ROOTX OS", WHITE, BLACK);
     lcdDrawLine(&dev, 25, 18, 103, 18, WHITE); // Garis bawah judul
 
     // Info Alat (Lu bisa ganti teksnya sesuka lu Cok!)
-    rootx_print_text_custom(10, 25, "Ver : 1.0.0", WHITE, BLACK);
-    rootx_print_text_custom(10, 35, "Core: ESP32-S3", WHITE, BLACK);
-    rootx_print_text_custom(10, 45, "By  : Andyy", WHITE, BLACK); // Ganti pake nama lu!
+    rootx_print_text_c(10, 25, "Ver : 1.0.0", WHITE, BLACK);
+    rootx_print_text_c(10, 35, "Core: ESP32-S3", WHITE, BLACK);
+    rootx_print_text_c(10, 45, "By  : Andyy", WHITE, BLACK); // Ganti pake nama lu!
 
     // Tombol Keluar
-    rootx_print_text_custom(90, 45, "[<]", WHITE, BLACK); // Logo Kiri buat exit
+    rootx_print_text_c(90, 45, "[<]", WHITE, BLACK); // Logo Kiri buat exit
 
     lcdDrawFinish(&dev);
 }
@@ -1458,12 +1458,12 @@ void renderRebootScreen() {
     lcdDrawRect(&dev, 5, 5, 123, 59, WHITE);
 
     // Teks Pertanyaan
-    rootx_print_text_custom(20, 20, "Reboot sekarang?", WHITE, BLACK);
+    rootx_print_text_c(20, 20, "Reboot sekarang?", WHITE, BLACK);
 
     // Petunjuk Tombol
     
-    rootx_print_text_custom(2, 55, "< NO", WHITE, BLACK);
-    rootx_print_text_custom(95, 55, "OK >", WHITE, BLACK);
+    rootx_print_text_c(2, 55, "< NO", WHITE, BLACK);
+    rootx_print_text_c(95, 55, "OK >", WHITE, BLACK);
 
     lcdDrawFinish(&dev);
 }
@@ -1479,7 +1479,7 @@ void renderSdManager() {
     
     // --- 1. HEADER ---
     for(int y = 0; y < 11; y++) lcdDrawLine(&dev, 0, y, 128, y, WHITE);
-    rootx_print_text_custom(34, 2, "SD MANAGER", BLACK, WHITE);
+    rootx_print_text_c(34, 2, "SD MANAGER", BLACK, WHITE);
 
     if (sdState == 0) { // DASHBOARD UTAMA
         struct statvfs st;
@@ -1511,20 +1511,20 @@ void renderSdManager() {
         // --- 3. DISPLAY INFO ---
         char buf[32];
         if (!is_mounted) {
-            rootx_print_text_custom(5, 20, "VFS Error!", WHITE, BLACK);
-            rootx_print_text_custom(5, 30, "Gagal Baca Size", WHITE, BLACK);
+            rootx_print_text_c(5, 20, "VFS Error!", WHITE, BLACK);
+            rootx_print_text_c(5, 30, "Gagal Baca Size", WHITE, BLACK);
         } else {
             // Tampilan Size
             snprintf(buf, sizeof(buf), "Size: %.0f MB", total_mb);
-            rootx_print_text_custom(5, 15, buf, WHITE, BLACK);
+            rootx_print_text_c(5, 15, buf, WHITE, BLACK);
             // Tampilan Free
             snprintf(buf, sizeof(buf), "Free: %.0f MB", free_mb);
-            rootx_print_text_custom(5, 25, buf, WHITE, BLACK);
+            rootx_print_text_c(5, 25, buf, WHITE, BLACK);
         }
         
         // --- 4. PROGRESS BAR ---
         snprintf(buf, sizeof(buf), "%d%%", percent);
-        rootx_print_text_custom(100, 25, buf, WHITE, BLACK);
+        rootx_print_text_c(100, 25, buf, WHITE, BLACK);
         lcdDrawRect(&dev, 5, 38, 123, 46, WHITE);
         
         int fillWidth = (percent * 114) / 100;
@@ -1540,18 +1540,18 @@ void renderSdManager() {
         int textLen = strlen(menuNames[sdActionIdx]) * 6;
         int startX = (128 - textLen) / 2;
 
-        rootx_print_text_custom(5, 54, "<", WHITE, BLACK);
-        rootx_print_text_custom(startX, 54, menuNames[sdActionIdx], WHITE, BLACK);
-        rootx_print_text_custom(117, 54, ">", WHITE, BLACK);
+        rootx_print_text_c(5, 54, "<", WHITE, BLACK);
+        rootx_print_text_c(startX, 54, menuNames[sdActionIdx], WHITE, BLACK);
+        rootx_print_text_c(117, 54, ">", WHITE, BLACK);
     }
    
     else if (sdState == 1) { // KONFIRMASI FORMAT
-        rootx_print_text_custom(15, 20, "FORMAT SD CARD?", WHITE, BLACK);
-        rootx_print_text_custom(25, 32, "ALL DATA LOST!", WHITE, BLACK);
-        rootx_print_text_custom(5, 50, "[<-] NO   [OK] YES", WHITE, BLACK);
+        rootx_print_text_c(15, 20, "FORMAT SD CARD?", WHITE, BLACK);
+        rootx_print_text_c(25, 32, "ALL DATA LOST!", WHITE, BLACK);
+        rootx_print_text_c(5, 50, "[<-] NO   [OK] YES", WHITE, BLACK);
     } 
     else if (sdState == 2) { // FORMATTING
-        rootx_print_text_custom(25, 30, "FORMATTING...", WHITE, BLACK);
+        rootx_print_text_c(25, 30, "FORMATTING...", WHITE, BLACK);
     }
 
     lcdDrawFinish(&dev);
@@ -1598,11 +1598,11 @@ void renderFileExplorer() {
 
     // --- 2. HEADER UI ---
     for(int y = 0; y < 11; y++) lcdDrawLine(&dev, 0, y, 128, y, WHITE);
-    rootx_print_text_custom(38, 2, "SD FILES", BLACK, WHITE);
+    rootx_print_text_c(38, 2, "SD FILES", BLACK, WHITE);
 
     if (sdTotalFiles == 0) {
-        rootx_print_text_custom(15, 30, "NO FILES FOUND!", WHITE, BLACK);
-        rootx_print_text_custom(30, 50, "[<-] BACK", WHITE, BLACK);
+        rootx_print_text_c(15, 30, "NO FILES FOUND!", WHITE, BLACK);
+        rootx_print_text_c(30, 50, "[<-] BACK", WHITE, BLACK);
     } 
     else {
         if (sdFileState == 0) { // MODE LISTING
@@ -1616,13 +1616,13 @@ void renderFileExplorer() {
 
                 if (fileIdx == sdFileCursor) {
                     // Kursor Aktif: Kasih panah dan hurufnya kita Invert biar keren
-                    rootx_print_text_custom(0, yPos, ">", WHITE, BLACK);
+                    rootx_print_text_c(0, yPos, ">", WHITE, BLACK);
                     // Kotak Invert Background kursor
                     lcdDrawRect(&dev, 8, yPos - 1, 128, yPos + 8, WHITE);
-                    rootx_print_text_custom(10, yPos, sdFileNames[fileIdx], BLACK, WHITE);
+                    rootx_print_text_c(10, yPos, sdFileNames[fileIdx], BLACK, WHITE);
                 } else {
                     // File biasa
-                    rootx_print_text_custom(10, yPos, sdFileNames[fileIdx], WHITE, BLACK);
+                    rootx_print_text_c(10, yPos, sdFileNames[fileIdx], WHITE, BLACK);
                 }
             }
             
@@ -1630,18 +1630,18 @@ void renderFileExplorer() {
             // Ganti dari "[OK] DEL" jadi "[OK] SEL/DEL" (Select / Delete)
 char foot[32]; 
 snprintf(foot, sizeof(foot), "%d/%d [OK] SEL/DEL", sdFileCursor + 1, sdTotalFiles);
-rootx_print_text_custom(5, 56, foot, WHITE, BLACK);
+rootx_print_text_c(5, 56, foot, WHITE, BLACK);
 
-            rootx_print_text_custom(5, 56, foot, WHITE, BLACK);
+            rootx_print_text_c(5, 56, foot, WHITE, BLACK);
         } 
         else if (sdFileState == 1) { // MODE CONFIRM DELETE
-            rootx_print_text_custom(20, 20, "DELETE FILE?", WHITE, BLACK);
+            rootx_print_text_c(20, 20, "DELETE FILE?", WHITE, BLACK);
             // Tulis nama file yg mau dihapus (Max 18 karakter biar muat di tengah)
             char truncName[20];
             snprintf(truncName, sizeof(truncName), "%.18s", sdFileNames[sdFileCursor]);
-            rootx_print_text_custom(10, 32, truncName, WHITE, BLACK);
+            rootx_print_text_c(10, 32, truncName, WHITE, BLACK);
             
-            rootx_print_text_custom(5, 50, "[<-] NO   [OK] YES", WHITE, BLACK);
+            rootx_print_text_c(5, 50, "[<-] NO   [OK] YES", WHITE, BLACK);
         }
     }
 
@@ -1662,7 +1662,7 @@ void renderTvBGone() {
     // Kotak putih Y: 0-12
     lcdDrawRect(&dev, 0, 0, 128, 12, WHITE);
     // Teks 9 huruf x 6px = 54. X = (128-54)/2 = 37
-    rootx_print_text_custom(37, 2, "TV-B-GONE", BLACK, WHITE);
+    rootx_print_text_c(37, 2, "TV-B-GONE", BLACK, WHITE);
     
     if (tvbgoneState == 0) { // MODE MENU PILIH REGION
         const char* menus[] = {"[ NA / ASIA ]", "[  EUROPE   ]", "[ ALL WORLD ]"};
@@ -1672,23 +1672,23 @@ void renderTvBGone() {
             
             if (i == tvbgoneMenuIdx) {
                 // Kursor Aktif
-                rootx_print_text_custom(18, yPos, ">", WHITE, BLACK);
+                rootx_print_text_c(18, yPos, ">", WHITE, BLACK);
                 lcdDrawRect(&dev, 26, yPos - 1, 104, yPos + 8, WHITE); // Highlight
-                rootx_print_text_custom(28, yPos, menus[i], BLACK, WHITE);
+                rootx_print_text_c(28, yPos, menus[i], BLACK, WHITE);
             } else {
-                rootx_print_text_custom(28, yPos, menus[i], WHITE, BLACK);
+                rootx_print_text_c(28, yPos, menus[i], WHITE, BLACK);
             }
         }
         
         // Footer Petunjuk Tombol
-        rootx_print_text_custom(5, 55, "[<-] EXIT    [OK] START", WHITE, BLACK);
+        rootx_print_text_c(5, 55, "[<-] EXIT    [OK] START", WHITE, BLACK);
 
     } 
     else if (tvbgoneState == 1) { // MODE FIRING (LAGI NEMBAK)
         
         // Animasi Teks Kedip
         if ((xTaskGetTickCount() * portTICK_PERIOD_MS) / 500 % 2 == 0) {
-            rootx_print_text_custom(18, 20, "TRANSMITTING...", WHITE, BLACK);
+            rootx_print_text_c(18, 20, "TRANSMITTING...", WHITE, BLACK);
         }
         
         // --- PROGRESS BAR MATEMATIS ---
@@ -1707,7 +1707,7 @@ void renderTvBGone() {
         char counter[32];
         snprintf(counter, sizeof(counter), "CODE: %d / %d", tvbgoneProgress, tvbgoneTotal);
         // Tengahin teks counter (Asumsi maks 15 char = 90px. X = (128-90)/2 = 19)
-        rootx_print_text_custom(19, 50, counter, WHITE, BLACK);
+        rootx_print_text_c(19, 50, counter, WHITE, BLACK);
     }
     
     lcdDrawFinish(&dev);
