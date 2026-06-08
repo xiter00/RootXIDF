@@ -218,8 +218,6 @@ tampilkandeauthsta();
 tampilkanEvilTwinScreen();
 } else if (appMode == MODE_IR_SNIFFER) {    // <--- TAMBAHIN INI
             tampilkanMenuIR();
-        } else if (appMode == 13) {       // <--- TAMBAHIN INI (TETRIS MIRING)
-            renderTetrisGame();           // <--- TAMBAHIN INI
         } else if (appMode == MODE_SAVED_REMOTE) {  // <--- TAMBAHIN INI
             tampilkanMenuSavedIR();
         } else if (appMode == 14) {
@@ -666,7 +664,7 @@ void tampilkanMenuUtama(void) {
     
         
   
-        const char *catLabel = "", *catSub = "";
+        const char *catLabel = "";
         int totalSub = 0;
         if      (currentMenu == 0) { catLabel="WI-FI";  totalSub=4; }
         else if (currentMenu == 1) { catLabel="BLE"; totalSub=3; }
