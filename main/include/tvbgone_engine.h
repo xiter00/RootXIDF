@@ -1,8 +1,6 @@
 #ifndef TVBGONE_ENGINE_H
 #define TVBGONE_ENGINE_H
 
-#include <stdint.h>
-#include <stdbool.h>
 
 // 1. TRIK SULAP MENGHILANGKAN ERROR AVR
 #define PROGMEM 

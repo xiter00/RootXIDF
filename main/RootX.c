@@ -2,15 +2,11 @@
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "driver/gpio.h"
 #include "esp_log.h"
 #include "esp_ota_ops.h"
 #include "esp_http_client.h"
 #include "esp_https_ota.h"
-#include "esp_crt_bundle.h" // Wajib biar bisa tembus HTTPS GitHub tanpa error SSL
-
-
-// --- HEADER LU ---
+#include "esp_crt_bundle.h" 
 #include "globals.h"
 #include "photo_data.h"
 

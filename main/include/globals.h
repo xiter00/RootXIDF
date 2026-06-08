@@ -4,14 +4,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "st7789.h"
-#include "esp_spiffs.h"
 #include "driver/gpio.h"
-#include "font7x13.h"
-#include "font7x13B.h"
-#include "background.h"
-#include "iconmenu.h"
-#include "iconSmall.h"
-TFT_t dev; // Biar layar bisa diakses dari file mana aja
+
+
+TFT_t dev; 
 
 
 

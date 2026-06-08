@@ -1,13 +1,14 @@
-#include <stdio.h>
+
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_random.h"
 #include "globals.h"
 #include "photo_data.h"
-#include "st7789.h" // Ganti ke ST7789
+#include "font7x13.h"
+#include "photo_data.h"
 
-extern TFT_t dev; // Panggil mesin layarnya
+
 
 // HAPUS define WHITE 1 dan BLACK 0! 
 // Di library ST7789, warna WHITE dan BLACK udah otomatis terdefinisi sebagai warna 16-bit.

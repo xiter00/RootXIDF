@@ -1,7 +1,7 @@
 #ifndef PHOTO_DATA_H
 #define PHOTO_DATA_H
 
-#include <stdint.h>
+
 
 
 

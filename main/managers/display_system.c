@@ -6,16 +6,20 @@
 #include "globals.h"
 #include "photo_data.h"
 #include <math.h>
-#include "driver/gpio.h"
 #include "esp_log.h"
 #include <dirent.h>
 #include <sys/unistd.h>
 #include <sys/stat.h>
 #include "driver/ledc.h"
 #include <math.h>
-#include <sys/statvfs.h> // Wajib buat baca kapasitas memori
+#include <sys/statvfs.h> 
 #include "esp_random.h"
-
+#include "esp_spiffs.h"
+#include "iconSmall.h"    
+#include "iconmenu.h"    
+#include "font7x13.h"     
+#include "font7x13B.h"     
+#include "background.h"
 
 
 
