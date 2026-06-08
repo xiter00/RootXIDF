@@ -195,7 +195,7 @@ extern int baca_highscore_snake();
 void simpan_highscore_snake(int hs);
 // --- EKSPOR FUNGSI TEKS ST7789 BIAR BISA DIPAKAI DI SEMUA FILE ---
 extern void rootx_print_text_c(int x, int y, const char* str, uint16_t fg, uint16_t bg);
-void rootx_print_text_cb(int x, int y, const char* str, uint16_t fg, uint16_t bg)
+void rootx_print_text_cb(int x, int y, const char* str, uint16_t fg, uint16_t bg);
 extern void rootx_print_text_kecil(int x, int y, const char* str, uint16_t fg, uint16_t bg);
 extern void rootx_print_text_sedang(int x, int y, const char* str, uint16_t fg, uint16_t bg);
 extern void rootx_print_text_gede(int x, int y, const char* str, uint16_t fg, uint16_t bg);
