@@ -9,6 +9,7 @@
 #include "esp_crt_bundle.h" 
 #include "globals.h"
 #include "photo_data.h"
+#include "esp_spiffs.h"
 
 // Hardcode versi firmware lu saat ini (00 = v1.0.0)
 #define VERSION_SAAT_INI 127
