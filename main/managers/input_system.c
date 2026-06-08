@@ -398,7 +398,7 @@ void handleJoystick() {
     if (appMode == 5) { handleNavigasiScanSta(btn); lastPress = input_millis(); return; }
     if (appMode == 8) { handleEvilTwinInput(btn);   lastPress = input_millis(); return; }
     if (appMode == 11){ handleDinoInput(btn);       lastPress = input_millis(); return; }
-    if (appMode == 13) { handleTetrisInput(btn);  lastPress = input_millis();  return;  }
+   
     
     
     if (appMode == 6) {
