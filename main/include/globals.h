@@ -7,6 +7,7 @@
 #include "esp_spiffs.h"
 #include "driver/gpio.h"
 #include "font7x13.h"
+#include "font7x13B.h"
 #include "background.h"
 #include "iconmenu.h"
 #include "iconSmall.h"

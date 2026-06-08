@@ -216,11 +216,7 @@ handleJoystick();
 tampilkandeauthsta();
 } else if (appMode == 8) {
 tampilkanEvilTwinScreen();
-} else if (appMode == 11) {
-renderDinoGame();
-} else if (appMode == 12) {       // <--- TAMBAHIN INI
-            renderSnakeGame();            // <--- TAMBAHIN INI
-        } else if (appMode == MODE_IR_SNIFFER) {    // <--- TAMBAHIN INI
+} else if (appMode == MODE_IR_SNIFFER) {    // <--- TAMBAHIN INI
             tampilkanMenuIR();
         } else if (appMode == 13) {       // <--- TAMBAHIN INI (TETRIS MIRING)
             renderTetrisGame();           // <--- TAMBAHIN INI
