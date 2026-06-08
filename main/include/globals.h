@@ -9,6 +9,7 @@
 #include "font7x13.h"
 #include "background.h"
 #include "iconmenu.h"
+#include "iconSmall.h"
 TFT_t dev; // Biar layar bisa diakses dari file mana aja
 
 
