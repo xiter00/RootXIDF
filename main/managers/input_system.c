@@ -526,9 +526,9 @@ else if (btn == BTN_UP) {
                     appMode = 4;
                     spamState = 0;
                 } else if (currentMenu == 4 && currentSub == 0) {
-                    appMode = 11;
+                    
                 } else if (currentMenu == 4 && currentSub == 1) {
-                    appMode = 12;
+                    
                     } else if (currentMenu == 4 && currentSub == 2) {
                     appMode = 13;
                     } else if (currentMenu == 3 && currentSub == 2) {

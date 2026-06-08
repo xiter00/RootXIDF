@@ -1,7 +1,7 @@
 #ifndef FONT_CUSTOM_H
 #define FONT_CUSTOM_H
 #include "stdint.h"
-const uint8_t font7x13B[] = {
+const uint8_t fontC7x13B[] = {
     // ASCII 116 ('t')
     0x00, 0x00, 0x00, 0x60, 0x60, 0xF8, 0x60, 0x60, 0x60, 0x6C, 0x38, 0x00, 0x00, 
     // ASCII 117 ('u')
