@@ -26,7 +26,7 @@ void screen_draw_bitmap(uint8_t id, int16_t x, int16_t y, const uint8_t *bitmap,
 }
 
 
-void screen_draw_bitmap_vertical(uint8_t id, int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t color) {
+void screen_draw_bitmap_vertikal(uint8_t id, int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t color) {
     int16_t pages = (h + 7) / 8; 
     
     for (int16_t p = 0; p < pages; p++) {
