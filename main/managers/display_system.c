@@ -245,6 +245,7 @@ tampilkanEvilTwinScreen();
 
 // Inisialisasi bintang pertama kali
 extern void screen_draw_bitmap(uint8_t id, int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t color);
+extern void screen_draw_bitmap_vertikal(uint8_t id, int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t color);
 
 uint32_t millis() {
     return (uint32_t)(esp_timer_get_time() / 1000);
@@ -643,7 +644,7 @@ static void rm_draw_item(int yPos, bool isActive,
             int bounce = getBounce(350, 2);
             int ix = 9, iy = yPos - 1 + bounce;
             
-            screen_draw_bitmap(0, ix, iy, icon, 18, 18,             // Icon di atas
+            screen_draw_bitmap_vertikal(0, ix, iy, icon, 18, 18,             // Icon di atas
                                rgb565(0, 255, 255));
         }
 
@@ -652,7 +653,7 @@ static void rm_draw_item(int yPos, bool isActive,
 
     } else {
         // Non-aktif: icon abu + teks abu (no glow)
-        if (icon) screen_draw_bitmap(0, 9, yPos - 1, icon, 18, 18, GRAY);
+        if (icon) screen_draw_bitmap_vertikal(0, 9, yPos - 1, icon, 18, 18, GRAY);
         rootx_print_text_c(35, yPos+3, label, GRAY, GRAY);
     }
 
@@ -768,7 +769,7 @@ void tampilkanTrackScreen() {
     
     // --- ANIMASI FLOATING ICON (Icon WiFi naik turun pelan) ---
     int floatY = 15 + (int)(sin(millis() / 300.0) * 3);
-    screen_draw_bitmap(0, 105, floatY, ics_wifi, 10, 10, WHITE);
+    screen_draw_bitmap_vertikal(0, 105, floatY, ics_wifi, 10, 10, WHITE);
 
     // Header
     lcdDrawFillRect(&dev, 0, 0, 128, 10, WHITE);
@@ -932,7 +933,7 @@ void tampilkanWifiScanner() {
                 if (diff == 0) { 
                     // --- MENU TERPILIH (DI TENGAH BLOK PUTIH) ---
                     // Warna dibalik (Hitam di atas Putih)
-                    screen_draw_bitmap(0, 26, yPos - 1, icon, 10, 10, BLACK); 
+                    screen_draw_bitmap_vertikal(0, 26, yPos - 1, icon, 10, 10, BLACK); 
                     rootx_print_text_c(42, yPos, (char*)teks, BLACK, WHITE);
                     
                     // Tambahan efek panah biar kelihatan lebih "Gede/Lebar"
@@ -943,7 +944,7 @@ void tampilkanWifiScanner() {
                     // --- MENU GAK TERPILIH (DI ATAS / DI BAWAH) ---
                     // Warna normal (Putih di atas Hitam)
                     // Posisinya digeser X-nya (+4) biar seakan-akan mundur/mengecil
-                    screen_draw_bitmap(0, 30, yPos, icon, 10, 10, WHITE);
+                    screen_draw_bitmap_vertikal(0, 30, yPos, icon, 10, 10, WHITE);
                     rootx_print_text_c(46, yPos + 1, (char*)teks, WHITE, BLACK);
                 }
             }
@@ -1073,7 +1074,7 @@ void tampilkanStationScanner() {
                 if (diff == 0) { 
                     // --- MENU TERPILIH (DI TENGAH BLOK PUTIH) ---
                     // Warna dibalik (Hitam di atas Putih)
-                    screen_draw_bitmap(0, 26, yPos - 1, icon, 10, 10, BLACK); 
+                    screen_draw_bitmap_vertikal(0, 26, yPos - 1, icon, 10, 10, BLACK); 
                     rootx_print_text_c(42, yPos, (char*)teks, BLACK, WHITE);
                     
                     // Tambahan efek panah biar kelihatan lebih "Gede/Lebar"
@@ -1084,7 +1085,7 @@ void tampilkanStationScanner() {
                     // --- MENU GAK TERPILIH (DI ATAS / DI BAWAH) ---
                     // Warna normal (Putih di atas Hitam)
                     // Posisinya digeser X-nya (+4) biar seakan-akan mundur/mengecil
-                    screen_draw_bitmap(0, 30, yPos, icon, 10, 10, WHITE);
+                    screen_draw_bitmap_vertikal(0, 30, yPos, icon, 10, 10, WHITE);
                     rootx_print_text_c(46, yPos + 1, (char*)teks, WHITE, BLACK);
                 }
             }

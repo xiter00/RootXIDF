@@ -10,12 +10,7 @@
 
 
 
-// HAPUS define WHITE 1 dan BLACK 0! 
-// Di library ST7789, warna WHITE dan BLACK udah otomatis terdefinisi sebagai warna 16-bit.
 
-// ========================================================
-// Pembaca Bitmap gaya Adafruit (Support untuk ST7789!)
-// ========================================================
 void screen_draw_bitmap(uint8_t id, int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t color) {
     int16_t byteWidth = (w + 7) / 8; 
     uint8_t byte = 0;
@@ -29,6 +24,32 @@ void screen_draw_bitmap(uint8_t id, int16_t x, int16_t y, const uint8_t *bitmap,
         }
     }
 }
+
+
+void screen_draw_bitmap_vertical(uint8_t id, int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t color) {
+    int16_t pages = (h + 7) / 8; 
+    
+    for (int16_t p = 0; p < pages; p++) {
+        for (int16_t i = 0; i < w; i++) {
+
+            uint8_t byte = bitmap[p * w + i];
+            
+          
+            for (int8_t b = 0; b < 8; b++) {
+                int16_t pixel_y = p * 8 + b;
+                
+                
+                if (pixel_y < h) {
+                  
+                    if (byte & (1 << b)) {
+                        lcdDrawPixel(&dev, x + i, y + pixel_y, color);
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 
 
