@@ -283,7 +283,8 @@ void sendBeacon(const char* ssid) {
             
             // Delay microsecond biar antrean TX buffer ESP32 gak jebol/nabrak
             // (Pakai esp_rom_delay_us atau delayMicroseconds tergantung framework)
-            delayMicroseconds(500); 
+            esp_rom_delay_us(500);
+            
         }
         
         // Kasih nafas RTOS pas pindah channel
@@ -575,7 +576,7 @@ else if (isEvilTwin) {
         }
 
             
-        else if (isDeauthing && adaTarget) {
+                else if (isDeauthing && adaTarget) {
             if (!deauthUdahSetup) {
                 esp_wifi_stop();
                 // === REQ LU: UBAH KE AP ===
