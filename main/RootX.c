@@ -360,8 +360,8 @@ void app_main(void) {
     vTaskDelay(pdMS_TO_TICKS(2000));
 
     // --- 3. HACK AUTO-CONNECT WIFI BUAT DEV ---
-    strcpy(connSSID, "NOT MASTAH"); 
-    strcpy(inputPassword, "yangbrorasakan");
+    strcpy(connSSID, "AYYUBI"); 
+    strcpy(inputPassword, "rumahabi123");
     vTaskDelay(pdMS_TO_TICKS(100));
     triggerConnect = true; 
 
