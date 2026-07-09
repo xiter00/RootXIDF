@@ -96,6 +96,9 @@ void tampilkanMenuSavedIR(void);
 
 void renderTvBGone(void);
 
+// Forward declaration – defined later in this file
+void drawIconScaled(int x, int y, int src_w, int src_h, int dst_w, int dst_h,
+                    const uint8_t *icon, uint16_t color);
 
 bool introDone = false;
 
@@ -1458,8 +1461,6 @@ void renderSdManager() {
 
         // Scroll menu: EXIT / FILES / FORMAT
         const char *menuNames[] = {"EXIT", "FILES", "FORMAT"};
-        int mx = _cx(menuNames[sdActionIdx]);
-        rootx_print_text_c(8,        FTR_Y + 1, "<", UI_GRY, UI_HDR);
         rootx_print_text_cb(_cx(menuNames[sdActionIdx]),
                             FTR_Y + 1, menuNames[sdActionIdx], UI_TXT, UI_HDR);
         rootx_print_text_c(SCR_W - FW - 8, FTR_Y + 1, ">", UI_GRY, UI_HDR);
