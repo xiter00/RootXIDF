@@ -211,8 +211,8 @@ static void ui_yes_no(int cy, bool warn) {
 
 // ── Key-value row for detail screens ──────────────────────────
 static void ui_kv(int y, const char *key, const char *val, uint16_t vcol) {
-    rootx_print_text_cb(8,  y, key, UI_GRY, UI_BG);
-    rootx_print_text_c(90, y, val, vcol,   UI_BG);
+    rootx_print_text_cb(10,  y, key, UI_GRY, UI_BG);
+    rootx_print_text_c(92, y, val, vcol,   UI_BG);
 }
 
 
@@ -890,9 +890,9 @@ void tampilkanWifiScanner() {
 
     if (scannerState == 0) {
         // ── State 0: Konfirmasi ──────────────────────────────────
-        ui_hdr("WiFi Scanner", "v1");
+        ui_hdr("WiFi Scanner", "start");
         rootx_print_text_cb(_cx("Mulai scan?"), 50, "Mulai scan?", UI_TXT, UI_BG);
-        ui_yes_no(82, false);
+        
         ui_ftr("< Batal", "OK >");
     }
     else if (scannerState == 1) {
@@ -1000,7 +1000,7 @@ void tampilkanStationScanner() {
         ui_hdr("Station Scanner", "client");
         rootx_print_text_cb(_cx("Scan client terhubung?"), 50,
                             "Scan client terhubung?", UI_TXT, UI_BG);
-        ui_yes_no(82, false);
+        
         ui_ftr("< Batal", "OK >");
     }
     else if (scannerStateSta == 1) {
@@ -1110,12 +1110,12 @@ void tampilkanDeauthScreen() {
 
     if (deauthState == 0) {
         // ── State 0: Konfirmasi ──────────────────────────────────
-        ui_hdr("Deauth Attack", "waspada");
+        ui_hdr("Deauth Attack", "alert");
         rootx_print_text_cb(_cx("Serang target?"), 48, "Serang target?", UI_TXT, UI_BG);
         // Show target SSID in blue
         char shortSsid[16]; strncpy(shortSsid, targetTerkunci.ssid, 15); shortSsid[15]='\0';
         rootx_print_text_c(_cx(shortSsid), 64, shortSsid, UI_BLU, UI_BG);
-        ui_yes_no(84, true);
+        
         ui_ftr("< Tidak", "OK >");
     }
     else if (deauthState == 1) {
@@ -1176,9 +1176,9 @@ void tampilkanSpamScreen(const char* judul, const char* subTeks) {
 
     if (spamState == 0) {
         // ── State 0: Konfirmasi ──────────────────────────────────
-        ui_hdr(judul, "waspada");
+        ui_hdr(judul, "alert");
         rootx_print_text_cb(_cx("Mulai spam?"), 50, "Mulai spam?", UI_TXT, UI_BG);
-        ui_yes_no(82, true);
+        
         ui_ftr("< Tidak", "OK >");
     }
     else if (spamState == 1) {
@@ -1207,12 +1207,12 @@ void tampilkanEvilTwinScreen() {
 
     if (evilTwinState == 0) {
         // ── State 0: Konfirmasi ──────────────────────────────────
-        ui_hdr("Evil Twin", "waspada");
+        ui_hdr("Evil Twin", "alert");
         rootx_print_text_cb(_cx("Mulai Evil Twin?"), 48,
                             "Mulai Evil Twin?", UI_TXT, UI_BG);
         rootx_print_text_c(_cx(targetTerkunci.ssid), 64,
                            targetTerkunci.ssid, UI_BLU, UI_BG);
-        ui_yes_no(84, true);
+        
         ui_ftr("< Tidak", "OK >");
     }
     else if (evilTwinState == 1) {
@@ -1332,10 +1332,10 @@ void tampilkanMenuIR() {
 
     if (currentIRState == IR_STATE_CONFIRM) {
         // ── State CONFIRM ────────────────────────────────────────
-        ui_hdr("IR Sniffer", "inframerah");
+        ui_hdr("IR Sniffer", "infrared");
         rootx_print_text_cb(_cx("Mulai merekam IR?"), 50,
                             "Mulai merekam IR?", UI_TXT, UI_BG);
-        ui_yes_no(82, false);
+        
         ui_ftr("< Tidak", "OK >");
     }
     else if (currentIRState == IR_STATE_WAITING) {
@@ -1405,7 +1405,7 @@ void renderRebootScreen() {
     rootx_print_text_c(_cx("Data belum tersimpan"), CNT_CY + 6,
                        "Data belum tersimpan", UI_MID, UI_BG);
 
-    ui_yes_no(CNT_CY + 22, true);
+    
     ui_ftr("< Tidak", "OK >");
     lcdDrawFinish(&dev);
 }
@@ -1480,7 +1480,7 @@ void renderSdManager() {
                             "Format SD Card?", UI_TXT, UI_BG);
         rootx_print_text_c(_cx("SEMUA DATA TERHAPUS!"), CNT_CY - 2,
                            "SEMUA DATA TERHAPUS!", UI_RED, UI_BG);
-        ui_yes_no(CNT_CY + 18, true);
+        
         ui_ftr("< Tidak", "OK >");
     }
     else if (sdState == 2) {
@@ -1571,7 +1571,7 @@ void renderFileExplorer() {
         rootx_print_text_cb(_cx("Hapus file ini?"), CNT_CY - 18,
                             "Hapus file ini?", UI_TXT, UI_BG);
         rootx_print_text_c(_cx(truncName), CNT_CY - 2, truncName, UI_BLU, UI_BG);
-        ui_yes_no(CNT_CY + 18, true);
+        
         ui_ftr("< Tidak", "OK >");
     }
 
