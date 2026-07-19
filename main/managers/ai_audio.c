@@ -154,23 +154,29 @@ void play_google_tts(const char *text) {
 // ... (sebelumnya sama)
 
         // Variabel buat decoder
-        mp3_decoder_t *mp3 = malloc(sizeof(mp3_decoder_t));
-        mp3_init(mp3);
+          // 1. Setup Decoder MP3 yang bener (Modern API)
+        mp3dec_t mp3d;
+        mp3dec_init(&mp3d);
         
-        mp3_info_t info;
-        int16_t pcm_buffer[1152]; // Buffer PCM per frame MP3
+        mp3dec_frame_info_t frame_info;
+        int16_t pcm_buffer[MINIMP3_MAX_SAMPLES_PER_FRAME]; // Buffer PCM
+
+        ESP_LOGI(TAG, "Mulai decode stream audio...");
         
+        // 2. Loop baca data dan langsung kirim ke Speaker
         while ((read_len = esp_http_client_read(client, buffer, sizeof(buffer))) > 0) {
-            // Kita feed data MP3 (buffer) ke decoder
-            int samples = mp3_decode(mp3, (unsigned char*)buffer, read_len, pcm_buffer, &info);
+            
+            // decode_frame return jumlah sample yang berhasil di-decode
+            int samples = mp3dec_decode_frame(&mp3d, (unsigned char*)buffer, read_len, pcm_buffer, &frame_info);
             
             if (samples > 0) {
-                // PCM sudah jadi (pcm_buffer)! Lempar ke speaker lewat I2S
+                // PCM sudah jadi! Lempar ke I2S (Speaker)
+                // samples * 2 karena per-sample itu 16-bit (2 byte)
                 size_t bytes_written;
-                i2s_channel_write(tx_chan, pcm_buffer, samples * 2, &bytes_written, 1000);
+                i2s_channel_write(tx_chan, pcm_buffer, samples * 2, &bytes_written, 2000);
             }
         }
-        free(mp3);
+
         
 // ... (seterusnya sama)
 
