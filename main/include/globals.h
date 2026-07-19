@@ -13,7 +13,7 @@ TFT_t dev;
 
 #define MAX_STARS 15
 #define PANEL_W 150  
-#define PANEL_DARK 4  
+
 #define ITEM_H   22    // Tinggi per item (px)
 #define ICON_X    8    // X icon
 #define TEXT_X   23    // X teks label
@@ -28,7 +28,7 @@ TFT_t dev;
 #define RM_ITEM_H      22   // Tinggi satu item menu (px)
 #define RM_ITEM_BAR    20   // Tinggi blok highlight aktif
 #define RM_ITEM_Y0     23   // Y item pertama (setelah header)
-#define RM_MAX_VIS      6   // Maks item terlihat sekaligus
+
 
 
 //COLOR
@@ -113,6 +113,8 @@ extern int carouselCurrentIdx;
 extern int carouselAnimFrame;
 extern bool carouselAnimating;
 extern uint32_t carouselAnimStart;
+
+
 
 
 // --- STRUKTUR WIFI (String diganti char array) ---
@@ -296,5 +298,10 @@ extern bool isDeauthing;
 extern bool isDeauthSta;     // Tambahan
 extern bool sedang_scan;
 extern int appMode;
+
+// --- VARIABEL AI AUDIO ---
+extern bool aiAudioEnabled;
+extern bool requireWakeWord; // true = butuh "Halo RootX", false = langsung denger
+
 
 #endif

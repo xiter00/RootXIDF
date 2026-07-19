@@ -419,7 +419,8 @@ const unsigned char* iconListSet[]  = {
 ics_bright,
 ics_file,
 ics_info,
-ics_repeat 
+ics_repeat,
+ics_info
 };
 
 const unsigned char* iconListGame[]  = {
@@ -457,7 +458,8 @@ const char* subMenuSet[]  = {
 "Brightness",
 "SD Manager",
 "About RootX",
-"Reboot" 
+"Reboot",
+"AI Audio"
 };
 
 const char* subMenuGame[] = {
@@ -768,7 +770,7 @@ void tampilkanMenuUtama(void) {
         if      (currentMenu == 0) { catLabel="WI-FI";  totalSub=4; }
         else if (currentMenu == 1) { catLabel="BLE"; totalSub=3; }
         else if (currentMenu == 2) { catLabel="IR";  totalSub=5; }
-        else if (currentMenu == 3) { catLabel="SETTINGS"; totalSub=4; }
+        else if (currentMenu == 3) { catLabel="SETTINGS"; totalSub=5; }
         else                       { catLabel="GAME";  totalSub=3; }
 
         // ">" cyan + nama kategori pink
@@ -795,12 +797,22 @@ void tampilkanMenuUtama(void) {
             else if (currentMenu == 3) ico = iconListSet[idx];
             else                       ico = iconListGame[idx];
 
-            const char *lbl = "";
+                        const char *lbl = "";
+            char tempMenuBuf[32]; // Buffer buat modif teks menu
+
             if      (currentMenu == 0) lbl = subMenuWiFi[idx];
             else if (currentMenu == 1) lbl = subMenuBLE[idx];
             else if (currentMenu == 2) lbl = subMenuIR[idx];
-            else if (currentMenu == 3) lbl = subMenuSet[idx];
+            else if (currentMenu == 3) {
+                if (idx == 4) { // Kalau ini menu AI Audio
+                    snprintf(tempMenuBuf, sizeof(tempMenuBuf), "AI Audio [%s]", aiAudioEnabled ? "ON" : "OFF");
+                    lbl = tempMenuBuf;
+                } else {
+                    lbl = subMenuSet[idx];
+                }
+            }
             else                       lbl = subMenuGame[idx];
+
 
             rm_draw_item(yPos, isAct, ico, lbl);
         }
