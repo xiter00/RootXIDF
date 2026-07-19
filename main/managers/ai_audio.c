@@ -5,7 +5,7 @@
 #include "esp_tls.h"
 #include <ctype.h>
 #include <string.h>
-#include "cjson/cJSON.h"
+#include "cJSON.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
