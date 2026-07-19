@@ -5,7 +5,7 @@
 #include "esp_tls.h"
 #include <ctype.h>
 #include <string.h>
-#include "cJSON.h" // Library buat ngebedah JSON (Bawaan ESP-IDF)
+#include "cjson/cJSON.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
