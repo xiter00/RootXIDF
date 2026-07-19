@@ -8,6 +8,7 @@
 #include "cJSON.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "minimp3.h"
 
 // MASUKIN API KEY GEMINI LU DI SINI COK!
 #define GEMINI_API_KEY "AQ.Ab8RN6Kw_7M0reGotMRh1ZQx9Xhz6Nj6QA_K3Fw4pI1f5zE3_Q" 
@@ -147,8 +148,8 @@ void play_google_tts(const char *text) {
         while ((read_len = esp_http_client_read(client, buffer, sizeof(buffer))) > 0) {
             total_read += read_len;
             
-#define MINIMP3_IMPLEMENTATION
-#include "minimp3.h"
+
+
 
 // ... (sebelumnya sama)
 
