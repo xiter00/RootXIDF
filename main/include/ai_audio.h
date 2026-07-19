@@ -15,9 +15,9 @@
 // PIN WIRING UNTUK INMP441 (MIC INPUT)
 // ==========================================
 // Pake sisa pin aman yang jauh dari jalur USB/UART
-#define I2S_MIC_SCK    7  // SCK (Serial Clock)
-#define I2S_MIC_WS     14 // WS (Word Select / L/R Clock)
-#define I2S_MIC_SD     21 // SD (Serial Data Out dari Mic)
+#define I2S_MIC_SCK    7  // SCK
+#define I2S_MIC_WS     14 // WS
+#define I2S_MIC_SD     21 // SD 
 
 // Handle untuk I2S (Output dan Input)
 extern i2s_chan_handle_t tx_chan; // Handle buat Speaker
