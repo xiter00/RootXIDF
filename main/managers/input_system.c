@@ -8,6 +8,8 @@
 #include "tvbgone_engine.h"
 #include <unistd.h>
 #include <sys/stat.h>
+#include "ai_audio.h" // <--- TAMBAHIN INI DI PALING ATAS
+
 
 // Ambil array misterius dari WORLDcodes.c
 extern const struct IrCode* const NApowerCodes[];
