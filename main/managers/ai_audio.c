@@ -221,7 +221,8 @@ void tanya_gemini(const char* pertanyaan_user) {
         .url = url,
         .method = HTTP_METHOD_POST,
         .timeout_ms = 15000,
-        .crt_bundle_attach = esp_crt_bundle_attach, // <--- TAMBAHIN BARIS INI JUGA!
+         .skip_cert_common_name_check = true,
+       // <--- TAMBAHIN BARIS INI JUGA!
     };
 
 
@@ -368,7 +369,8 @@ void mulai_rekam_dan_stt(void) {
         .url = "https://api.groq.com/openai/v1/audio/transcriptions",
         .method = HTTP_METHOD_POST,
         .timeout_ms = 15000,
-        .crt_bundle_attach = esp_crt_bundle_attach, // <--- TAMBAHIN BARIS INI COK!
+         .skip_cert_common_name_check = true,
+       // <--- TAMBAHIN BARIS INI COK!
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
