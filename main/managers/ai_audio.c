@@ -9,6 +9,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "minimp3.h"
+#include "esp_crt_bundle.h" // <--- WAJIB BUAT HTTPS
+
 
 // MASUKIN API KEY GEMINI LU DI SINI COK!
 #define GEMINI_API_KEY "AQ.Ab8RN6Kw_7M0reGotMRh1ZQx9Xhz6Nj6QA_K3Fw4pI1f5zE3_Q" 
@@ -214,11 +216,14 @@ void tanya_gemini(const char* pertanyaan_user) {
     snprintf(post_data, sizeof(post_data), template_payload, pertanyaan_user);
 
     // 3. Konfigurasi HTTP POST
+        // 3. Konfigurasi HTTP POST
     esp_http_client_config_t config = {
         .url = url,
         .method = HTTP_METHOD_POST,
-        .timeout_ms = 15000, // Gemini kadang mikir agak lama (15 detik)
+        .timeout_ms = 15000,
+        .crt_bundle_attach = esp_crt_bundle_attach, // <--- TAMBAHIN BARIS INI JUGA!
     };
+
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_http_client_set_header(client, "Content-Type", "application/json");
@@ -358,11 +363,14 @@ void mulai_rekam_dan_stt(void) {
     uint32_t total_payload_len = strlen(head) + 44 + bytes_read + strlen(tail);
 
     // 4. Konfigurasi HTTP POST ke Groq Whisper
+        // 4. Konfigurasi HTTP POST ke Groq Whisper
     esp_http_client_config_t config = {
         .url = "https://api.groq.com/openai/v1/audio/transcriptions",
         .method = HTTP_METHOD_POST,
         .timeout_ms = 15000,
+        .crt_bundle_attach = esp_crt_bundle_attach, // <--- TAMBAHIN BARIS INI COK!
     };
+
     esp_http_client_handle_t client = esp_http_client_init(&config);
     
     char auth_header[128];

@@ -13,7 +13,7 @@
 #include "ai_audio.h"
 
 // Hardcode versi firmware lu saat ini (00 = v1.0.0)
-#define VERSION_SAAT_INI 131
+#define VERSION_SAAT_INI 132
 
 // URL mentah (RAW) langsung tembak ke file lu di GitHub
 #define URL_VERSION  "https://raw.githubusercontent.com/xiter00/RTXUP/main/vr.txt"
