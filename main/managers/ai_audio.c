@@ -222,6 +222,8 @@ void tanya_gemini(const char* pertanyaan_user) {
         .method = HTTP_METHOD_POST,
         .timeout_ms = 15000,
          .skip_cert_common_name_check = true,
+         .use_global_ca_store = false,        // Jangan pake store global yang bikin `-0x7780`
+        .transport_type = HTTP_TRANSPORT_OVER_SSL,
        // <--- TAMBAHIN BARIS INI JUGA!
     };
 
@@ -370,6 +372,8 @@ void mulai_rekam_dan_stt(void) {
         .method = HTTP_METHOD_POST,
         .timeout_ms = 15000,
          .skip_cert_common_name_check = true,
+         .use_global_ca_store = false,        // Jangan pake store global yang bikin `-0x7780`
+        .transport_type = HTTP_TRANSPORT_OVER_SSL,
        // <--- TAMBAHIN BARIS INI COK!
     };
 
