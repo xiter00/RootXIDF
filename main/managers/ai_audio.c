@@ -10,6 +10,7 @@
 #include "freertos/task.h"
 #include "minimp3.h"
 #include "esp_crt_bundle.h" // <--- WAJIB BUAT HTTPS
+#include "groq_cert.h"
 
 
 // MASUKIN API KEY GEMINI LU DI SINI COK!
@@ -365,15 +366,14 @@ void mulai_rekam_dan_stt(void) {
 
     uint32_t total_payload_len = strlen(head) + 44 + bytes_read + strlen(tail);
 
-    // 4. Konfigurasi HTTP POST ke Groq Whisper
-        // 4. Konfigurasi HTTP POST ke Groq Whisper
-            // 4. Konfigurasi HTTP POST ke Cloudflare Worker Proxy Lu
-    esp_http_client_config_t config = {
-        .url = "https://bold-bush-612e.andyxd1955.workers.dev/",
+    
+        esp_http_client_config_t config = {
+        .url = "https://api.groq.com/openai/v1/audio/transcriptions",
         .method = HTTP_METHOD_POST,
         .timeout_ms = 15000,
-        .crt_bundle_attach = esp_crt_bundle_attach, // Aman karena nembak Cloudflare
+        .cert_pem = groq_root_ca, // <-- Langsung pake KTP Google yang akurat
     };
+
 
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
