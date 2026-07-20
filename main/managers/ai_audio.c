@@ -366,13 +366,15 @@ void mulai_rekam_dan_stt(void) {
 
     uint32_t total_payload_len = strlen(head) + 44 + bytes_read + strlen(tail);
 
-    
-        esp_http_client_config_t config = {
-        .url = "https://api.groq.com/openai/v1/audio/transcriptions",
-        .method = HTTP_METHOD_POST,
-        .timeout_ms = 15000,
-        .cert_pem = groq_root_ca, // <-- Langsung pake KTP Google yang akurat
-    };
+
+// Di config HTTP Groq:
+esp_http_client_config_t config = {
+    .url = "https://api.groq.com/openai/v1/audio/transcriptions",
+    .method = HTTP_METHOD_POST,
+    .timeout_ms = 30000,
+    .cert_pem = GROQ_ROOT_CA,  // ← Ganti ini
+    // HAPUS crt_bundle_attach
+};
 
 
 
