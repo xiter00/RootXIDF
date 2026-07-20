@@ -367,15 +367,17 @@ void mulai_rekam_dan_stt(void) {
 
     // 4. Konfigurasi HTTP POST ke Groq Whisper
         // 4. Konfigurasi HTTP POST ke Groq Whisper
-    esp_http_client_config_t config = {
-        .url = "https://api.groq.com/openai/v1/audio/transcriptions",
+        esp_http_client_config_t config = {
+        .url = "https://api.groq.com/openai/v1/audio/transcriptions", // atau URL Gemini
         .method = HTTP_METHOD_POST,
         .timeout_ms = 15000,
-         .skip_cert_common_name_check = true,
-         .use_global_ca_store = false,        // Jangan pake store global yang bikin `-0x7780`
+        .skip_cert_common_name_check = true,
+        .is_secure = true,
         .transport_type = HTTP_TRANSPORT_OVER_SSL,
-       // <--- TAMBAHIN BARIS INI COK!
+        // Tambahkan baris ini untuk memaksa mengabaikan error fatal mbedTLS
+        .cert_pem = NULL, 
     };
+
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
     
