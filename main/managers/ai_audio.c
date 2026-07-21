@@ -199,7 +199,7 @@ void tanya_gemini(const char* pertanyaan_user) {
     ESP_LOGI(TAG, "Mengirim ke otak Gemini: %s", pertanyaan_user);
 
     // 1. Siapin URL API Gemini (Pake Model 1.5 Flash biar ngebut)
-    char url[256];
+    char url[512];
     snprintf(url, sizeof(url), "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=%s", GEMINI_API_KEY);
 
     // 2. Rakit Payload JSON (Instruksi Hacker + Pertanyaan Lu)
@@ -387,7 +387,7 @@ ESP_LOGI(TAG, "Selesai ngerekam: %d bytes", total_bytes);
              "Content-Type: audio/wav\r\n\r\n", boundary);
 
     // Ganti bagian tail multipart lu:
-char tail[256];
+char tail[512];
 snprintf(tail, sizeof(tail),
     "\r\n--%s\r\n"
     "Content-Disposition: form-data; name=\"model\"\r\n\r\n"
