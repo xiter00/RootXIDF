@@ -382,8 +382,7 @@ void mulai_rekam_dan_stt(void) {
     // === 3. KONVERSI 32-BIT → 16-BIT + BOOST GAIN ===
     int total_samples = total_bytes / 4;
     for (int i = 0; i < total_samples; i++) {
-      int32_t val = raw_buffer[i] >> 16;  // Ambil 16-bit teratas
-val = val * 3;  // Boost gain secukupnya
+      int32_t val = raw_buffer[i] >> 14;  // INMP441: ambil bit yang bener
 if (val > 32767)  val = 32767;
 if (val < -32768) val = -32768;
 audio_buffer[i] = (int16_t)val;
