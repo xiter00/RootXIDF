@@ -19,6 +19,8 @@
 
 static const char *TAG = "AI_AUDIO";
 
+extern bool requireWakeWord; 
+
 i2s_chan_handle_t tx_chan = NULL; // Speaker
 i2s_chan_handle_t rx_chan = NULL; // Mic
 
@@ -453,7 +455,7 @@ esp_http_client_config_t config = {
                 // ==========================================
                 // LOGIKA "HALO ROOTX" (WAKE WORD)
                 // ==========================================
-                extern bool requireWakeWord; // Ambil variabel global dari globals.h
+                // Ambil variabel global dari globals.h
 
                 if (requireWakeWord) {
                     // Cari kata "RootX" atau "Root X" (Case Insensitive sedikit)
