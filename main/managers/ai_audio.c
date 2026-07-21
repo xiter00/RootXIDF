@@ -342,9 +342,26 @@ void mulai_rekam_dan_stt(void) {
     }
 
     // 2. Baca data dari INMP441 (Mic)
-    size_t bytes_read = 0;
-    i2s_channel_read(rx_chan, audio_buffer, max_audio_bytes, &bytes_read, 5000);
-    ESP_LOGI(TAG, "Selesai ngerekam: %d bytes", bytes_read);
+
+    // GANTI ini:
+
+
+// JADI ini (loop sampai buffer beneran penuh):
+size_t bytes_read = 0;
+size_t total_bytes = 0;
+while (total_bytes < max_audio_bytes) {
+    esp_err_t ret = i2s_channel_read(
+        rx_chan,
+        audio_buffer + total_bytes,
+        max_audio_bytes - total_bytes,
+        &bytes_read,
+        1000
+    );
+    if (ret != ESP_OK) break;
+    total_bytes += bytes_read;
+}
+ESP_LOGI(TAG, "Selesai ngerekam: %d bytes", total_bytes);
+    
 
     // 3. Setup Boundary buat file upload (Multipart Form)
     const char* boundary = "----RootXBoundary12345";
@@ -354,12 +371,20 @@ void mulai_rekam_dan_stt(void) {
              "Content-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\n"
              "Content-Type: audio/wav\r\n\r\n", boundary);
 
-    char tail[128];
-    snprintf(tail, sizeof(tail),
-             "\r\n--%s\r\n"
-             "Content-Disposition: form-data; name=\"model\"\r\n\r\n"
-             "whisper-large-v3\r\n"
-             "--%s--\r\n", boundary, boundary);
+    // Ganti bagian tail multipart lu:
+char tail[256];
+snprintf(tail, sizeof(tail),
+    "\r\n--%s\r\n"
+    "Content-Disposition: form-data; name=\"model\"\r\n\r\n"
+    "whisper-large-v3\r\n"
+    "--%s\r\n"
+    "Content-Disposition: form-data; name=\"language\"\r\n\r\n"
+    "id\r\n"                    // ← Paksa Bahasa Indonesia
+    "--%s\r\n"
+    "Content-Disposition: form-data; name=\"temperature\"\r\n\r\n"
+    "0\r\n"                     // ← 0 = paling strict, gak ngarang
+    "--%s--\r\n",
+    boundary, boundary, boundary, boundary);
 
     char wav_header[44];
     generate_wav_header(wav_header, bytes_read, 16000);
