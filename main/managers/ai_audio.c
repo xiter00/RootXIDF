@@ -203,14 +203,20 @@ void tanya_gemini(const char* pertanyaan_user) {
     // 2. Rakit Payload JSON (Instruksi Hacker + Pertanyaan Lu)
     // Perhatikan: Kita paksa AI buat balas pakai JSON murni tanpa gaya-gayaan (tanpa markdown).
     const char* template_payload = 
-        "{"
-        "  \"system_instruction\": {"
-        "    \"parts\": { \"text\": \"Lu adalah asisten AI hacker bernama RootX. Lu ada di dalam alat genggam ESP32. Balas WAJIB pakai format JSON murni tanpa markdown: {\\\"aksi\\\":\\\"...\\\", \\\"ucapan\\\":\\\"...\\\"}. Pilihan aksi: 'standby', 'ir_blaster', 'wifi_scan', 'deauth'. Jika obrolan biasa, pilih 'standby'.\" }"
-        "  },"
-        "  \"contents\": [{"
-        "    \"parts\": [{ \"text\": \"%s\" }]"
-        "  }]"
-        "}";
+    "{"
+    "  \"system_instruction\": {"
+    "    \"parts\": { \"text\": \"Lu adalah asisten AI hacker bernama RootX. "
+    "Balas WAJIB pakai format JSON murni: {\\\"aksi\\\":\\\"...\\\", \\\"ucapan\\\":\\\"...\\\"}. "
+    "Pilihan aksi: 'standby', 'ir_blaster', 'wifi_scan', 'deauth', "
+    "'wakeword_off', 'wakeword_on'. "  // ← Tambahin ini
+    "Jika obrolan biasa, pilih 'standby', dan wakeword_on."
+    "Jika user minta ngobrol bebas atau matikan wake word, pilih 'wakeword_off'. "
+    "Jika user minta aktifkan wake word lagi, pilih 'wakeword_on'.\" }"
+    "  },"
+    "  \"contents\": [{"
+    "    \"parts\": [{ \"text\": \"%s\" }]"
+    "  }]"
+    "}";
 
     // Bikin buffer buat nampung teks JSON yang mau dikirim
     char post_data[1024]; 
@@ -283,7 +289,14 @@ void tanya_gemini(const char* pertanyaan_user) {
                             // Contoh: Langsung loncat ke menu WiFi Scan
                             // appMode = 1; scannerState = 1; triggerScan = true;
                             ESP_LOGI(TAG, "Mengeksekusi WiFi Scanner...");
-                        }
+                        } else if (strcmp(aksi->valuestring, "wakeword_off") == 0) {
+    requireWakeWord = false;
+    ESP_LOGI(TAG, "Wake word DIMATIIN! Ngobrol bebas sekarang.");
+}
+else if (strcmp(aksi->valuestring, "wakeword_on") == 0) {
+    requireWakeWord = true;
+    ESP_LOGI(TAG, "Wake word DINYALAIN lagi.");
+}
                     }
                     cJSON_Delete(ai_command);
                 } else {
