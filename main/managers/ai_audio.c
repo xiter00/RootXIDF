@@ -11,6 +11,7 @@
 #include "minimp3.h"
 #include "esp_crt_bundle.h" // <--- WAJIB BUAT HTTPS
 #include "groq_cert.h"
+#include <math.h>
 
 
 // MASUKIN API KEY GEMINI LU DI SINI COK!
@@ -345,106 +346,125 @@ void generate_wav_header(char* wav_header, uint32_t waveDataSize, uint32_t sampl
 void mulai_rekam_dan_stt(void) {
     ESP_LOGI(TAG, "Mulai Ngerekam Suara (4 Detik)...");
 
-    // 1. Alokasi RAM (PSRAM) buat nyimpen rekaman 4 detik (16kHz, 16-bit = ~128KB)
-    int record_time_sec = 4;
-    uint32_t max_audio_bytes = 16000 * 2 * record_time_sec;
-    
-    // WAJIB pakai heap_caps_malloc buat maksa pake PSRAM, RAM biasa bakal jebol!
-    char* audio_buffer = heap_caps_malloc(max_audio_bytes, MALLOC_CAP_SPIRAM); 
-    if (!audio_buffer) {
-        ESP_LOGE(TAG, "PSRAM Habis Cok! Gagal alokasi buffer audio.");
+    // === 1. ALOKASI BUFFER ===
+    uint32_t max_audio_bytes_32 = 16000 * 4 * 4; // 32-bit, 4 detik = 256KB
+    uint32_t max_audio_bytes_16 = 16000 * 2 * 4; // 16-bit, 4 detik = 128KB
+
+    int32_t* raw_buffer = heap_caps_malloc(max_audio_bytes_32, MALLOC_CAP_SPIRAM);
+    if (!raw_buffer) {
+        ESP_LOGE(TAG, "PSRAM Habis! Gagal alokasi raw_buffer.");
         return;
     }
 
-    // 2. Baca data dari INMP441 (Mic)
+    int16_t* audio_buffer = heap_caps_malloc(max_audio_bytes_16, MALLOC_CAP_SPIRAM);
+    if (!audio_buffer) {
+        ESP_LOGE(TAG, "PSRAM Habis! Gagal alokasi audio_buffer.");
+        free(raw_buffer);
+        return;
+    }
 
-    // GANTI ini:
+    // === 2. REKAM DARI MIC (LOOP SAMPAI PENUH) ===
+    size_t bytes_read = 0;
+    size_t total_bytes = 0;
+    while (total_bytes < max_audio_bytes_32) {
+        esp_err_t ret = i2s_channel_read(
+            rx_chan,
+            (char*)raw_buffer + total_bytes,
+            max_audio_bytes_32 - total_bytes,
+            &bytes_read,
+            1000
+        );
+        if (ret != ESP_OK) break;
+        total_bytes += bytes_read;
+    }
+    ESP_LOGI(TAG, "Selesai ngerekam: %d bytes raw", total_bytes);
 
+    // === 3. KONVERSI 32-BIT → 16-BIT + BOOST GAIN ===
+    int total_samples = total_bytes / 4;
+    for (int i = 0; i < total_samples; i++) {
+        int32_t val = raw_buffer[i] >> 11;
+        val = val * 4;
+        if (val > 32767)  val = 32767;
+        if (val < -32768) val = -32768;
+        audio_buffer[i] = (int16_t)val;
+    }
+    size_t final_bytes = total_samples * 2;
+    free(raw_buffer);
+    ESP_LOGI(TAG, "Konversi selesai: %d bytes 16-bit", final_bytes);
 
-// JADI ini (loop sampai buffer beneran penuh):
-size_t bytes_read = 0;
-size_t total_bytes = 0;
-while (total_bytes < max_audio_bytes) {
-    esp_err_t ret = i2s_channel_read(
-        rx_chan,
-        audio_buffer + total_bytes,
-        max_audio_bytes - total_bytes,
-        &bytes_read,
-        1000
-    );
-    if (ret != ESP_OK) break;
-    total_bytes += bytes_read;
+// === CEK KEBISINGAN (ANTI HALLUCINATE) ===
+float rms = 0;
+for (int i = 0; i < total_samples; i++) {
+    rms += (float)audio_buffer[i] * audio_buffer[i];
 }
-ESP_LOGI(TAG, "Selesai ngerekam: %d bytes", total_bytes);
-    
+rms = sqrtf(rms / total_samples);
+ESP_LOGI(TAG, "RMS Energy: %.1f", rms);
 
-    // 3. Setup Boundary buat file upload (Multipart Form)
+if (rms < 500) {
+    ESP_LOGI(TAG, "Audio terlalu sepi, diabaikan.");
+    free(audio_buffer);
+    return;
+}
+    // === 4. SIAPKAN MULTIPART ===
     const char* boundary = "----RootXBoundary12345";
+
     char head[256];
     snprintf(head, sizeof(head),
-             "--%s\r\n"
-             "Content-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\n"
-             "Content-Type: audio/wav\r\n\r\n", boundary);
+        "--%s\r\n"
+        "Content-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\n"
+        "Content-Type: audio/wav\r\n\r\n", boundary);
 
-    // Ganti bagian tail multipart lu:
-char tail[512];
-snprintf(tail, sizeof(tail),
-    "\r\n--%s\r\n"
-    "Content-Disposition: form-data; name=\"model\"\r\n\r\n"
-    "whisper-large-v3\r\n"
-    "--%s\r\n"
-    "Content-Disposition: form-data; name=\"language\"\r\n\r\n"
-    "id\r\n"                    // ← Paksa Bahasa Indonesia
-    "--%s\r\n"
-    "Content-Disposition: form-data; name=\"temperature\"\r\n\r\n"
-    "0\r\n"                     // ← 0 = paling strict, gak ngarang
-    "--%s--\r\n",
-    boundary, boundary, boundary, boundary);
+    char tail[512];
+    snprintf(tail, sizeof(tail),
+        "\r\n--%s\r\n"
+        "Content-Disposition: form-data; name=\"model\"\r\n\r\n"
+        "whisper-large-v3\r\n"
+        "--%s\r\n"
+        "Content-Disposition: form-data; name=\"language\"\r\n\r\n"
+        "id\r\n"
+        "--%s\r\n"
+        "Content-Disposition: form-data; name=\"temperature\"\r\n\r\n"
+        "0\r\n"
+        "--%s--\r\n",
+        boundary, boundary, boundary, boundary);
 
     char wav_header[44];
-    generate_wav_header(wav_header, bytes_read, 16000);
+    generate_wav_header(wav_header, final_bytes, 16000);
 
-    uint32_t total_payload_len = strlen(head) + 44 + bytes_read + strlen(tail);
+    uint32_t total_payload_len = strlen(head) + 44 + final_bytes + strlen(tail);
 
-
-// Di config HTTP Groq:
-esp_http_client_config_t config = {
-    .url = "https://api.groq.com/openai/v1/audio/transcriptions",
-    .method = HTTP_METHOD_POST,
-    .timeout_ms = 30000,
-    .cert_pem = GROQ_ROOT_CA,  // ← Ganti ini
-    // HAPUS crt_bundle_attach
-};
-
-
+    // === 5. KIRIM KE GROQ ===
+    esp_http_client_config_t config = {
+        .url = "https://api.groq.com/openai/v1/audio/transcriptions",
+        .method = HTTP_METHOD_POST,
+        .timeout_ms = 30000,
+        .cert_pem = GROQ_ROOT_CA,
+    };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
-    
+
     char auth_header[128];
     snprintf(auth_header, sizeof(auth_header), "Bearer %s", GROQ_API_KEY);
     esp_http_client_set_header(client, "Authorization", auth_header);
-    
+
     char content_type[64];
     snprintf(content_type, sizeof(content_type), "multipart/form-data; boundary=%s", boundary);
     esp_http_client_set_header(client, "Content-Type", content_type);
 
-    // 5. Eksekusi Upload
     esp_http_client_open(client, total_payload_len);
-    esp_http_client_write(client, head, strlen(head));         // Kirim pembuka form
-    esp_http_client_write(client, wav_header, 44);             // Kirim Header WAV
-    esp_http_client_write(client, audio_buffer, bytes_read);   // Kirim Data Audio Mentah
-    esp_http_client_write(client, tail, strlen(tail));         // Kirim penutup form
+    esp_http_client_write(client, head, strlen(head));
+    esp_http_client_write(client, wav_header, 44);
+    esp_http_client_write(client, (char*)audio_buffer, final_bytes);
+    esp_http_client_write(client, tail, strlen(tail));
 
-    // 6. Tangkap Hasil Teks (STT)
+    // === 6. TANGKAP HASIL STT ===
     int content_length = esp_http_client_fetch_headers(client);
     if (content_length > 0) {
         char* stt_response = malloc(content_length + 1);
         esp_http_client_read(client, stt_response, content_length);
         stt_response[content_length] = '\0';
-        
         ESP_LOGI(TAG, "Hasil STT Mentah: %s", stt_response);
 
-        // Parse JSON dari STT
         cJSON *stt_json = cJSON_Parse(stt_response);
         if (stt_json) {
             cJSON *text_node = cJSON_GetObjectItem(stt_json, "text");
@@ -452,21 +472,14 @@ esp_http_client_config_t config = {
                 char* teks_omongan = text_node->valuestring;
                 ESP_LOGI(TAG, "Lu ngomong: %s", teks_omongan);
 
-                // ==========================================
-                // LOGIKA "HALO ROOTX" (WAKE WORD)
-                // ==========================================
-                // Ambil variabel global dari globals.h
-
                 if (requireWakeWord) {
-                    // Cari kata "RootX" atau "Root X" (Case Insensitive sedikit)
                     if (strstr(teks_omongan, "RootX") || strstr(teks_omongan, "Root X") || strstr(teks_omongan, "rootx")) {
-                        ESP_LOGI(TAG, "Wake word terdeteksi! Melempar ke Gemini...");
-                        tanya_gemini(teks_omongan); 
+                        ESP_LOGI(TAG, "Wake word terdeteksi!");
+                        tanya_gemini(teks_omongan);
                     } else {
                         ESP_LOGI(TAG, "Bukan manggil gw. Diabaikan.");
                     }
                 } else {
-                    // Kalau fiturnya dimatiin, langsung aja tembak ke Gemini
                     tanya_gemini(teks_omongan);
                 }
             }
@@ -476,9 +489,9 @@ esp_http_client_config_t config = {
     } else {
         ESP_LOGE(TAG, "Gagal dapet respon STT.");
     }
-    
+
     esp_http_client_cleanup(client);
-    free(audio_buffer); // WAJIB FREE BIAR PSRAM GAK BOCOR!
+    free(audio_buffer);
 }
 
 // Pastiin lu udah nge-include freertos di bagian atas file:
