@@ -382,15 +382,17 @@ void mulai_rekam_dan_stt(void) {
     // === 3. KONVERSI 32-BIT → 16-BIT + BOOST GAIN ===
     int total_samples = total_bytes / 4;
     for (int i = 0; i < total_samples; i++) {
-        int32_t val = raw_buffer[i] >> 11;
-        val = val * 4;
-        if (val > 32767)  val = 32767;
-        if (val < -32768) val = -32768;
-        audio_buffer[i] = (int16_t)val;
+      int32_t val = raw_buffer[i] >> 16;  // Ambil 16-bit teratas
+val = val * 3;  // Boost gain secukupnya
+if (val > 32767)  val = 32767;
+if (val < -32768) val = -32768;
+audio_buffer[i] = (int16_t)val;
     }
     size_t final_bytes = total_samples * 2;
     free(raw_buffer);
     ESP_LOGI(TAG, "Konversi selesai: %d bytes 16-bit", final_bytes);
+    ESP_LOGI(TAG, "Sample[0]=%d [100]=%d [1000]=%d", 
+    audio_buffer[0], audio_buffer[100], audio_buffer[1000]);
 
 // === CEK KEBISINGAN (ANTI HALLUCINATE) ===
 float rms = 0;
