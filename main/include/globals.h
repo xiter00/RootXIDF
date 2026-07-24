@@ -31,7 +31,6 @@ TFT_t dev;
 #define RM_MAX_VIS      6   // Maks item terlihat sekaligus
 
 
-
 //COLOR
 #define RED    rgb565(255,   0,   0) // 0xf800
 #define GREEN  rgb565(  0, 255,   0) // 0x07e0

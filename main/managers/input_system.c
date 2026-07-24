@@ -8,8 +8,6 @@
 #include "tvbgone_engine.h"
 #include <unistd.h>
 #include <sys/stat.h>
-#include "ai_audio.h" // <--- TAMBAHIN INI DI PALING ATAS
-
 
 // Ambil array misterius dari WORLDcodes.c
 extern const struct IrCode* const NApowerCodes[];
@@ -539,14 +537,10 @@ else if (btn == BTN_UP) {
                     appMode = 15;
                 } else if (currentMenu == 3 && currentSub == 1) {
                     appMode = 16;
-                                } else if (currentMenu == 3 && currentSub == 4) { // <--- BLOK MENU AI AUDIO
+                } else if (currentMenu == 3 && currentSub == 4) { // <--- TAMBAHIN BLOK INI
                     aiAudioEnabled = !aiAudioEnabled; 
-                    
-                    // Panggil fungsi buat matiin/hidupin hardware!
-                    set_ai_audio_hardware(aiAudioEnabled); 
-                    
+                    // Nanti disini kita tambahin fungsi play_tts("AI diaktifkan");
                 
-
 
                 } else if (currentMenu == 2 && currentSub == 1) {
                     appMode = 18;
