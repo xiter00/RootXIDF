@@ -115,6 +115,8 @@ extern bool carouselAnimating;
 extern uint32_t carouselAnimStart;
 
 
+
+
 // --- STRUKTUR WIFI (String diganti char array) ---
 typedef struct {
   int id;
@@ -296,5 +298,10 @@ extern bool isDeauthing;
 extern bool isDeauthSta;     // Tambahan
 extern bool sedang_scan;
 extern int appMode;
+
+// --- VARIABEL AI AUDIO ---
+extern bool aiAudioEnabled;
+extern bool requireWakeWord; // true = butuh "Halo RootX", false = langsung denger
+
 
 #endif

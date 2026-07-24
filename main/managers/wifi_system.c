@@ -122,7 +122,7 @@ esp_err_t portal_get_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
-void start_web_server() {
+void start_eviltwin_web_server() {
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 8;
@@ -178,7 +178,8 @@ void startEvilTwin() {
     // --- INI KUNCINYA COK ---
     vTaskDelay(pdMS_TO_TICKS(50));
     start_dns_server();  // Paksa HP buka web
-    start_web_server();  // Kasih web loginnya
+    // Web server sudah dihandle display_system.c (handler_root & handler_login)
+    // start_eviltwin_web_server(); // tidak diperlukan lagi
     
     isEvilTwin = true;
     evilTwinState = 1; // Status: Waiting for data...
@@ -641,7 +642,8 @@ else if (isEvilTwin) {
         if (!isSpamming && !isDeauthSta && !isDeauthing && !triggerScan && !isEvilTwin && !triggerEvilTwin && !triggerTrack && !triggerScanSta) {
             
             // Kalau kita GAK LAGI nyoba konek (statusKoneksi != 0) dan GAK konek internet, baru boleh tidur
-            if (!isWiFiConnected && statusKoneksi != 0 && statusKoneksi != 1) {
+            extern bool webApRunning;
+            if (!isWiFiConnected && statusKoneksi != 0 && statusKoneksi != 1 && !webApRunning) {
                 wifi_mode_t currentMode;
                 esp_wifi_get_mode(&currentMode);
 

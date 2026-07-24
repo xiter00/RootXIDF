@@ -71,6 +71,11 @@ int tetrisScore = 0;
 int tetrisHighScore = -1;
 bool isTetrisInitialized = false;
 
+// --- VARIABEL AI AUDIO ---
+bool aiAudioEnabled = false;
+bool requireWakeWord = true; // Defaultnya wajib ngomong "Halo RootX"
+
+
 
 char inputPassword[64] = {0};
 int cursorPass = 0;

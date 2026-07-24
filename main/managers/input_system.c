@@ -475,13 +475,14 @@ else if (btn == BTN_UP) {
     }
         }
         else { // DI DALAM LIST SUBMENU
-            if (btn == BTN_DOWN) {
+                        if (btn == BTN_DOWN) {
                 int limitMenu = 0; 
                 if(currentMenu == 0)      limitMenu = 4; 
                 else if(currentMenu == 1) limitMenu = 3;
                 else if(currentMenu == 2) limitMenu = 5;
-                else if(currentMenu == 3) limitMenu = 4;
+                else if(currentMenu == 3) limitMenu = 5; // <--- UBAH 4 JADI 5
                 else limitMenu = 3;
+
 
                 if (currentSub < (limitMenu - 1)) { 
                     currentSub++;
@@ -530,12 +531,17 @@ else if (btn == BTN_UP) {
                     
                     } else if (currentMenu == 4 && currentSub == 2) {
                     appMode = 13;
-                    } else if (currentMenu == 3 && currentSub == 2) {
+                } else if (currentMenu == 3 && currentSub == 2) {
                     appMode = 14;
                 } else if (currentMenu == 3 && currentSub == 3) {
                     appMode = 15;
                 } else if (currentMenu == 3 && currentSub == 1) {
                     appMode = 16;
+                } else if (currentMenu == 3 && currentSub == 4) { // <--- TAMBAHIN BLOK INI
+                    aiAudioEnabled = !aiAudioEnabled; 
+                    // Nanti disini kita tambahin fungsi play_tts("AI diaktifkan");
+                
+
                 } else if (currentMenu == 2 && currentSub == 1) {
                     appMode = 18;
                 }
