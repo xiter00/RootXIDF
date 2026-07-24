@@ -14,7 +14,7 @@
 #include <math.h>
 
 #define GEMINI_API_KEY "AQ.Ab8RN6Kw_7M0reGotMRh1ZQx9Xhz6Nj6QA_K3Fw4pI1f5zE3_Q"
-#define GROQ_API_KEY "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"
+#define GROQ_API_KEY "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"
 
 static const char *TAG = "AI_AUDIO";
 extern bool requireWakeWord;
