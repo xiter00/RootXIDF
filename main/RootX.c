@@ -10,9 +10,12 @@
 #include "globals.h"
 #include "photo_data.h"
 #include "esp_spiffs.h"
+#include "ai_audio.h"
+#include "esp_netif.h"
+#include "esp_event.h"
 
 // Hardcode versi firmware lu saat ini (00 = v1.0.0)
-#define VERSION_SAAT_INI 131
+#define VERSION_SAAT_INI 132
 
 // URL mentah (RAW) langsung tembak ke file lu di GitHub
 #define URL_VERSION  "https://raw.githubusercontent.com/xiter00/RTXUP/main/vr.txt"
@@ -20,6 +23,7 @@
 
 
 // --- DEKLARASI FUNGSI DARI MANAGER LAIN ---
+extern void start_webserver(void);
 
 extern void loopWiFi(void *pvParameters);
 extern void task_display(void *pvParameters);
@@ -151,6 +155,8 @@ void task_cek_ota(void *pvParameter) {
         vTaskDelay(pdMS_TO_TICKS(2000));
     }
     ESP_LOGI("OTA", "WiFi Konek! Mesin OTA Super Cepat siap...");
+    ESP_LOGI("RootX", "WiFi terhubung! Mengaktifkan Web Server...");
+    start_webserver();
 
     while (1) {
         if (isWiFiConnected) {
@@ -328,6 +334,10 @@ void perform_ota_manual(void) {
 // ==========================================
 void app_main(void) {
     ESP_LOGI("RootX", "System Booting...");
+    
+     esp_netif_init();
+    esp_event_loop_create_default();
+    
 
     // --- 1. LAPOR KE BOOTLOADER KALAU OS AMAN (Biar Gak Rollback) ---
     esp_ota_mark_app_valid_cancel_rollback();
@@ -353,7 +363,9 @@ void app_main(void) {
     }
 
     init_ir_system(); 
-    init_battery();
+        init_battery();
+    init_i2s_audio(); // <--- TAMBAHIN INI BIAR MIC & SPEAKER STANDBY
+    
     
     xTaskCreatePinnedToCore(loopWiFi, "TaskWiFi", 16384, NULL, 1, &TaskWiFi, 0);
 
@@ -364,11 +376,22 @@ void app_main(void) {
     // KASIH NAFAS 2 DETIK BIAR MESIN WIFI SIAP DULU!
     vTaskDelay(pdMS_TO_TICKS(2000));
 
+    // --- 3. HACK AUTO-CONNECT WIFI BUAT DEV ---
+    strcpy(connSSID, "AYYUBI"); 
+    strcpy(inputPassword, "rumahabi123");
+    vTaskDelay(pdMS_TO_TICKS(100));
+    triggerConnect = true; 
 
 
     
 
     // --- 4. JALANIN MESIN OTA ---
     // (Tadi lu salah ketik ota_satpam_task, gw ganti jadi task_cek_ota)
+    xTaskCreatePinnedToCore(task_cek_ota, "task_ota", 16384, NULL, 5, NULL, 0);
+
+
+    // --- JALANIN TELINGA AI (PEKERJA BAYANGAN) ---
+    // Pakai core 0 biar gak tabrakan sama task display (Core 1)
+    xTaskCreatePinnedToCore(ai_audio_task, "ai_task", 16384, NULL, 4, NULL, 0); 
     
 }
