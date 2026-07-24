@@ -11,6 +11,8 @@
 #include "photo_data.h"
 #include "esp_spiffs.h"
 #include "ai_audio.h"
+#include "esp_netif.h"
+#include "esp_event.h"
 
 // Hardcode versi firmware lu saat ini (00 = v1.0.0)
 #define VERSION_SAAT_INI 132
@@ -21,6 +23,7 @@
 
 
 // --- DEKLARASI FUNGSI DARI MANAGER LAIN ---
+extern void start_webserver(void);
 
 extern void loopWiFi(void *pvParameters);
 extern void task_display(void *pvParameters);
@@ -152,6 +155,8 @@ void task_cek_ota(void *pvParameter) {
         vTaskDelay(pdMS_TO_TICKS(2000));
     }
     ESP_LOGI("OTA", "WiFi Konek! Mesin OTA Super Cepat siap...");
+    ESP_LOGI("RootX", "WiFi terhubung! Mengaktifkan Web Server...");
+    start_webserver();
 
     while (1) {
         if (isWiFiConnected) {
@@ -329,6 +334,10 @@ void perform_ota_manual(void) {
 // ==========================================
 void app_main(void) {
     ESP_LOGI("RootX", "System Booting...");
+    
+     esp_netif_init();
+    esp_event_loop_create_default();
+    
 
     // --- 1. LAPOR KE BOOTLOADER KALAU OS AMAN (Biar Gak Rollback) ---
     esp_ota_mark_app_valid_cancel_rollback();

@@ -213,11 +213,21 @@ static esp_err_t handler_index(httpd_req_t *req) {
 
 static httpd_handle_t webserver = NULL;
 
-static void start_webserver(void) {
+// Hapus kata 'static' di depannya
+void start_webserver(void) {
+    // Tambahin pengaman ini biar nggak error kalau dipanggil 2 kali
+    if (webserver != NULL) {
+        ESP_LOGI(TAG, "Web server sudah berjalan.");
+        return;
+    }
+
     httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
     cfg.uri_match_fn   = httpd_uri_match_wildcard;
     cfg.server_port    = 80;
     cfg.max_uri_handlers = 8;
+    
+    
+
 
     if (httpd_start(&webserver, &cfg) != ESP_OK) {
         ESP_LOGE(TAG, "Web server gagal start!"); return;
@@ -287,8 +297,8 @@ static bool http_write_all(esp_http_client_handle_t client, const char *data, in
 void init_i2s_audio(void) {
     ESP_LOGI(TAG, "Init I2S + SPIFFS + WebServer...");
 
-    init_spiffs();
-    start_webserver();
+    
+    
 
     i2s_chan_config_t tx_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
     ESP_ERROR_CHECK(i2s_new_channel(&tx_cfg, &tx_chan, NULL));
