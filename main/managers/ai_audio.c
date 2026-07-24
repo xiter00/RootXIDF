@@ -253,7 +253,7 @@ static void init_spiffs(void) {
     if (d) {
         struct dirent *e;
         while ((e = readdir(d)) != NULL) {
-            char p[48];
+            char p[300];
             snprintf(p, sizeof(p), "/spiffs/%s", e->d_name);
             remove(p);
         }
