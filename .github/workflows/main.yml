@@ -48,6 +48,27 @@ jobs:
       - name: Patch gdbstub Source
         run: |
           python3 -c "import os,pathlib; p=pathlib.Path(os.path.expanduser('~/esp-idf'))/'components/esp_gdbstub/src/gdbstub.c'; s=p.read_text(encoding='utf-8'); s=s.replace('#if (CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME || CONFIG_ESP_GDBSTUB_SUPPORT_TASKS)', '#if 1'); p.write_text(s, encoding='utf-8')"
+      - name: Inject Groq Root CA (Bener)
+        run: |
+          # 1. Ambil cert chain dari Groq langsung
+          echo quit | openssl s_client -connect api.groq.com:443 -showcerts 2>/dev/null \
+                    | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/' \
+                    | awk '/BEGIN CERT/{c++} c>=2{print}' > /tmp/groq_ca.pem
+          
+          # 2. Jadiin C string yang valid
+          python3 - <<'EOF'
+          with open("/tmp/groq_ca.pem") as f:
+              lines = f.readlines()
+          with open("main/managers/groq_cert.h", "w") as out:
+              out.write('#pragma once\n')
+              out.write('static const char GROQ_ROOT_CA[] =\n')
+              for line in lines:
+                  out.write(f'  "{line.rstrip()}\\n"\n')
+              out.write(';\n')
+          EOF
+          
+          # 3. Verifikasi hasilnya gak kosong
+          cat main/managers/groq_cert.h
           
       - name: Build Firmware
         run: |
@@ -67,6 +88,7 @@ jobs:
           
           idf.py fullclean
           idf.py set-target esp32s3
+          idf.py add-dependency "espressif/cjson"
           idf.py build
 
       # --- 6. UPLOAD HASIL JADI .BIN ---
