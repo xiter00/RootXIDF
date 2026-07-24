@@ -303,7 +303,7 @@ void init_i2s_audio(void) {
     i2s_chan_config_t tx_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
     ESP_ERROR_CHECK(i2s_new_channel(&tx_cfg, &tx_chan, NULL));
     i2s_std_config_t tx_std = {
-        .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(16000),
+        .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(44100),
         .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_MONO),
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED, .bclk = I2S_SPK_BCLK,
@@ -318,7 +318,7 @@ void init_i2s_audio(void) {
     i2s_chan_config_t rx_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_1, I2S_ROLE_MASTER);
     ESP_ERROR_CHECK(i2s_new_channel(&rx_cfg, NULL, &rx_chan));
     i2s_std_config_t rx_std = {
-        .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(16000),
+        .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(44100),
         .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_MONO),
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED, .bclk = I2S_MIC_SCK,
@@ -498,8 +498,8 @@ void generate_wav_header(char *h, uint32_t dataSize, uint32_t sr) {
 void mulai_rekam_dan_stt(void) {
     cleanup_old_files();
 
-    uint32_t sz32 = 16000 * 4 * 4;
-    uint32_t sz16 = 16000 * 2 * 4;
+    uint32_t sz32 = 44100 * 4 * 4;
+    uint32_t sz16 = 44100 * 2 * 4;
 
     int32_t *raw = heap_caps_malloc(sz32, MALLOC_CAP_SPIRAM);
     int16_t *pcm = heap_caps_malloc(sz16, MALLOC_CAP_SPIRAM);
@@ -519,10 +519,10 @@ void mulai_rekam_dan_stt(void) {
     // === KONVERSI 32→16 BIT ===
     int n_samples = total / 4;
     for (int i = 0; i < n_samples; i++) {
-        int32_t v = raw[i] >> 14;
+        int32_t v = raw[i] >> 8;
         if (v >  32767) v =  32767;
-        if (v < -32768) v = -32768;
-        pcm[i] = (int16_t)v;
+if (v < -32768) v = -32768;
+pcm[i] = (int16_t)v;
     }
     size_t pcm_bytes = n_samples * 2;
     free(raw);
@@ -543,7 +543,7 @@ void mulai_rekam_dan_stt(void) {
 
     // === GENERATE WAV HEADER ===
     char wav_hdr[44];
-    generate_wav_header(wav_hdr, pcm_bytes, 16000);
+    generate_wav_header(wav_hdr, pcm_bytes, 44100);
 
     // === SAVE WAV (dari MIC, sebelum kirim) ===
     char wav_path[40], bin_path[40];
@@ -678,3 +678,6 @@ void ai_audio_task(void *pvParameters) {
         }
     }
 }
+
+
+
