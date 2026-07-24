@@ -6,7 +6,7 @@
 #include "esp_http_client.h"
 #include "esp_tls.h"
 #include "esp_http_server.h"
-#include "esp_vfs_spiffs.h"
+#include "esp_spiffs.h"
 #include <ctype.h>
 #include <string.h>
 #include "cJSON.h"
