@@ -530,7 +530,9 @@ void mulai_rekam_dan_stt(void) {
     // === KONVERSI 32→16 BIT ===
     int n_samples = total / 4;
     for (int i = 0; i < n_samples; i++) {
-        int32_t v = raw[i] >> 16;
+      int32_t v = raw[i] >> 12;
+if (v >  32767) v =  32767;
+if (v < -32768) v = -32768;
 pcm[i] = (int16_t)v;
     }
     size_t pcm_bytes = n_samples * 2;
