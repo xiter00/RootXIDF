@@ -418,9 +418,9 @@ void play_google_tts(const char *text) {
 void tanya_gemini(const char *q) {
     ESP_LOGI(TAG, "→ Gemini: %s", q);
     char url[512];
-    snprintf(url, sizeof(url),
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=%s",
-        GEMINI_API_KEY);
+snprintf(url, sizeof(url),
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent");
+
 
     const char *tpl =
         "{\"system_instruction\":{\"parts\":{\"text\":\"Lu adalah asisten AI hacker bernama RootX."
@@ -431,17 +431,23 @@ void tanya_gemini(const char *q) {
         "Minta aktifkan wake word pilih wakeword_on.\"}},"
         "\"contents\":[{\"parts\":[{\"text\":\"%s\"}]}]}";
 
-    char body[1024];
-    snprintf(body, sizeof(body), tpl, q);
-
     esp_http_client_config_t cfg = {
-        .url = url, .method = HTTP_METHOD_POST, .timeout_ms = 15000,
-        .skip_cert_common_name_check = true,
-        
-    };
-    esp_http_client_handle_t c = esp_http_client_init(&cfg);
-    esp_http_client_set_header(c, "Content-Type", "application/json");
-    esp_http_client_set_post_field(c, body, strlen(body));
+    .url = url, 
+    .method = HTTP_METHOD_POST, 
+    .timeout_ms = 15000,
+    .crt_bundle_attach = esp_crt_bundle_attach // Pakai ini biar aman
+};
+
+esp_http_client_handle_t c = esp_http_client_init(&cfg);
+
+// 2. Set header Content-Type
+esp_http_client_set_header(c, "Content-Type", "application/json");
+
+// 3. Tambahin header Authorization Bearer buat Auth Key baru lu!
+char auth_header[256];
+snprintf(auth_header, sizeof(auth_header), "Bearer %s", GEMINI_API_KEY);
+esp_http_client_set_header(c, "Authorization", auth_header);
+
 
     if (esp_http_client_perform(c) == ESP_OK) {
         int len = esp_http_client_get_content_length(c);
@@ -581,7 +587,7 @@ pcm[i] = (int16_t)v;
 
     // === MULTIPART SETUP ===
     const char *boundary = "----RootXBoundary12345";
-    char head[256], tail[512];
+    char head[256], tail[768]; 
     snprintf(head, sizeof(head),
         "--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\n"
         "Content-Type: audio/wav\r\n\r\n", boundary);
@@ -589,8 +595,9 @@ pcm[i] = (int16_t)v;
         "\r\n--%s\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-large-v3\r\n"
         "--%s\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nid\r\n"
         "--%s\r\nContent-Disposition: form-data; name=\"temperature\"\r\n\r\n0\r\n"
+        "--%s\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nRootX, ESP32, asisten AI, gw, lu, kek gini, obrolan kasual, nyalain, matiin\r\n"
         "--%s--\r\n",
-        boundary, boundary, boundary, boundary);
+        boundary, boundary, boundary, boundary, boundary);
 
     // === SAVE COPY PERSIS YANG DIKIRIM KE GROQ ===
     // Ini WAV header + PCM yang sama persis, buat bandingin
