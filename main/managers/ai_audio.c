@@ -305,9 +305,7 @@ static bool http_write_all(esp_http_client_handle_t client, const char *data, in
 void init_i2s_audio(void) {
     ESP_LOGI(TAG, "Init I2S + SPIFFS + WebServer...");
 
-    
-    
-
+    // TX - SPEAKER (tetap mono biasa)
     i2s_chan_config_t tx_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
     ESP_ERROR_CHECK(i2s_new_channel(&tx_cfg, &tx_chan, NULL));
     i2s_std_config_t tx_std = {
@@ -323,11 +321,15 @@ void init_i2s_audio(void) {
     ESP_ERROR_CHECK(i2s_channel_init_std_mode(tx_chan, &tx_std));
     ESP_ERROR_CHECK(i2s_channel_enable(tx_chan));
 
+    // RX - MIC (stereo, ambil slot kiri aja)
+    i2s_std_slot_config_t mic_slot = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_STEREO);
+    mic_slot.slot_mask = I2S_STD_SLOT_LEFT;
+
     i2s_chan_config_t rx_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_1, I2S_ROLE_MASTER);
     ESP_ERROR_CHECK(i2s_new_channel(&rx_cfg, NULL, &rx_chan));
     i2s_std_config_t rx_std = {
         .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(16000),
-        .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_MONO),
+        .slot_cfg = mic_slot,
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED, .bclk = I2S_MIC_SCK,
             .ws   = I2S_MIC_WS,      .dout = I2S_GPIO_UNUSED,
