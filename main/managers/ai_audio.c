@@ -652,13 +652,28 @@ pcm[i] = (int16_t)v;
                 if (t && t->valuestring) {
                     char *teks = t->valuestring;
                     ESP_LOGI(TAG, "Ngomong: [%s]", teks);
-                    if (requireWakeWord) {
-                        if (strstr(teks,"RootX")||strstr(teks,"Root X")||strstr(teks,"rootx"))
-                            tanya_gemini(teks);
-                        else ESP_LOGI(TAG, "Bukan wake word.");
-                    } else {
-                        tanya_gemini(teks);
-                    }
+// Konversi teks ke lowercase dulu
+char lower[256];
+int li = 0;
+for (int ci = 0; teks_omongan[ci] && li < 255; ci++)
+    lower[li++] = tolower((unsigned char)teks_omongan[ci]);
+lower[li] = '\0';
+
+if (requireWakeWord) {
+    if (strstr(lower, "rootx") || 
+        strstr(lower, "root x") || 
+        strstr(lower, "ruth x") ||
+        strstr(lower, "rut x") ||
+        strstr(lower, "ruthx") ||
+        strstr(lower, "rutx")) {
+        ESP_LOGI(TAG, "Wake word terdeteksi!");
+        tanya_gemini(teks_omongan);
+    } else {
+        ESP_LOGI(TAG, "Bukan manggil gw. Diabaikan.");
+    }
+} else {
+    tanya_gemini(teks_omongan);
+}
                 }
                 cJSON_Delete(j);
             }
