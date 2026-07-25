@@ -432,6 +432,7 @@ snprintf(url, sizeof(url),
         "\"contents\":[{\"parts\":[{\"text\":\"%s\"}]}]}";
 
     esp_http_client_config_t cfg = {
+<<<<<<< HEAD
     .url = url, 
     .method = HTTP_METHOD_POST, 
     .timeout_ms = 15000,
@@ -448,6 +449,15 @@ char auth_header[256];
 snprintf(auth_header, sizeof(auth_header), "Bearer %s", GEMINI_API_KEY);
 esp_http_client_set_header(c, "Authorization", auth_header);
 
+=======
+        .url = url, .method = HTTP_METHOD_POST, .timeout_ms = 15000,
+        .skip_cert_common_name_check = true,
+        
+    };
+    esp_http_client_handle_t c = esp_http_client_init(&cfg);
+    esp_http_client_set_header(c, "Content-Type", "application/json");
+    esp_http_client_set_post_field(c, body, strlen(body));
+>>>>>>> branch 'main' of git@github.com:xiter00/RootXIDF.git
 
     if (esp_http_client_perform(c) == ESP_OK) {
         int len = esp_http_client_get_content_length(c);
