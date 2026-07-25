@@ -18,7 +18,7 @@
 #include <math.h>
 #include "esp_timer.h"
 
-#define GEMINI_API_KEY "AQ.Ab8RN6Kw_7M0reGotMRh1ZQx9Xhz6Nj6QA_K3Fw4pI1f5zE3_Q"
+#define GEMINI_API_KEY "AQ.Ab8RN6LtNl1lX2AhJyIhgkCyBehl3nmwNsNTNAw_dKUzqKjlTQ"
 #define GROQ_API_KEY "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"
 
 static const char *TAG = "AI_AUDIO";
@@ -437,8 +437,7 @@ void tanya_gemini(const char *q) {
     esp_http_client_config_t cfg = {
         .url = url, .method = HTTP_METHOD_POST, .timeout_ms = 15000,
         .skip_cert_common_name_check = true,
-        .use_global_ca_store = false,
-        .transport_type = HTTP_TRANSPORT_OVER_SSL,
+        
     };
     esp_http_client_handle_t c = esp_http_client_init(&cfg);
     esp_http_client_set_header(c, "Content-Type", "application/json");
@@ -518,19 +517,27 @@ void mulai_rekam_dan_stt(void) {
         free(raw); free(pcm); return;
     }
 
-    // === REKAM ===
-    size_t bytes_read = 0, total = 0;
-    while (total < sz32) {
-        if (i2s_channel_read(rx_chan, (char*)raw+total, sz32-total, &bytes_read, 1000) != ESP_OK) break;
-        total += bytes_read;
-        vTaskDelay(1); //
-    }
-    ESP_LOGI(TAG, "Raw: %d bytes", (int)total);
+  // === REKAM ===
+size_t bytes_read = 0, total = 0;
+
+// Buang 100ms pertama (noise awal I2S)
+char *throwaway = malloc(16000 * 4 / 10); // 100ms worth of 32-bit samples
+if (throwaway) {
+    i2s_channel_read(rx_chan, throwaway, 16000 * 4 / 10, &bytes_read, 1000);
+    free(throwaway);
+}
+
+// Baru rekam beneran
+while (total < sz32) {
+    if (i2s_channel_read(rx_chan, (char*)raw+total, sz32-total, &bytes_read, 1000) != ESP_OK) break;
+    total += bytes_read;
+    vTaskDelay(1);
+}
 
     // === KONVERSI 32→16 BIT ===
     int n_samples = total / 4;
     for (int i = 0; i < n_samples; i++) {
-      int32_t v = raw[i] >> 12;
+      int32_t v = raw[i] >> 13;
 if (v >  32767) v =  32767;
 if (v < -32768) v = -32768;
 pcm[i] = (int16_t)v;
