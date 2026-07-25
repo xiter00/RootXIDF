@@ -650,13 +650,14 @@ pcm[i] = (int16_t)v;
             if (j) {
                 cJSON *t = cJSON_GetObjectItem(j, "text");
                 if (t && t->valuestring) {
-                    char *teks = t->valuestring;
-                    ESP_LOGI(TAG, "Ngomong: [%s]", teks);
-// Konversi teks ke lowercase dulu
+char *teks = t->valuestring;
+ESP_LOGI(TAG, "Ngomong: [%s]", teks);
+
+// Lowercase buat cek wake word
 char lower[256];
 int li = 0;
-for (int ci = 0; teks_omongan[ci] && li < 255; ci++)
-    lower[li++] = tolower((unsigned char)teks_omongan[ci]);
+for (int ci = 0; teks[ci] && li < 255; ci++)
+    lower[li++] = tolower((unsigned char)teks[ci]);
 lower[li] = '\0';
 
 if (requireWakeWord) {
@@ -667,12 +668,12 @@ if (requireWakeWord) {
         strstr(lower, "ruthx") ||
         strstr(lower, "rutx")) {
         ESP_LOGI(TAG, "Wake word terdeteksi!");
-        tanya_gemini(teks_omongan);
+        tanya_gemini(teks);
     } else {
         ESP_LOGI(TAG, "Bukan manggil gw. Diabaikan.");
     }
 } else {
-    tanya_gemini(teks_omongan);
+    tanya_gemini(teks);
 }
                 }
                 cJSON_Delete(j);
