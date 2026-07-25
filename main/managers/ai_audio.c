@@ -78,11 +78,19 @@ static void cleanup_old_files(void) {
 // ============================================================
 // WEB HANDLERS
 // ============================================================
-
 static esp_err_t serve_file(httpd_req_t *req, const char *path, const char *mime) {
     FILE *f = fopen(path, "rb");
     if (!f) { httpd_resp_send_404(req); return ESP_OK; }
+    
+    // Tambah ini biar browser tau ukuran file
+    fseek(f, 0, SEEK_END);
+    long fsize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    
     httpd_resp_set_type(req, mime);
+    httpd_resp_set_hdr(req, "Content-Length", 
+        (char[32]){0}, snprintf((char[32]){0}, 32, "%ld", fsize));
+    
     char buf[1024];
     int n;
     while ((n = fread(buf, 1, sizeof(buf), f)) > 0)
@@ -318,7 +326,7 @@ void init_i2s_audio(void) {
     i2s_chan_config_t rx_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_1, I2S_ROLE_MASTER);
     ESP_ERROR_CHECK(i2s_new_channel(&rx_cfg, NULL, &rx_chan));
     i2s_std_config_t rx_std = {
-        .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(44100),
+        .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(16000),
         .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_MONO),
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED, .bclk = I2S_MIC_SCK,
@@ -498,8 +506,8 @@ void generate_wav_header(char *h, uint32_t dataSize, uint32_t sr) {
 void mulai_rekam_dan_stt(void) {
     cleanup_old_files();
 
-    uint32_t sz32 = 44100 * 4 * 10;
-    uint32_t sz16 = 44100 * 2 * 10;
+    uint32_t sz32 = 16000 * 4 * 4;
+    uint32_t sz16 = 16000 * 2 * 4;
 
     int32_t *raw = heap_caps_malloc(sz32, MALLOC_CAP_SPIRAM);
     int16_t *pcm = heap_caps_malloc(sz16, MALLOC_CAP_SPIRAM);
@@ -542,7 +550,7 @@ pcm[i] = (int16_t)v;
 
     // === GENERATE WAV HEADER ===
     char wav_hdr[44];
-    generate_wav_header(wav_hdr, pcm_bytes, 44100);
+    generate_wav_header(wav_hdr, pcm_bytes, 16000);
 
     // === SAVE WAV (dari MIC, sebelum kirim) ===
     char wav_path[40], bin_path[40];
