@@ -31,7 +31,7 @@ i2s_chan_handle_t rx_chan = NULL;
 // FILE TRACKER
 // ============================================================
 #define MAX_FILES       6
-#define DELETE_AFTER_MS 30000
+#define DELETE_AFTER_MS 120000
 
 typedef struct {
     char wav_path[40];
@@ -303,7 +303,7 @@ void init_i2s_audio(void) {
     i2s_chan_config_t tx_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
     ESP_ERROR_CHECK(i2s_new_channel(&tx_cfg, &tx_chan, NULL));
     i2s_std_config_t tx_std = {
-        .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(44100),
+        .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(16000),
         .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_MONO),
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED, .bclk = I2S_SPK_BCLK,
@@ -498,8 +498,8 @@ void generate_wav_header(char *h, uint32_t dataSize, uint32_t sr) {
 void mulai_rekam_dan_stt(void) {
     cleanup_old_files();
 
-    uint32_t sz32 = 44100 * 4 * 4;
-    uint32_t sz16 = 44100 * 2 * 4;
+    uint32_t sz32 = 44100 * 4 * 10;
+    uint32_t sz16 = 44100 * 2 * 10;
 
     int32_t *raw = heap_caps_malloc(sz32, MALLOC_CAP_SPIRAM);
     int16_t *pcm = heap_caps_malloc(sz16, MALLOC_CAP_SPIRAM);
@@ -513,15 +513,14 @@ void mulai_rekam_dan_stt(void) {
     while (total < sz32) {
         if (i2s_channel_read(rx_chan, (char*)raw+total, sz32-total, &bytes_read, 1000) != ESP_OK) break;
         total += bytes_read;
+        vTaskDelay(1); //
     }
     ESP_LOGI(TAG, "Raw: %d bytes", (int)total);
 
     // === KONVERSI 32→16 BIT ===
     int n_samples = total / 4;
     for (int i = 0; i < n_samples; i++) {
-        int32_t v = raw[i] >> 8;
-        if (v >  32767) v =  32767;
-if (v < -32768) v = -32768;
+        int32_t v = raw[i] >> 16;
 pcm[i] = (int16_t)v;
     }
     size_t pcm_bytes = n_samples * 2;
