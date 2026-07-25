@@ -82,14 +82,15 @@ static esp_err_t serve_file(httpd_req_t *req, const char *path, const char *mime
     FILE *f = fopen(path, "rb");
     if (!f) { httpd_resp_send_404(req); return ESP_OK; }
     
-    // Tambah ini biar browser tau ukuran file
     fseek(f, 0, SEEK_END);
     long fsize = ftell(f);
     fseek(f, 0, SEEK_SET);
     
+    char fsize_str[32];
+    snprintf(fsize_str, sizeof(fsize_str), "%ld", fsize);
+    
     httpd_resp_set_type(req, mime);
-    httpd_resp_set_hdr(req, "Content-Length", 
-        (char[32]){0}, snprintf((char[32]){0}, 32, "%ld", fsize));
+    httpd_resp_set_hdr(req, "Content-Length", fsize_str);
     
     char buf[1024];
     int n;
@@ -99,7 +100,6 @@ static esp_err_t serve_file(httpd_req_t *req, const char *path, const char *mime
     httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;
 }
-
 static esp_err_t handler_wav(httpd_req_t *req) {
     const char *fname = strrchr(req->uri, '/');
     if (!fname || strlen(fname) < 2) { httpd_resp_send_404(req); return ESP_OK; }
