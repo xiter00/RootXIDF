@@ -443,14 +443,13 @@ esp_http_client_config_t cfg = {
     .cert_pem = GEMINI_ROOT_CA,
 };
 
+char body[1024];
+snprintf(body, sizeof(body), tpl, q);
+
 esp_http_client_handle_t c = esp_http_client_init(&cfg);
-
-// 2. Set header Content-Type
 esp_http_client_set_header(c, "Content-Type", "application/json");
-
-// 3. Tambahin header Authorization Bearer buat Auth Key baru lu!
-    // Pakai header khusus API Key Google
-    esp_http_client_set_header(c, "x-goog-api-key", GEMINI_API_KEY);
+esp_http_client_set_header(c, "X-goog-api-key", GEMINI_API_KEY);
+esp_http_client_set_post_field(c, body, strlen(body));
 
 
 
