@@ -16,7 +16,7 @@
 #include "gemini_cert.h"
 #include "freetts_cert.h"
 
-#define GEMINI_API_KEY "AQ.Ab8RN6LtNl1lX2AhJyIhgkCyBehl3nmwNsNTNAw_dKUzqKjlTQ"
+#define GEMINI_API_KEY "AQ.Ab8RN6LtfBzPhHqsR0SzEYMzL_e8qwPgiCRDer9km_Kij2VpXQ"
 #define GROQ_API_KEY   "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"
 
 // Potong berapa detik dari belakang audio freetts (watermark)
@@ -280,7 +280,6 @@ void tanya_gemini(const char *q) {
     esp_http_client_handle_t c = esp_http_client_init(&cfg);
     esp_http_client_set_header(c, "Content-Type", "application/json");
     esp_http_client_set_header(c, "X-goog-api-key", GEMINI_API_KEY);
-    ESP_LOGI(TAG, "Gemini key len=%d, prefix=%.10s", (int)strlen(GEMINI_API_KEY), GEMINI_API_KEY);
 
     // === Pakai open/write/read (sama kek Groq), BUKAN perform ===
     // perform otomatis handle auth challenge (Bearer) → error di ESP HTTP client
@@ -313,7 +312,6 @@ void tanya_gemini(const char *q) {
                 total_read += n;
             buf[total_read] = '\0';
             len = total_read;
-            ESP_LOGI(TAG, "Gemini raw: %s", buf);
 
             if (status == 200) {
                 cJSON *resp = cJSON_Parse(buf);
