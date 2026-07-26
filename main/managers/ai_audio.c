@@ -487,7 +487,15 @@ esp_http_client_set_post_field(c, body, strlen(body));
                             if      (!strcmp(aksi->valuestring,"wakeword_off")) requireWakeWord = false;
                             else if (!strcmp(aksi->valuestring,"wakeword_on"))  requireWakeWord = true;
                             else if (!strcmp(aksi->valuestring,"ir_blaster"))   ESP_LOGI(TAG,"IR!");
-                            else if (!strcmp(aksi->valuestring,"wifi_scan"))    ESP_LOGI(TAG,"SCAN!"); appMode = 1; scannerState = 1; triggerScan = true; scanDone = false; cursorInScanner = 0; scrollPosScanner = 0; 
+                            else if (!strcmp(aksi->valuestring,"standby"))   ESP_LOGI(TAG,"no action");
+                            else if (!strcmp(aksi->valuestring,"wifi_scan")) {ESP_LOGI(TAG,"SCAN!"); 
+                            appMode = 1; 
+                            scannerState = 1; 
+                            triggerScan = true; 
+                            scanDone = false; 
+                            cursorInScanner = 0;
+                            scrollPosScanner = 0; 
+                            }
                         }
                         cJSON_Delete(cmd);
                     }
