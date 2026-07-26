@@ -236,9 +236,11 @@ void play_freetts(const char *text) {
 void tanya_gemini(const char *q) {
     ESP_LOGI(TAG, "→ Gemini: %s", q);
 
-    char url[256];
-    snprintf(url, sizeof(url),
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent");
+
+        char url[400];
+snprintf(url, sizeof(url),
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=%s",
+    GEMINI_API_KEY);
 
     char safe_q[512] = {0};
     int si = 0;
@@ -267,6 +269,28 @@ void tanya_gemini(const char *q) {
     if (!body) { ESP_LOGE(TAG, "malloc gagal"); return; }
     snprintf(body, 2048, tpl, safe_q);
 
+    // === DEBUG LENGKAP: cek segala hal SEBELUM kirim, gak makan limit API ===
+    {
+        int klen = strlen(GEMINI_API_KEY);
+        unsigned long khash = 5381;
+        for (int i = 0; i < klen; i++) khash = ((khash << 5) + khash) + (unsigned char)GEMINI_API_KEY[i];
+        ESP_LOGI(TAG, "DEBUG key_len=%d key_hash=%lu key_prefix=%.12s key_suffix=%s",
+                 klen, khash, GEMINI_API_KEY, GEMINI_API_KEY + (klen > 6 ? klen - 6 : 0));
+
+        int bad_char_found = 0;
+        for (int i = 0; i < klen; i++) {
+            unsigned char ch = (unsigned char)GEMINI_API_KEY[i];
+            if (ch < 0x21 || ch > 0x7E) {
+                ESP_LOGE(TAG, "DEBUG key BYTE ANEH di index %d = 0x%02X", i, ch);
+                bad_char_found = 1;
+            }
+        }
+        if (!bad_char_found) ESP_LOGI(TAG, "DEBUG semua byte key printable ASCII, aman");
+
+        ESP_LOGI(TAG, "DEBUG url_len=%d url=%s", (int)strlen(url), url);
+        ESP_LOGI(TAG, "DEBUG body_len=%d body=%s", (int)strlen(body), body);
+    }
+
     esp_http_client_config_t cfg = {
         .url = url,
         .method = HTTP_METHOD_POST,
@@ -279,17 +303,21 @@ void tanya_gemini(const char *q) {
 
     esp_http_client_handle_t c = esp_http_client_init(&cfg);
     esp_http_client_set_header(c, "Content-Type", "application/json");
-    esp_http_client_set_header(c, "X-goog-api-key", GEMINI_API_KEY);
+
+    ESP_LOGI(TAG, "DEBUG method=%d timeout=%d buf=%d buf_tx=%d",
+             (int)cfg.method, cfg.timeout_ms, cfg.buffer_size, cfg.buffer_size_tx);
 
     // === Pakai open/write/read (sama kek Groq), BUKAN perform ===
     // perform otomatis handle auth challenge (Bearer) → error di ESP HTTP client
     int body_len = strlen(body);
-    if (esp_http_client_open(c, body_len) != ESP_OK) {
-        ESP_LOGE(TAG, "Gemini open gagal");
+    esp_err_t open_err = esp_http_client_open(c, body_len);
+    if (open_err != ESP_OK) {
+        ESP_LOGE(TAG, "Gemini open gagal, err=0x%x (%s)", open_err, esp_err_to_name(open_err));
         free(body);
         esp_http_client_cleanup(c);
         return;
     }
+    ESP_LOGI(TAG, "DEBUG open OK, socket siap kirim body_len=%d", body_len);
 
     if (!http_write_all(c, body, body_len)) {
         ESP_LOGE(TAG, "Gemini write body gagal");
@@ -297,10 +325,12 @@ void tanya_gemini(const char *q) {
         esp_http_client_cleanup(c);
         return;
     }
+    ESP_LOGI(TAG, "DEBUG write body sukses, %d byte terkirim", body_len);
 
     int len = esp_http_client_fetch_headers(c);
     int status = esp_http_client_get_status_code(c);
-    ESP_LOGI(TAG, "Gemini status: %d | len: %d", status, len);
+    ESP_LOGI(TAG, "Gemini status: %d | len: %d | chunked: %d",
+             status, len, esp_http_client_is_chunked_response(c));
 
     // Gemini kadang chunked (len = -1), alokasi buffer fallback
     int buf_size = (len > 0) ? len : 8192;
