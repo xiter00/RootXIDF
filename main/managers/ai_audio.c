@@ -1,4 +1,4 @@
-#include "global.h"
+#include "globals.h"
 #include <stdio.h>
 #include <dirent.h>
 #include "esp_log.h"
