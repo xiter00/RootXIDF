@@ -251,19 +251,25 @@ snprintf(url, sizeof(url),
         else safe_q[si++] = q[i];
     }
 
+
+        
     const char *tpl =
-        "{\"system_instruction\":{\"parts\":[{\"text\":\"Lu adalah asisten AI hacker bernama Nova. "
-        "Kamu dibuat oleh Andyy. "
-        "Akun github creator adalah github.com/xiter00. "
-        "Balas WAJIB pakai format JSON murni dengan key aksi dan ucapan. "
-        "Pilihan aksi: standby, ir_blaster, wifi_scan, deauth, wakeword_off, wakeword_on. "
-        "Obrolan biasa pilih standby. "
-        "Jawab jelas dan singkat, tapi jangan terlalu singkat. "
-        "Jika konteks pertanyaan butuh penjelasan panjang, sesuaikan panjang jawabannya. "
-        "Minta matikan wake word pilih wakeword_off. "
-        "Minta aktifkan wake word pilih wakeword_on.\"}]}},"
-        "\"generationConfig\":{\"responseMimeType\":\"application/json\"},"
-        "\"contents\":[{\"parts\":[{\"text\":\"%s\"}]}]}";
+    "{" // <--- Buka kurung kurawal utama di sini
+      "\"system_instruction\":{"
+        "\"parts\":[{"
+          "\"text\":\"Lu adalah asisten AI hacker bernama Nova. Kamu dibuat oleh Andyy. Akun github creator adalah github.com/xiter00. Balas WAJIB pakai format JSON murni dengan key aksi dan ucapan. Pilihan aksi: standby, ir_blaster, wifi_scan, deauth, wakeword_off, wakeword_on. Obrolan biasa pilih standby. Jawab jelas dan singkat, tapi jangan terlalu singkat. Jika konteks pertanyaan butuh penjelasan panjang, sesuaikan panjang jawabannya. Minta matikan wake word pilih wakeword_off. Minta aktifkan wake word pilih wakeword_on.\""
+        "}]"
+      "}," // <--- Hanya menutup system_instruction, bukan menutup JSON utama
+      "\"generationConfig\":{"
+        "\"responseMimeType\":\"application/json\""
+      "},"
+      "\"contents\":[{"
+        "\"parts\":[{"
+          "\"text\":\"%s\""
+        "}]"
+      "}]"
+    "}"; // <--- Tutup kurung kurawal utama di sini
+    
 
     char *body = malloc(2048);
     if (!body) { ESP_LOGE(TAG, "malloc gagal"); return; }
