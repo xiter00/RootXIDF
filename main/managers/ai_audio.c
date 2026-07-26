@@ -17,6 +17,7 @@
 #include "groq_cert.h"
 #include <math.h>
 #include "esp_timer.h"
+#include "gemini_cert.h"
 
 #define GEMINI_API_KEY "AQ.Ab8RN6LtNl1lX2AhJyIhgkCyBehl3nmwNsNTNAw_dKUzqKjlTQ"
 #define GROQ_API_KEY "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"
@@ -386,9 +387,12 @@ void play_google_tts(const char *text) {
 
     esp_http_client_config_t cfg = { .url=url, .method=HTTP_METHOD_GET, .timeout_ms=10000 };
     esp_http_client_handle_t c = esp_http_client_init(&cfg);
-    if (!c) return;
+if (!c) return;
 
-    if (esp_http_client_open(c, 0) == ESP_OK) {
+// TAMBAH INI
+esp_http_client_set_header(c, "User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+
+if (esp_http_client_open(c, 0) == ESP_OK) {
         esp_http_client_fetch_headers(c);
         uint8_t *mp3_buf = malloc(8192);
         if (mp3_buf) {
@@ -431,13 +435,12 @@ snprintf(url, sizeof(url),
         "Minta aktifkan wake word pilih wakeword_on.\"}},"
         "\"contents\":[{\"parts\":[{\"text\":\"%s\"}]}]}";
 
+// Config Gemini ganti jadi
 esp_http_client_config_t cfg = {
-    .url = url, 
-    .method = HTTP_METHOD_POST, 
+    .url = url,
+    .method = HTTP_METHOD_POST,
     .timeout_ms = 15000,
-    .skip_cert_common_name_check = true,
-    .use_global_ca_store = false,
-    .transport_type = HTTP_TRANSPORT_OVER_SSL,
+    .cert_pem = GEMINI_ROOT_CA,
 };
 
 esp_http_client_handle_t c = esp_http_client_init(&cfg);
