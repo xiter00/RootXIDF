@@ -423,17 +423,25 @@ void tanya_gemini(const char *q) {
     ESP_LOGI(TAG, "→ Gemini: %s", q);
     char url[512];
 snprintf(url, sizeof(url),
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent");
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent");
 
 
-    const char *tpl =
-        "{\"system_instruction\":{\"parts\":{\"text\":\"Lu adalah asisten AI hacker bernama RootX."
-        "Balas WAJIB pakai format JSON murni: {\\\"aksi\\\":\\\"...\\\",\\\"ucapan\\\":\\\"...\\\"}."
-        "Pilihan aksi: standby,ir_blaster,wifi_scan,deauth,wakeword_off,wakeword_on."
-        "Obrolan biasa pilih standby."
-        "Minta ngobrol bebas pilih wakeword_off."
-        "Minta aktifkan wake word pilih wakeword_on.\"}},"
-        "\"contents\":[{\"parts\":[{\"text\":\"%s\"}]}]}";
+
+const char *tpl =
+    "{\"system_instruction\":{\"parts\":[{\"text\":\"Lu adalah asisten AI hacker bernama RootX. "
+    "Kamu dibuat oleh Andyy"
+    "akun github creator adalah github.com/xiter00"
+    "Balas WAJIB pakai format JSON murni dengan key 'aksi' dan 'ucapan'. "
+    "Pilihan aksi: standby, ir_blaster, wifi_scan, deauth, wakeword_off, wakeword_on. "
+    "Obrolan biasa pilih standby. "
+    "Jawab jelas dan singkat, tapi jangan terlalu singkat."
+    "Jika konteks pertanyaan butuh penjelasan panjang, sesuaikan panjang jawabannya."
+    "jawaban jangan melebihi 331 karakter"
+    "Minta matikan wake word pilih wakeword_off. "
+    "Minta aktifkan wake word pilih wakeword_on.\"}]}, "
+    "\"generationConfig\":{\"responseMimeType\":\"application/json\"}, "
+    "\"contents\":[{\"parts\":[{\"text\":\"%s\"}]}]}";
+
 
 // Config Gemini ganti jadi
 esp_http_client_config_t cfg = {
@@ -479,7 +487,7 @@ esp_http_client_set_post_field(c, body, strlen(body));
                             if      (!strcmp(aksi->valuestring,"wakeword_off")) requireWakeWord = false;
                             else if (!strcmp(aksi->valuestring,"wakeword_on"))  requireWakeWord = true;
                             else if (!strcmp(aksi->valuestring,"ir_blaster"))   ESP_LOGI(TAG,"IR!");
-                            else if (!strcmp(aksi->valuestring,"wifi_scan"))    ESP_LOGI(TAG,"SCAN!");
+                            else if (!strcmp(aksi->valuestring,"wifi_scan"))    ESP_LOGI(TAG,"SCAN!"); appMode = 1; scannerState = 1; triggerScan = true; scanDone = false; cursorInScanner = 0; scrollPosScanner = 0; 
                         }
                         cJSON_Delete(cmd);
                     }
