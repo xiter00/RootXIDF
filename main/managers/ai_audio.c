@@ -273,11 +273,14 @@ void tanya_gemini(const char *q) {
         .timeout_ms = 15000,
         .cert_pem = GEMINI_ROOT_CA,
         .auth_type = HTTP_AUTH_TYPE_NONE,
+        .buffer_size = 2048,
+        .buffer_size_tx = 2048,
     };
 
     esp_http_client_handle_t c = esp_http_client_init(&cfg);
     esp_http_client_set_header(c, "Content-Type", "application/json");
     esp_http_client_set_header(c, "X-goog-api-key", GEMINI_API_KEY);
+    ESP_LOGI(TAG, "Gemini key len=%d, prefix=%.10s", (int)strlen(GEMINI_API_KEY), GEMINI_API_KEY);
 
     // === Pakai open/write/read (sama kek Groq), BUKAN perform ===
     // perform otomatis handle auth challenge (Bearer) → error di ESP HTTP client
