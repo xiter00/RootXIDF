@@ -31,7 +31,7 @@ i2s_chan_handle_t rx_chan = NULL;
 // ============================================================
 // FILE TRACKER
 // ============================================================
-#define MAX_FILEA       6
+#define MAX_FILEA 6
 #define DELETE_AFTER_MS 120000
 
 typedef struct {
@@ -260,7 +260,7 @@ static void init_spiffs(void) {
     esp_vfs_spiffs_conf_t conf = {
         .base_path = "/spiffs",
         .partition_label = NULL,
-        .MAX_FILEA = MAX_FILEA * 2 + 2,
+        .MAX_FILES = MAX_FILEA * 2 + 2,
         .format_if_mount_failed = true,
     };
     if (esp_vfs_spiffs_register(&conf) != ESP_OK) {
