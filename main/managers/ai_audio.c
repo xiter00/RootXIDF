@@ -99,12 +99,11 @@ void set_ai_audio_hardware(bool state) {
 }
 
 // ============================================================
-// FREE TTS (gantiin Google TTS)
+// FREE TTS
 // ============================================================
 void play_freetts(const char *text) {
     ESP_LOGI(TAG, "TTS: %s", text);
 
-    // Escape tanda kutip dalam teks buat JSON
     char safe_text[512] = {0};
     int si = 0;
     for (int i = 0; text[i] && si < 510; i++) {
@@ -139,7 +138,6 @@ void play_freetts(const char *text) {
                 esp_http_client_read(c1, resp, len);
                 resp[len] = '\0';
                 ESP_LOGI(TAG, "FreeTTS resp: %s", resp);
-
                 cJSON *j = cJSON_Parse(resp);
                 if (j) {
                     cJSON *fid = cJSON_GetObjectItem(j, "file_id");
@@ -193,8 +191,6 @@ void play_freetts(const char *text) {
 
     ESP_LOGI(TAG, "Audio downloaded: %d bytes", total);
 
-    // Potong watermark dari belakang
-    // MP3 128kbps = ~16000 bytes/detik
     int cut_bytes = TTS_CUT_SECONDS * 16000;
     int play_len = total - cut_bytes;
     if (play_len <= 0) {
@@ -203,7 +199,6 @@ void play_freetts(const char *text) {
     }
     ESP_LOGI(TAG, "Play %d bytes, potong %d bytes terakhir", play_len, cut_bytes);
 
-    // Decode dan play
     mp3dec_t mp3d; mp3dec_init(&mp3d);
     mp3dec_frame_info_t fi;
     int16_t pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
@@ -231,7 +226,6 @@ void tanya_gemini(const char *q) {
     snprintf(url, sizeof(url),
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent");
 
-    // Escape tanda kutip dalam pertanyaan user buat JSON
     char safe_q[512] = {0};
     int si = 0;
     for (int i = 0; q[i] && si < 510; i++) {
@@ -241,9 +235,8 @@ void tanya_gemini(const char *q) {
         else safe_q[si++] = q[i];
     }
 
-    // Build JSON pake cJSON biar aman, gak perlu string template ribet
     const char *tpl =
-        "{\"system_instruction\":{\"parts\":[{\"text\":\"Lu adalah asisten AI hacker bernama RootX. "
+        "{\"system_instruction\":{\"parts\":[{\"text\":\"Lu adalah asisten AI hacker bernama Nova. "
         "Kamu dibuat oleh Andyy. "
         "Akun github creator adalah github.com/xiter00. "
         "Balas WAJIB pakai format JSON murni dengan key aksi dan ucapan. "
@@ -251,7 +244,6 @@ void tanya_gemini(const char *q) {
         "Obrolan biasa pilih standby. "
         "Jawab jelas dan singkat, tapi jangan terlalu singkat. "
         "Jika konteks pertanyaan butuh penjelasan panjang, sesuaikan panjang jawabannya. "
-        "Jawaban jangan melebihi 331 karakter. "
         "Minta matikan wake word pilih wakeword_off. "
         "Minta aktifkan wake word pilih wakeword_on.\"}]}},"
         "\"generationConfig\":{\"responseMimeType\":\"application/json\"},"
@@ -260,7 +252,7 @@ void tanya_gemini(const char *q) {
     char *body = malloc(2048);
     if (!body) { ESP_LOGE(TAG, "malloc gagal"); return; }
     snprintf(body, 2048, tpl, safe_q);
-    
+
     esp_http_client_config_t cfg = {
         .url = url,
         .method = HTTP_METHOD_POST,
@@ -275,21 +267,10 @@ void tanya_gemini(const char *q) {
     esp_http_client_set_post_field(c, body, strlen(body));
 
     if (esp_http_client_perform(c) == ESP_OK) {
-    int status = esp_http_client_get_status_code(c);
-int len = esp_http_client_get_content_length(c);
-ESP_LOGI(TAG, "Status: %d | Len: %d", status, len);
+        int status = esp_http_client_get_status_code(c);
+        int len    = esp_http_client_get_content_length(c);
+        ESP_LOGI(TAG, "Gemini status: %d | len: %d", status, len);
 
-// Baca response apapun status nya
-if (len > 0 && len < 4096) {
-    char *dbg = malloc(len + 1);
-    if (dbg) {
-        esp_http_client_read(c, dbg, len);
-        dbg[len] = '\0';
-        ESP_LOGI(TAG, "Response: %s", dbg);
-        free(dbg);
-    }
-}
-        int len = esp_http_client_get_content_length(c);
         if (len > 0) {
             char *buf = malloc(len + 1);
             if (buf) {
@@ -297,54 +278,55 @@ if (len > 0 && len < 4096) {
                 buf[len] = '\0';
                 ESP_LOGI(TAG, "Gemini raw: %s", buf);
 
-                cJSON *resp = cJSON_Parse(buf);
-                if (resp) {
-                    cJSON *candidates = cJSON_GetObjectItem(resp, "candidates");
-                    cJSON *cand0 = cJSON_GetArrayItem(candidates, 0);
-                    cJSON *content = cJSON_GetObjectItem(cand0, "content");
-                    cJSON *rparts = cJSON_GetObjectItem(content, "parts");
-                    cJSON *rpart0 = cJSON_GetArrayItem(rparts, 0);
-                    cJSON *tnode = cJSON_GetObjectItem(rpart0, "text");
+                if (status == 200) {
+                    cJSON *resp = cJSON_Parse(buf);
+                    if (resp) {
+                        cJSON *candidates = cJSON_GetObjectItem(resp, "candidates");
+                        cJSON *cand0      = cJSON_GetArrayItem(candidates, 0);
+                        cJSON *content    = cJSON_GetObjectItem(cand0, "content");
+                        cJSON *rparts     = cJSON_GetObjectItem(content, "parts");
+                        cJSON *rpart0     = cJSON_GetArrayItem(rparts, 0);
+                        cJSON *tnode      = cJSON_GetObjectItem(rpart0, "text");
 
-                    if (tnode && tnode->valuestring) {
-                        ESP_LOGI(TAG, "Gemini reply: %s", tnode->valuestring);
+                        if (tnode && tnode->valuestring) {
+                            ESP_LOGI(TAG, "Gemini reply: %s", tnode->valuestring);
 
-                        // Bersihkan markdown kalau ada (```json ... ```)
-                        char *reply = tnode->valuestring;
-                        char *json_start = strstr(reply, "{");
-                        char *json_end = strrchr(reply, '}');
-                        if (json_start && json_end && json_end > json_start) {
-                            *(json_end + 1) = '\0';
-                            reply = json_start;
-                        }
-
-                        cJSON *cmd = cJSON_Parse(reply);
-                        if (cmd) {
-                            cJSON *aksi   = cJSON_GetObjectItem(cmd, "aksi");
-                            cJSON *ucapan = cJSON_GetObjectItem(cmd, "ucapan");
-                            if (aksi && ucapan) {
-                                ESP_LOGI(TAG, "AKSI=%s UCAPAN=%s",
-                                    aksi->valuestring, ucapan->valuestring);
-                                play_freetts(ucapan->valuestring);
-                                if      (!strcmp(aksi->valuestring, "wakeword_off")) requireWakeWord = false;
-                                else if (!strcmp(aksi->valuestring, "wakeword_on"))  requireWakeWord = true;
-                                else if (!strcmp(aksi->valuestring, "ir_blaster"))   ESP_LOGI(TAG, "IR!");
-                                else if (!strcmp(aksi->valuestring, "wifi_scan")) {
-                                    ESP_LOGI(TAG, "SCAN!");
-                                    appMode = 1;
-                                    scannerState = 1;
-                                    triggerScan = true;
-                                    scanDone = false;
-                                    cursorInScanner = 0;
-                                    scrollPosScanner = 0;
-                                }
+                            char *reply = tnode->valuestring;
+                            char *json_start = strstr(reply, "{");
+                            char *json_end   = strrchr(reply, '}');
+                            if (json_start && json_end && json_end > json_start) {
+                                *(json_end + 1) = '\0';
+                                reply = json_start;
                             }
-                            cJSON_Delete(cmd);
-                        } else {
-                            ESP_LOGE(TAG, "Gemini bales bukan JSON: %s", reply);
+
+                            cJSON *cmd = cJSON_Parse(reply);
+                            if (cmd) {
+                                cJSON *aksi   = cJSON_GetObjectItem(cmd, "aksi");
+                                cJSON *ucapan = cJSON_GetObjectItem(cmd, "ucapan");
+                                if (aksi && ucapan) {
+                                    ESP_LOGI(TAG, "AKSI=%s UCAPAN=%s",
+                                        aksi->valuestring, ucapan->valuestring);
+                                    play_freetts(ucapan->valuestring);
+                                    if      (!strcmp(aksi->valuestring, "wakeword_off")) requireWakeWord = false;
+                                    else if (!strcmp(aksi->valuestring, "wakeword_on"))  requireWakeWord = true;
+                                    else if (!strcmp(aksi->valuestring, "ir_blaster"))   ESP_LOGI(TAG, "IR!");
+                                    else if (!strcmp(aksi->valuestring, "wifi_scan")) {
+                                        ESP_LOGI(TAG, "SCAN!");
+                                        appMode = 1;
+                                        scannerState = 1;
+                                        triggerScan = true;
+                                        scanDone = false;
+                                        cursorInScanner = 0;
+                                        scrollPosScanner = 0;
+                                    }
+                                }
+                                cJSON_Delete(cmd);
+                            } else {
+                                ESP_LOGE(TAG, "Gemini bales bukan JSON: %s", reply);
+                            }
                         }
+                        cJSON_Delete(resp);
                     }
-                    cJSON_Delete(resp);
                 }
                 free(buf);
             }
@@ -395,7 +377,6 @@ void mulai_rekam_dan_stt(void) {
     // === REKAM ===
     size_t bytes_read = 0, total = 0;
 
-    // Buang 100ms pertama (noise awal I2S)
     char *throwaway = malloc(16000 * 4 / 10);
     if (throwaway) {
         i2s_channel_read(rx_chan, throwaway, 16000 * 4 / 10, &bytes_read, 1000);
@@ -471,70 +452,78 @@ void mulai_rekam_dan_stt(void) {
     snprintf(ctype, sizeof(ctype), "multipart/form-data; boundary=%s", boundary);
     esp_http_client_set_header(client, "Content-Type", ctype);
 
-    if (esp_http_client_perform(c) == ESP_OK) {
-    int status = esp_http_client_get_status_code(c);
-    int len = esp_http_client_get_content_length(c);
-    ESP_LOGI(TAG, "Gemini Status: %d | Len: %d", status, len);
-
-    if (len > 0) {
-        char *buf = malloc(len + 1);
-        if (buf) {
-            esp_http_client_read(c, buf, len);
-            buf[len] = '\0';
-            ESP_LOGI(TAG, "Gemini raw: %s", buf);  // ini udah cukup buat debug
-
-            if (status == 200) {
-                cJSON *resp = cJSON_Parse(buf);
-                if (resp) {
-                    cJSON *candidates = cJSON_GetObjectItem(resp, "candidates");
-                    cJSON *cand0      = cJSON_GetArrayItem(candidates, 0);
-                    cJSON *content    = cJSON_GetObjectItem(cand0, "content");
-                    cJSON *rparts     = cJSON_GetObjectItem(content, "parts");
-                    cJSON *rpart0     = cJSON_GetArrayItem(rparts, 0);
-                    cJSON *tnode      = cJSON_GetObjectItem(rpart0, "text");
-
-                    if (tnode && tnode->valuestring) {
-                        char *reply = tnode->valuestring;
-                        char *json_start = strstr(reply, "{");
-                        char *json_end   = strrchr(reply, '}');
-                        if (json_start && json_end && json_end > json_start) {
-                            *(json_end + 1) = '\0';
-                            reply = json_start;
-                        }
-                        cJSON *cmd = cJSON_Parse(reply);
-                        if (cmd) {
-                            cJSON *aksi   = cJSON_GetObjectItem(cmd, "aksi");
-                            cJSON *ucapan = cJSON_GetObjectItem(cmd, "ucapan");
-                            if (aksi && ucapan) {
-                                ESP_LOGI(TAG, "AKSI=%s UCAPAN=%s",
-                                    aksi->valuestring, ucapan->valuestring);
-                                play_freetts(ucapan->valuestring);
-                                if      (!strcmp(aksi->valuestring, "wakeword_off")) requireWakeWord = false;
-                                else if (!strcmp(aksi->valuestring, "wakeword_on"))  requireWakeWord = true;
-                                else if (!strcmp(aksi->valuestring, "ir_blaster"))   ESP_LOGI(TAG, "IR!");
-                                else if (!strcmp(aksi->valuestring, "wifi_scan")) {
-                                    ESP_LOGI(TAG, "SCAN!");
-                                    appMode = 1; scannerState = 1;
-                                    triggerScan = true; scanDone = false;
-                                    cursorInScanner = 0; scrollPosScanner = 0;
-                                }
-                            }
-                            cJSON_Delete(cmd);
-                        } else {
-                            ESP_LOGE(TAG, "Bukan JSON: %s", reply);
-                        }
-                    }
-                    cJSON_Delete(resp);
-                }
-            }
-            free(buf);
-        }
-    } else {
-        ESP_LOGE(TAG, "Gemini respon kosong");
+    if (esp_http_client_open(client, payload_len) != ESP_OK) {
+        ESP_LOGE(TAG, "Open Groq gagal");
+        esp_http_client_cleanup(client); free(pcm); return;
     }
-} else {
-    ESP_LOGE(TAG, "Gemini request gagal");
-} else {
+
+    bool ok = true;
+    ok &= http_write_all(client, head, strlen(head));
+    ok &= http_write_all(client, wav_hdr, 44);
+    ok &= http_write_all(client, (char*)pcm, pcm_bytes);
+    ok &= http_write_all(client, tail, strlen(tail));
+
+    if (!ok) {
+        ESP_LOGE(TAG, "Upload gagal");
+        esp_http_client_cleanup(client); free(pcm); return;
+    }
+    ESP_LOGI(TAG, "Upload OK: %d bytes", (int)payload_len);
+
+    // === BACA HASIL STT ===
+    int clen = esp_http_client_fetch_headers(client);
+    ESP_LOGI(TAG, "Groq content_length: %d", clen);
+
+    if (clen > 0) {
+        char *resp = malloc(clen + 1);
+        if (resp) {
+            esp_http_client_read(client, resp, clen);
+            resp[clen] = '\0';
+            ESP_LOGI(TAG, "STT raw: %s", resp);
+
+            cJSON *j = cJSON_Parse(resp);
+            if (j) {
+                cJSON *t = cJSON_GetObjectItem(j, "text");
+                if (t && t->valuestring) {
+                    char *teks = t->valuestring;
+                    ESP_LOGI(TAG, "Ngomong: [%s]", teks);
+
+                    // Lowercase buat cek wake word
+                    char lower[256];
+                    int li = 0;
+                    for (int ci = 0; teks[ci] && li < 255; ci++)
+                        lower[li++] = tolower((unsigned char)teks[ci]);
+                    lower[li] = '\0';
+
+                    // Filter halusinasi
+                    const char *blacklist[] = {
+                        "terima kasih telah menonton",
+                        "terima kasih sudah menonton",
+                        "subscribe", "jangan lupa like", "terima kasih", "terimakasih"
+                    };
+                    bool halusinasi = false;
+                    for (int b = 0; b < 6; b++) {
+                        if (strcasestr(lower, blacklist[b])) { halusinasi = true; break; }
+                    }
+
+                    if (halusinasi) {
+                        ESP_LOGW(TAG, "Halusinasi, skip.");
+                    } else if (requireWakeWord) {
+                        // Cek "nova" sebagai kata utuh, bukan substring
+                        bool wakeword_found = false;
+                        char *p = lower;
+                        while ((p = strstr(p, "nova")) != NULL) {
+                            bool before_ok = (p == lower) || !isalpha((unsigned char)*(p-1));
+                            bool after_ok  = !isalpha((unsigned char)*(p+4));
+                            if (before_ok && after_ok) { wakeword_found = true; break; }
+                            p++;
+                        }
+                        if (wakeword_found) {
+                            ESP_LOGI(TAG, "Wake word terdeteksi!");
+                            tanya_gemini(teks);
+                        } else {
+                            ESP_LOGI(TAG, "Bukan manggil gw. Diabaikan.");
+                        }
+                    } else {
                         tanya_gemini(teks);
                     }
                 }

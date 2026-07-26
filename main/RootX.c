@@ -15,7 +15,7 @@
 #include "esp_event.h"
 
 // Hardcode versi firmware lu saat ini (00 = v1.0.0)
-#define VERSION_SAAT_INI 132
+#define VERSION_SAAT_INI 133
 
 // URL mentah (RAW) langsung tembak ke file lu di GitHub
 #define URL_VERSION  "https://raw.githubusercontent.com/xiter00/RTXUP/main/vr.txt"
