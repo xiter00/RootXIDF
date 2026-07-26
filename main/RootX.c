@@ -155,8 +155,7 @@ void task_cek_ota(void *pvParameter) {
         vTaskDelay(pdMS_TO_TICKS(2000));
     }
     ESP_LOGI("OTA", "WiFi Konek! Mesin OTA Super Cepat siap...");
-    ESP_LOGI("RootX", "WiFi terhubung! Mengaktifkan Web Server...");
-    start_webserver();
+    
 
     while (1) {
         if (isWiFiConnected) {
@@ -334,9 +333,7 @@ void perform_ota_manual(void) {
 // ==========================================
 void app_main(void) {
     ESP_LOGI("RootX", "System Booting...");
-    
-     esp_netif_init();
-    esp_event_loop_create_default();
+
     
 
     // --- 1. LAPOR KE BOOTLOADER KALAU OS AMAN (Biar Gak Rollback) ---
