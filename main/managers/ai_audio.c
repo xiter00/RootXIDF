@@ -435,7 +435,9 @@ esp_http_client_config_t cfg = {
     .url = url, 
     .method = HTTP_METHOD_POST, 
     .timeout_ms = 15000,
-    .crt_bundle_attach = esp_crt_bundle_attach // Pakai ini biar aman
+    .skip_cert_common_name_check = true,
+    .use_global_ca_store = false,
+    .transport_type = HTTP_TRANSPORT_OVER_SSL,
 };
 
 esp_http_client_handle_t c = esp_http_client_init(&cfg);
