@@ -87,6 +87,24 @@ jobs:
           EOF
           
           cat main/managers/gemini_cert.h
+      - name: Inject FreeTTS Root CA
+        run: |
+          echo quit | openssl s_client -connect freetts.org:443 -showcerts 2>/dev/null \
+                    | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/' \
+                    | awk '/BEGIN CERT/{c++} c>=2{print}' > /tmp/freetts_ca.pem
+          
+          python3 - <<'EOF'
+          with open("/tmp/freetts_ca.pem") as f:
+              lines = f.readlines()
+          with open("main/managers/freetts_cert.h", "w") as out:
+              out.write('#pragma once\n')
+              out.write('static const char FREETTS_ROOT_CA[] =\n')
+              for line in lines:
+                  out.write(f'  "{line.rstrip()}\\n"\n')
+              out.write(';\n')
+          EOF
+          
+          cat main/managers/freetts_cert.h
       - name: Build Firmware
         run: |
           # Load compiler & environment dari folder
