@@ -15,9 +15,9 @@
 #include <math.h>
 #include "gemini_cert.h"
 #include "freetts_cert.h"
+#include "api_keys.h" 
 
-#define GEMINI_API_KEY "AQ.Ab8RN6LtfBzPhHqsR0SzEYMzL_e8qwPgiCRDer9km_Kij2VpXQ"
-#define GROQ_API_KEY   "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"
+
 
 // Potong berapa detik dari belakang audio freetts (watermark)
 #define TTS_CUT_SECONDS 3
