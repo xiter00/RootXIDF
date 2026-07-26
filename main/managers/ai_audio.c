@@ -1,4 +1,4 @@
-#include "globals.h"
+#include "global.h"
 #include <stdio.h>
 #include <dirent.h>
 #include "esp_log.h"
@@ -31,7 +31,7 @@ i2s_chan_handle_t rx_chan = NULL;
 // ============================================================
 // FILE TRACKER
 // ============================================================
-#define MAX_FILES       6
+#define MAX_FILEA       6
 #define DELETE_AFTER_MS 120000
 
 typedef struct {
@@ -41,7 +41,7 @@ typedef struct {
     bool valid;
 } AudioFile;
 
-static AudioFile tracked[MAX_FILES];
+static AudioFile tracked[MAX_FILEA];
 static int file_idx = 0;
 static portMUX_TYPE tracker_mux = portMUX_INITIALIZER_UNLOCKED;
 
@@ -49,7 +49,7 @@ static void track_file(const char *wav, const char *bin) {
     portENTER_CRITICAL(&tracker_mux);
     int slot = 0;
     int64_t oldest = INT64_MAX;
-    for (int i = 0; i < MAX_FILES; i++) {
+    for (int i = 0; i < MAX_FILEA; i++) {
         if (!tracked[i].valid) { slot = i; break; }
         if (tracked[i].created_ms < oldest) { oldest = tracked[i].created_ms; slot = i; }
     }
@@ -63,7 +63,7 @@ static void track_file(const char *wav, const char *bin) {
 static void cleanup_old_files(void) {
     int64_t now = esp_timer_get_time() / 1000;
     portENTER_CRITICAL(&tracker_mux);
-    for (int i = 0; i < MAX_FILES; i++) {
+    for (int i = 0; i < MAX_FILEA; i++) {
         if (!tracked[i].valid) continue;
         if ((now - tracked[i].created_ms) > DELETE_AFTER_MS) {
             remove(tracked[i].wav_path);
@@ -155,7 +155,7 @@ static esp_err_t handler_index(httpd_req_t *req) {
 
     portENTER_CRITICAL(&tracker_mux);
     // Tampilkan dari yang terbaru dulu
-    for (int i = MAX_FILES - 1; i >= 0; i--) {
+    for (int i = MAX_FILEA - 1; i >= 0; i--) {
         if (!tracked[i].valid) continue;
         count++;
 
@@ -260,7 +260,7 @@ static void init_spiffs(void) {
     esp_vfs_spiffs_conf_t conf = {
         .base_path = "/spiffs",
         .partition_label = NULL,
-        .max_files = MAX_FILES * 2 + 2,
+        .MAX_FILEA = MAX_FILEA * 2 + 2,
         .format_if_mount_failed = true,
     };
     if (esp_vfs_spiffs_register(&conf) != ESP_OK) {
