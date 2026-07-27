@@ -131,7 +131,7 @@ void play_freetts(const char *text) {
 
     char file_id[64] = {0};
     int body1_len = strlen(body);
-
+    ESP_LOGI(TAG, "FREE HEAP sebelum open: %u", (unsigned)esp_get_free_heap_size());
     if (esp_http_client_open(c1, body1_len) != ESP_OK) {
         ESP_LOGE(TAG, "FreeTTS open gagal");
         esp_http_client_cleanup(c1);
@@ -183,7 +183,7 @@ void play_freetts(const char *text) {
     };
 
     esp_http_client_handle_t c2 = esp_http_client_init(&cfg2);
-
+    ESP_LOGI(TAG, "FREE HEAP sebelum open: %u", (unsigned)esp_get_free_heap_size());
     if (esp_http_client_open(c2, 0) != ESP_OK) {
         ESP_LOGE(TAG, "Gagal open audio URL");
         esp_http_client_cleanup(c2); return;
@@ -234,6 +234,7 @@ void play_freetts(const char *text) {
 // GEMINI
 // ============================================================
 void tanya_gemini(const char *q) {
+
     ESP_LOGI(TAG, "→ Gemini: %s", q);
 
 
@@ -314,6 +315,7 @@ snprintf(url, sizeof(url),
 
     // === Pakai open/write/read (sama kek Groq), BUKAN perform ===
     // perform otomatis handle auth challenge (Bearer) → error di ESP HTTP client
+    ESP_LOGI(TAG, "FREE HEAP sebelum open: %u", (unsigned)esp_get_free_heap_size());
     int body_len = strlen(body);
     esp_err_t open_err = esp_http_client_open(c, body_len);
     if (open_err != ESP_OK) {

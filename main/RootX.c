@@ -384,7 +384,7 @@ void app_main(void) {
 
     // --- 4. JALANIN MESIN OTA ---
     // (Tadi lu salah ketik ota_satpam_task, gw ganti jadi task_cek_ota)
-    xTaskCreatePinnedToCore(task_cek_ota, "task_ota", 16384, NULL, 3, NULL, 0);
+  //  xTaskCreatePinnedToCore(task_cek_ota, "task_ota", 16384, NULL, 3, NULL, 0);
 
 
     // --- JALANIN TELINGA AI (PEKERJA BAYANGAN) ---
