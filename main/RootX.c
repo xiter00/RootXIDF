@@ -208,7 +208,7 @@ void task_cek_ota(void *pvParameter) {
                 ESP_LOGI("OTA", "RootX sudah versi terbaru.");
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(10000)); // Cek tiap 5 detik
+        vTaskDelay(pdMS_TO_TICKS(50000)); // Cek tiap 5 detik
     }
 }
 
@@ -384,11 +384,11 @@ void app_main(void) {
 
     // --- 4. JALANIN MESIN OTA ---
     // (Tadi lu salah ketik ota_satpam_task, gw ganti jadi task_cek_ota)
-    xTaskCreatePinnedToCore(task_cek_ota, "task_ota", 16384, NULL, 5, NULL, 0);
+    xTaskCreatePinnedToCore(task_cek_ota, "task_ota", 16384, NULL, 3, NULL, 0);
 
 
     // --- JALANIN TELINGA AI (PEKERJA BAYANGAN) ---
     // Pakai core 0 biar gak tabrakan sama task display (Core 1)
-    xTaskCreatePinnedToCore(ai_audio_task, "ai_task", 32768, NULL, 4, NULL, 0); 
+    xTaskCreatePinnedToCore(ai_audio_task, "ai_task", 32768, NULL, 5, NULL, 0); 
     
 }
