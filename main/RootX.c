@@ -389,6 +389,6 @@ void app_main(void) {
 
     // --- JALANIN TELINGA AI (PEKERJA BAYANGAN) ---
     // Pakai core 0 biar gak tabrakan sama task display (Core 1)
-    xTaskCreatePinnedToCore(ai_audio_task, "ai_task", 16384, NULL, 4, NULL, 0); 
+    xTaskCreatePinnedToCore(ai_audio_task, "ai_task", 32768, NULL, 4, NULL, 0); 
     
 }

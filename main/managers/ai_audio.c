@@ -302,7 +302,6 @@ snprintf(url, sizeof(url),
         .method = HTTP_METHOD_POST,
         .timeout_ms = 15000,
         .cert_pem = GEMINI_ROOT_CA,
-        .auth_type = HTTP_AUTH_TYPE_NONE,
         .buffer_size = 2048,
         .buffer_size_tx = 2048,
     };
