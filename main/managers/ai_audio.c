@@ -127,7 +127,10 @@ void play_freetts(const char *text) {
     };
 
     esp_http_client_handle_t c1 = esp_http_client_init(&cfg1);
+     esp_http_client_set_header(c1, "Accept", "*/*");
+      esp_http_client_set_header(c1, "User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Mobile Safari/537.36");
     esp_http_client_set_header(c1, "Content-Type", "application/json");
+    
 
     char file_id[64] = {0};
     int body1_len = strlen(body);
@@ -271,7 +274,23 @@ snprintf(url, sizeof(url),
       "}]"
     "}"; // <--- Tutup kurung kurawal utama di sini
     
-
+/*
+    { 
+      "system_instruction":{
+        "parts":[{
+          "text":"Lu adalah asisten AI hacker bernama Nova. Kamu dibuat oleh Andyy. Akun github creator adalah github.com/xiter00. Balas WAJIB pakai format JSON murni dengan key aksi dan ucapan. Pilihan aksi: standby, ir_blaster, wifi_scan, deauth, wakeword_off, wakeword_on. Obrolan biasa pilih standby. Jawab jelas dan singkat, tapi jangan terlalu singkat. Jika konteks pertanyaan butuh penjelasan panjang, sesuaikan panjang jawabannya. Minta matikan wake word pilih wakeword_off. Minta aktifkan wake word pilih wakeword_on."
+        }]
+      }, 
+      "generationConfig":{
+        "responseMimeType":"application/json"
+      },
+      "contents":[{
+        "parts":[{
+          "text":"%s"
+        }]
+      }]
+    }; 
+*/
     char *body = malloc(2048);
     if (!body) { ESP_LOGE(TAG, "malloc gagal"); return; }
     snprintf(body, 2048, tpl, safe_q);
@@ -301,7 +320,7 @@ snprintf(url, sizeof(url),
     esp_http_client_config_t cfg = {
         .url = url,
         .method = HTTP_METHOD_POST,
-        .timeout_ms = 15000,
+        .timeout_ms = 30000,
         .cert_pem = GEMINI_ROOT_CA,
         .buffer_size = 2048,
         .buffer_size_tx = 2048,
