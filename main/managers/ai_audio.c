@@ -216,9 +216,10 @@ void play_freetts(const char *text) {
     }
     ESP_LOGI(TAG, "Play %d bytes, potong %d bytes terakhir", play_len, cut_bytes);
 
-    mp3dec_t mp3d; mp3dec_init(&mp3d);
+    static mp3dec_t mp3d;
+    mp3dec_init(&mp3d);
     mp3dec_frame_info_t fi;
-    int16_t pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
+    static int16_t pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
     int pos = 0;
     while (pos < play_len) {
         int s = mp3dec_decode_frame(&mp3d, mp3_buf+pos, play_len-pos, pcm, &fi);
