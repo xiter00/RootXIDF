@@ -237,14 +237,7 @@ void play_freetts(const char *text) {
 // GEMINI
 // ============================================================
 void tanya_gemini(const char *q) {
-
-    ESP_LOGI(TAG, "→ Gemini: %s", q);
-
-
-        char url[400];
-snprintf(url, sizeof(url),
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=%s",
-    GEMINI_API_KEY);
+    ESP_LOGI(TAG, "→ Gemini(via Worker): %s", q);
 
     char safe_q[512] = {0};
     int si = 0;
@@ -255,145 +248,49 @@ snprintf(url, sizeof(url),
         else safe_q[si++] = q[i];
     }
 
-
-        
-    const char *tpl =
-    "{" // <--- Buka kurung kurawal utama di sini
-      "\"system_instruction\":{"
-        "\"parts\":[{"
-          "\"text\":\"Lu adalah asisten AI hacker bernama Nova. Kamu dibuat oleh Andyy. Akun github creator adalah github.com/xiter00. Balas WAJIB pakai format JSON murni dengan key aksi dan ucapan. Pilihan aksi: standby, ir_blaster, wifi_scan, deauth, wakeword_off, wakeword_on. Obrolan biasa pilih standby. Jawab jelas dan singkat, tapi jangan terlalu singkat. Jika konteks pertanyaan butuh penjelasan panjang, sesuaikan panjang jawabannya. Minta matikan wake word pilih wakeword_off. Minta aktifkan wake word pilih wakeword_on.\""
-        "}]"
-      "}," // <--- Hanya menutup system_instruction, bukan menutup JSON utama
-      "\"generationConfig\":{"
-        "\"responseMimeType\":\"application/json\""
-      "},"
-      "\"contents\":[{"
-        "\"parts\":[{"
-          "\"text\":\"%s\""
-        "}]"
-      "}]"
-    "}"; // <--- Tutup kurung kurawal utama di sini
-    
-/*
-    { 
-      "system_instruction":{
-        "parts":[{
-          "text":"Lu adalah asisten AI hacker bernama Nova. Kamu dibuat oleh Andyy. Akun github creator adalah github.com/xiter00. Balas WAJIB pakai format JSON murni dengan key aksi dan ucapan. Pilihan aksi: standby, ir_blaster, wifi_scan, deauth, wakeword_off, wakeword_on. Obrolan biasa pilih standby. Jawab jelas dan singkat, tapi jangan terlalu singkat. Jika konteks pertanyaan butuh penjelasan panjang, sesuaikan panjang jawabannya. Minta matikan wake word pilih wakeword_off. Minta aktifkan wake word pilih wakeword_on."
-        }]
-      }, 
-      "generationConfig":{
-        "responseMimeType":"application/json"
-      },
-      "contents":[{
-        "parts":[{
-          "text":"%s"
-        }]
-      }]
-    }; 
-*/
-    char *body = malloc(2048);
-    if (!body) { ESP_LOGE(TAG, "malloc gagal"); return; }
-    snprintf(body, 2048, tpl, safe_q);
-
-    // === DEBUG LENGKAP: cek segala hal SEBELUM kirim, gak makan limit API ===
-    {
-        int klen = strlen(GEMINI_API_KEY);
-        unsigned long khash = 5381;
-        for (int i = 0; i < klen; i++) khash = ((khash << 5) + khash) + (unsigned char)GEMINI_API_KEY[i];
-        ESP_LOGI(TAG, "DEBUG key_len=%d key_hash=%lu key_prefix=%.12s key_suffix=%s",
-                 klen, khash, GEMINI_API_KEY, GEMINI_API_KEY + (klen > 6 ? klen - 6 : 0));
-
-        int bad_char_found = 0;
-        for (int i = 0; i < klen; i++) {
-            unsigned char ch = (unsigned char)GEMINI_API_KEY[i];
-            if (ch < 0x21 || ch > 0x7E) {
-                ESP_LOGE(TAG, "DEBUG key BYTE ANEH di index %d = 0x%02X", i, ch);
-                bad_char_found = 1;
-            }
-        }
-        if (!bad_char_found) ESP_LOGI(TAG, "DEBUG semua byte key printable ASCII, aman");
-
-        ESP_LOGI(TAG, "DEBUG url_len=%d url=%s", (int)strlen(url), url);
-        ESP_LOGI(TAG, "DEBUG body_len=%d body=%s", (int)strlen(body), body);
-    }
+    char body[600];
+    snprintf(body, sizeof(body), "{\"text\":\"%s\"}", safe_q);
 
     esp_http_client_config_t cfg = {
-        .url = url,
+        .url = "https://dawn-bonus-1888.andyxd1955.workers.dev",
         .method = HTTP_METHOD_POST,
-        .timeout_ms = 30000,
-        .cert_pem = GEMINI_ROOT_CA,
-        .buffer_size = 2048,
+        .timeout_ms = 60000, // generation tetap bisa lama, kasih ruang
+        .buffer_size = 4096,
         .buffer_size_tx = 2048,
     };
 
     esp_http_client_handle_t c = esp_http_client_init(&cfg);
     esp_http_client_set_header(c, "Content-Type", "application/json");
+    esp_http_client_set_header(c, "X-Auth-Token", "nova-secret-123");
 
-    ESP_LOGI(TAG, "DEBUG method=%d timeout=%d buf=%d buf_tx=%d",
-             (int)cfg.method, cfg.timeout_ms, cfg.buffer_size, cfg.buffer_size_tx);
-
-    // === Pakai open/write/read (sama kek Groq), BUKAN perform ===
-    // perform otomatis handle auth challenge (Bearer) → error di ESP HTTP client
-    ESP_LOGI(TAG, "FREE HEAP sebelum open: %u", (unsigned)esp_get_free_heap_size());
     int body_len = strlen(body);
-    esp_err_t open_err = esp_http_client_open(c, body_len);
-    if (open_err != ESP_OK) {
-        ESP_LOGE(TAG, "Gemini open gagal, err=0x%x (%s)", open_err, esp_err_to_name(open_err));
-        free(body);
+    if (esp_http_client_open(c, body_len) != ESP_OK) {
+        ESP_LOGE(TAG, "Worker open gagal");
         esp_http_client_cleanup(c);
         return;
     }
-    ESP_LOGI(TAG, "DEBUG open OK, socket siap kirim body_len=%d", body_len);
 
     if (!http_write_all(c, body, body_len)) {
-        ESP_LOGE(TAG, "Gemini write body gagal");
-        free(body);
+        ESP_LOGE(TAG, "Worker write gagal");
         esp_http_client_cleanup(c);
         return;
     }
-    ESP_LOGI(TAG, "DEBUG write body sukses, %d byte terkirim", body_len);
 
     int len = esp_http_client_fetch_headers(c);
     int status = esp_http_client_get_status_code(c);
-    ESP_LOGI(TAG, "Gemini status: %d | len: %d | chunked: %d",
-             status, len, esp_http_client_is_chunked_response(c));
+    int buf_size = (len > 0) ? len : 4096;
+    char *buf = malloc(buf_size + 1);
+    if (buf) {
+        int total = 0, n;
+        while ((n = esp_http_client_read(c, buf + total, buf_size - total)) > 0) total += n;
+        buf[total] = '\0';
+        ESP_LOGI(TAG, "Worker resp (%d): %s", status, buf);
 
-    // Gemini kadang chunked (len = -1), alokasi buffer fallback
-    int buf_size = (len > 0) ? len : 8192;
-    {
-        char *buf = malloc(buf_size + 1);
-        if (buf) {
-            int total_read = 0, n;
-            while ((n = esp_http_client_read(c, buf + total_read, buf_size - total_read)) > 0)
-                total_read += n;
-            buf[total_read] = '\0';
-            len = total_read;
-
-            if (status == 200) {
-                cJSON *resp = cJSON_Parse(buf);
-                if (resp) {
-                    cJSON *candidates = cJSON_GetObjectItem(resp, "candidates");
-                    cJSON *cand0      = cJSON_GetArrayItem(candidates, 0);
-                    cJSON *content    = cJSON_GetObjectItem(cand0, "content");
-                    cJSON *rparts     = cJSON_GetObjectItem(content, "parts");
-                    cJSON *rpart0     = cJSON_GetArrayItem(rparts, 0);
-                    cJSON *tnode      = cJSON_GetObjectItem(rpart0, "text");
-
-                    if (tnode && tnode->valuestring) {
-                        ESP_LOGI(TAG, "Gemini reply: %s", tnode->valuestring);
-
-                        char *reply = tnode->valuestring;
-                        char *json_start = strstr(reply, "{");
-                        char *json_end   = strrchr(reply, '}');
-                        if (json_start && json_end && json_end > json_start) {
-                            *(json_end + 1) = '\0';
-                            reply = json_start;
-                        }
-
-                        cJSON *cmd = cJSON_Parse(reply);
-                        if (cmd) {
-                            cJSON *aksi   = cJSON_GetObjectItem(cmd, "aksi");
-                            cJSON *ucapan = cJSON_GetObjectItem(cmd, "ucapan");
+        // parsing aksi/ucapan kayak kode lama lu, buf ini udah langsung format {"aksi":..,"ucapan":..}
+        cJSON *j = cJSON_Parse(buf);
+        if (j) {
+            cJSON *aksi = cJSON_GetObjectItem(j, "aksi");
+            cJSON *ucapan = cJSON_GetObjectItem(j, "ucapan");
                             if (aksi && ucapan) {
                                 ESP_LOGI(TAG, "AKSI=%s UCAPAN=%s",
                                     aksi->valuestring, ucapan->valuestring);
@@ -411,23 +308,10 @@ snprintf(url, sizeof(url),
                                     scrollPosScanner = 0;
                                 }
                             }
-                            cJSON_Delete(cmd);
-                        } else {
-                            ESP_LOGE(TAG, "Gemini bales bukan JSON: %s", reply);
-                        }
-                    }
-                    cJSON_Delete(resp);
-                }
-            } else {
-                ESP_LOGE(TAG, "Gemini status error: %d | resp: %s", status, buf);
-            }
-            free(buf);
-        } else {
-            ESP_LOGE(TAG, "malloc buf Gemini gagal");
+            cJSON_Delete(j);
         }
+        free(buf);
     }
-
-    free(body);
     esp_http_client_cleanup(c);
 }
 
