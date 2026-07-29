@@ -201,7 +201,7 @@ void tanya_gemini(const char *q) {
     snprintf(body, sizeof(body), "{\"text\":\"%s\"}", safe_q);
 
     esp_http_client_config_t cfg = {
-        .url = "https://dawn-bonus-1888.andyxd1955.workers.dev",
+        .url = "https://dry-tooth-70b7.andyxd1955.workers.dev",
         .method = HTTP_METHOD_POST,
         .timeout_ms = 60000, // generation tetap bisa lama, kasih ruang
         .buffer_size = 4096,
