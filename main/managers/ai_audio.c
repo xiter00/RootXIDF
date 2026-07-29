@@ -118,7 +118,7 @@ void play_freetts(const char *text) {
     int body_len = snprintf(body, sizeof(body), "{\"text\":\"%s\",\"voice\":\"id-ID-ArdiNeural\"}", safe_text);
 
     esp_http_client_config_t cfg = {
-        .url = "https://nova-tts-proxy.<akun-lu>.workers.dev",
+        .url = "https://dawn-bonus-1888.andyxd1955.workers.dev",
         .method = HTTP_METHOD_POST,
         .timeout_ms = 30000,
         .buffer_size = 4096,
