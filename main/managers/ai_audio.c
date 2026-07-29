@@ -103,129 +103,77 @@ void set_ai_audio_hardware(bool state) {
 // FREE TTS
 // ============================================================
 void play_freetts(const char *text) {
-    ESP_LOGI(TAG, "TTS: %s", text);
+    ESP_LOGI(TAG, "TTS(via Worker): %s", text);
 
     char safe_text[512] = {0};
     int si = 0;
     for (int i = 0; text[i] && si < 510; i++) {
-        if (text[i] == '"') { safe_text[si++] = '\\'; safe_text[si++] = '"'; }
+        if (text[i] == '"')       { safe_text[si++] = '\\'; safe_text[si++] = '"'; }
+        else if (text[i] == '\\') { safe_text[si++] = '\\'; safe_text[si++] = '\\'; }
+        else if (text[i] == '\n') { safe_text[si++] = '\\'; safe_text[si++] = 'n'; }
         else safe_text[si++] = text[i];
     }
 
-    // === STEP 1: POST untuk dapet file_id ===
     char body[600];
-    snprintf(body, sizeof(body),
-        "{\"text\":\"%s\",\"voice\":\"id-ID-ArdiNeural\",\"rate\":\"+0%%\",\"pitch\":\"+0Hz\"}",
-        safe_text);
+    int body_len = snprintf(body, sizeof(body), "{\"text\":\"%s\",\"voice\":\"id-ID-ArdiNeural\"}", safe_text);
 
-    esp_http_client_config_t cfg1 = {
-        .url = "https://freetts.org/api/tts",
+    esp_http_client_config_t cfg = {
+        .url = "https://nova-tts-proxy.<akun-lu>.workers.dev",
         .method = HTTP_METHOD_POST,
-        .timeout_ms = 15000,
-        .cert_pem = FREETTS_ROOT_CA,
-        .auth_type = HTTP_AUTH_TYPE_NONE,
+        .timeout_ms = 30000,
+        .buffer_size = 4096,
+        .buffer_size_tx = 2048,
     };
 
-    esp_http_client_handle_t c1 = esp_http_client_init(&cfg1);
-     esp_http_client_set_header(c1, "Accept", "*/*");
-      esp_http_client_set_header(c1, "User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Mobile Safari/537.36");
-    esp_http_client_set_header(c1, "Content-Type", "application/json");
-    
+    esp_http_client_handle_t c = esp_http_client_init(&cfg);
+    esp_http_client_set_header(c, "Content-Type", "application/json");
+    esp_http_client_set_header(c, "X-Auth-Token", "nova-secret-123");
 
-    char file_id[64] = {0};
-    int body1_len = strlen(body);
-    ESP_LOGI(TAG, "FREE HEAP sebelum open: %u", (unsigned)esp_get_free_heap_size());
-    if (esp_http_client_open(c1, body1_len) != ESP_OK) {
-        ESP_LOGE(TAG, "FreeTTS open gagal");
-        esp_http_client_cleanup(c1);
-        return;
+    if (esp_http_client_open(c, body_len) != ESP_OK) {
+        ESP_LOGE(TAG, "Worker TTS open gagal");
+        esp_http_client_cleanup(c); return;
+    }
+    if (!http_write_all(c, body, body_len)) {
+        ESP_LOGE(TAG, "Worker TTS write gagal");
+        esp_http_client_cleanup(c); return;
     }
 
-    if (!http_write_all(c1, body, body1_len)) {
-        ESP_LOGE(TAG, "FreeTTS write gagal");
-        esp_http_client_cleanup(c1);
-        return;
+    int content_len = esp_http_client_fetch_headers(c);
+    int status = esp_http_client_get_status_code(c);
+    if (status != 200) {
+        ESP_LOGE(TAG, "Worker TTS gagal, status: %d", status);
+        esp_http_client_cleanup(c); return;
     }
 
-    int len1 = esp_http_client_fetch_headers(c1);
-    int buf1_size = (len1 > 0) ? len1 : 4096;
-    char *resp1 = malloc(buf1_size + 1);
-    if (resp1) {
-        int total1 = 0, n1;
-        while ((n1 = esp_http_client_read(c1, resp1 + total1, buf1_size - total1)) > 0)
-            total1 += n1;
-        resp1[total1] = '\0';
-        ESP_LOGI(TAG, "FreeTTS resp: %s", resp1);
-        cJSON *j = cJSON_Parse(resp1);
-        if (j) {
-            cJSON *fid = cJSON_GetObjectItem(j, "file_id");
-            if (fid && fid->valuestring)
-                strlcpy(file_id, fid->valuestring, sizeof(file_id));
-            cJSON_Delete(j);
-        }
-        free(resp1);
-    }
-    esp_http_client_cleanup(c1);
-
-    if (strlen(file_id) == 0) {
-        ESP_LOGE(TAG, "Gagal dapet file_id dari FreeTTS");
-        return;
-    }
-    ESP_LOGI(TAG, "file_id: %s", file_id);
-
-    // === STEP 2: GET audio pake file_id ===
-    char audio_url[128];
-    snprintf(audio_url, sizeof(audio_url), "https://freetts.org/api/audio/%s", file_id);
-
-    esp_http_client_config_t cfg2 = {
-        .url = audio_url,
-        .method = HTTP_METHOD_GET,
-        .timeout_ms = 15000,
-        .cert_pem = FREETTS_ROOT_CA,
-        .auth_type = HTTP_AUTH_TYPE_NONE,
-    };
-
-    esp_http_client_handle_t c2 = esp_http_client_init(&cfg2);
-    ESP_LOGI(TAG, "FREE HEAP sebelum open: %u", (unsigned)esp_get_free_heap_size());
-    if (esp_http_client_open(c2, 0) != ESP_OK) {
-        ESP_LOGE(TAG, "Gagal open audio URL");
-        esp_http_client_cleanup(c2); return;
-    }
-
-    int content_len = esp_http_client_fetch_headers(c2);
     int buf_size = (content_len > 0) ? content_len : 512000;
-
     uint8_t *mp3_buf = heap_caps_malloc(buf_size, MALLOC_CAP_SPIRAM);
     if (!mp3_buf) {
         ESP_LOGE(TAG, "PSRAM habis buat TTS buffer");
-        esp_http_client_cleanup(c2); return;
+        esp_http_client_cleanup(c); return;
     }
 
     int total = 0, n;
-    while ((n = esp_http_client_read(c2, (char*)mp3_buf+total, buf_size-total)) > 0)
+    while ((n = esp_http_client_read(c, (char*)mp3_buf+total, buf_size-total)) > 0)
         total += n;
-    esp_http_client_cleanup(c2);
+    esp_http_client_cleanup(c);
 
     ESP_LOGI(TAG, "Audio downloaded: %d bytes", total);
 
     int cut_bytes = TTS_CUT_SECONDS * 16000;
     int play_len = total - cut_bytes;
-    if (play_len <= 0) {
-        ESP_LOGW(TAG, "Audio terlalu pendek, play semua");
-        play_len = total;
-    }
-    ESP_LOGI(TAG, "Play %d bytes, potong %d bytes terakhir", play_len, cut_bytes);
+    if (play_len <= 0) play_len = total;
 
-    static mp3dec_t mp3d;
-    mp3dec_init(&mp3d);
+    mp3dec_t mp3d; mp3dec_init(&mp3d);
     mp3dec_frame_info_t fi;
-    static int16_t pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
+    int16_t pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
     int pos = 0;
     while (pos < play_len) {
         int s = mp3dec_decode_frame(&mp3d, mp3_buf+pos, play_len-pos, pcm, &fi);
+        ESP_LOGI(TAG, "pos=%d s=%d fb=%d ch=%d hz=%d layer=%d bitrate=%d",
+                 pos, s, fi.frame_bytes, fi.channels, fi.hz, fi.layer, fi.bitrate_kbps);
         if (s > 0) {
             size_t bw;
-            i2s_channel_write(tx_chan, pcm, s*2, &bw, 2000);
+            i2s_channel_write(tx_chan, pcm, s * fi.channels * sizeof(int16_t), &bw, 2000);
         }
         if (fi.frame_bytes > 0) pos += fi.frame_bytes;
         else break;
