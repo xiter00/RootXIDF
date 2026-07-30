@@ -164,20 +164,29 @@ void play_freetts(const char *text) {
     if (play_len <= 0) play_len = total;
 
     mp3dec_t mp3d; mp3dec_init(&mp3d);
-    mp3dec_frame_info_t fi;
-    int16_t pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
-    int pos = 0;
-    while (pos < play_len) {
-        int s = mp3dec_decode_frame(&mp3d, mp3_buf+pos, play_len-pos, pcm, &fi);
-        ESP_LOGI(TAG, "pos=%d s=%d fb=%d ch=%d hz=%d layer=%d bitrate=%d",
-                 pos, s, fi.frame_bytes, fi.channels, fi.hz, fi.layer, fi.bitrate_kbps);
-        if (s > 0) {
-            size_t bw;
-            i2s_channel_write(tx_chan, pcm, s * fi.channels * sizeof(int16_t), &bw, 2000);
+mp3dec_frame_info_t fi;
+int16_t pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
+int pos = 0;
+bool clk_set = false;
+int current_hz = 0;
+
+while (pos < play_len) {
+    int s = mp3dec_decode_frame(&mp3d, mp3_buf+pos, play_len-pos, pcm, &fi);
+    if (s > 0) {
+        if (!clk_set || fi.hz != current_hz) {
+            i2s_std_clk_config_t new_clk = I2S_STD_CLK_DEFAULT_CONFIG(fi.hz);
+            i2s_channel_disable(tx_chan);
+            i2s_channel_reconfig_std_clock(tx_chan, &new_clk);
+            i2s_channel_enable(tx_chan);
+            current_hz = fi.hz;
+            clk_set = true;
         }
-        if (fi.frame_bytes > 0) pos += fi.frame_bytes;
-        else break;
+        size_t bw;
+        i2s_channel_write(tx_chan, pcm, s * fi.channels * sizeof(int16_t), &bw, 2000);
     }
+    if (fi.frame_bytes > 0) pos += fi.frame_bytes;
+    else break;
+}
 
     heap_caps_free(mp3_buf);
 }
@@ -213,20 +222,21 @@ void tanya_gemini(const char *q) {
     esp_http_client_set_header(c, "X-Auth-Token", "nova-secret-123");
 
     int body_len = strlen(body);
-    if (esp_http_client_open(c, body_len) != ESP_OK) {
-        ESP_LOGE(TAG, "Worker open gagal");
-        esp_http_client_cleanup(c);
-        return;
-    }
 
-    if (!http_write_all(c, body, body_len)) {
-        ESP_LOGE(TAG, "Worker write gagal");
-        esp_http_client_cleanup(c);
-        return;
-    }
+    int64_t t0 = esp_timer_get_time();
+    esp_err_t err_open = esp_http_client_open(c, body_len);
+    int64_t t1 = esp_timer_get_time();
+    ESP_LOGI(TAG, "[TIMING] open: %lld ms, err=%d", (t1-t0)/1000, err_open);
+
+    bool ok_write = http_write_all(c, body, body_len);
+    int64_t t2 = esp_timer_get_time();
+    ESP_LOGI(TAG, "[TIMING] write: %lld ms, ok=%d", (t2-t1)/1000, ok_write);
 
     int len = esp_http_client_fetch_headers(c);
+    int64_t t3 = esp_timer_get_time();
     int status = esp_http_client_get_status_code(c);
+    ESP_LOGI(TAG, "[TIMING] fetch_headers: %lld ms, len=%d, status=%d", (t3-t2)/1000, len, status);
+
     int buf_size = (len > 0) ? len : 4096;
     char *buf = malloc(buf_size + 1);
     if (buf) {
@@ -240,22 +250,21 @@ void tanya_gemini(const char *q) {
         if (j) {
             cJSON *aksi = cJSON_GetObjectItem(j, "aksi");
             cJSON *ucapan = cJSON_GetObjectItem(j, "ucapan");
-                            if (aksi && ucapan) {
-                                ESP_LOGI(TAG, "AKSI=%s UCAPAN=%s",
-                                    aksi->valuestring, ucapan->valuestring);
-                                play_freetts(ucapan->valuestring);
-                                if      (!strcmp(aksi->valuestring, "wakeword_off")) requireWakeWord = false;
-                                else if (!strcmp(aksi->valuestring, "wakeword_on"))  requireWakeWord = true;
-                                else if (!strcmp(aksi->valuestring, "ir_blaster"))   ESP_LOGI(TAG, "IR!");
-                                else if (!strcmp(aksi->valuestring, "wifi_scan")) {
-                                    ESP_LOGI(TAG, "SCAN!");
-                                    appMode = 1;
-                                    scannerState = 1;
-                                    triggerScan = true;
-                                    scanDone = false;
-                                    cursorInScanner = 0;
-                                    scrollPosScanner = 0;
-                                }
+            if (aksi && ucapan) {
+                ESP_LOGI(TAG, "AKSI=%s UCAPAN=%s", aksi->valuestring, ucapan->valuestring);
+                play_freetts(ucapan->valuestring);
+                if      (!strcmp(aksi->valuestring, "wakeword_off")) requireWakeWord = false;
+                else if (!strcmp(aksi->valuestring, "wakeword_on"))  requireWakeWord = true;
+                else if (!strcmp(aksi->valuestring, "ir_blaster"))   ESP_LOGI(TAG, "IR!");
+                else if (!strcmp(aksi->valuestring, "wifi_scan")) {
+                    ESP_LOGI(TAG, "SCAN!");
+                    appMode = 1;
+                    scannerState = 1;
+                    triggerScan = true;
+                    scanDone = false;
+                    cursorInScanner = 0;
+                    scrollPosScanner = 0;
+                }
                             }
             cJSON_Delete(j);
         }
