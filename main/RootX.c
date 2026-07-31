@@ -77,7 +77,7 @@ bool isTetrisInitialized = false;
 
 // --- VARIABEL AI AUDIO ---
 bool aiAudioEnabled = false;
-bool requireWakeWord = true; // Defaultnya wajib ngomong "Halo RootX"
+bool requireWakeWord = false; // Defaultnya wajib ngomong "Halo RootX"
 
 
 
