@@ -16,6 +16,7 @@
 #include "gemini_cert.h"
 #include "freetts_cert.h"
 #include "api_keys.h" 
+#include "esp_timer.h"
 
 
 
