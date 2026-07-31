@@ -53,6 +53,8 @@ void init_i2s_audio(void) {
 
     // TX - SPEAKER
     i2s_chan_config_t tx_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
+    tx_cfg.dma_desc_num = 12;   // dari default ~6, nambah bantalan biar gak underrun/pecah
+    tx_cfg.dma_frame_num = 480; // dari default ~240
     ESP_ERROR_CHECK(i2s_new_channel(&tx_cfg, &tx_chan, NULL));
     i2s_std_config_t tx_std = {
         .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(16000),
@@ -121,26 +123,40 @@ void play_freetts(const char *text) {
     esp_http_client_config_t cfg = {
         .url = "https://dawn-bonus-1888.andyxd1955.workers.dev",
         .method = HTTP_METHOD_POST,
-        .timeout_ms = 30000,
+        .timeout_ms = 60000,
         .buffer_size = 4096,
         .buffer_size_tx = 2048,
+        .keep_alive_enable = true,
+        .keep_alive_idle = 5,
+        .keep_alive_interval = 5,
+        .keep_alive_count = 3,
     };
 
     esp_http_client_handle_t c = esp_http_client_init(&cfg);
     esp_http_client_set_header(c, "Content-Type", "application/json");
     esp_http_client_set_header(c, "X-Auth-Token", "nova-secret-123");
 
-    if (esp_http_client_open(c, body_len) != ESP_OK) {
+    int64_t t0 = esp_timer_get_time();
+    esp_err_t err_open = esp_http_client_open(c, body_len);
+    int64_t t1 = esp_timer_get_time();
+    ESP_LOGI(TAG, "[TIMING TTS] open: %lld ms, err=%d", (t1-t0)/1000, err_open);
+    if (err_open != ESP_OK) {
         ESP_LOGE(TAG, "Worker TTS open gagal");
         esp_http_client_cleanup(c); return;
     }
-    if (!http_write_all(c, body, body_len)) {
+
+    bool ok_write = http_write_all(c, body, body_len);
+    int64_t t2 = esp_timer_get_time();
+    ESP_LOGI(TAG, "[TIMING TTS] write: %lld ms, ok=%d", (t2-t1)/1000, ok_write);
+    if (!ok_write) {
         ESP_LOGE(TAG, "Worker TTS write gagal");
         esp_http_client_cleanup(c); return;
     }
 
     int content_len = esp_http_client_fetch_headers(c);
+    int64_t t3 = esp_timer_get_time();
     int status = esp_http_client_get_status_code(c);
+    ESP_LOGI(TAG, "[TIMING TTS] fetch_headers: %lld ms, len=%d, status=%d", (t3-t2)/1000, content_len, status);
     if (status != 200) {
         ESP_LOGE(TAG, "Worker TTS gagal, status: %d", status);
         esp_http_client_cleanup(c); return;
@@ -165,29 +181,47 @@ void play_freetts(const char *text) {
     if (play_len <= 0) play_len = total;
 
     mp3dec_t mp3d; mp3dec_init(&mp3d);
-mp3dec_frame_info_t fi;
-int16_t pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
-int pos = 0;
-bool clk_set = false;
-int current_hz = 0;
+    mp3dec_frame_info_t fi;
+    int16_t pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
+    int pos = 0;
+    bool clk_set = false;
+    int current_hz = 0;
 
-while (pos < play_len) {
-    int s = mp3dec_decode_frame(&mp3d, mp3_buf+pos, play_len-pos, pcm, &fi);
-    if (s > 0) {
-        if (!clk_set || fi.hz != current_hz) {
-            i2s_std_clk_config_t new_clk = I2S_STD_CLK_DEFAULT_CONFIG(fi.hz);
-            i2s_channel_disable(tx_chan);
-            i2s_channel_reconfig_std_clock(tx_chan, &new_clk);
-            i2s_channel_enable(tx_chan);
-            current_hz = fi.hz;
-            clk_set = true;
+    // nyalain speaker cuma pas mau ngomong, biar gak nangkep noise pas idle ("tek tek tek")
+    i2s_channel_enable(tx_chan);
+
+    while (pos < play_len) {
+        int s = mp3dec_decode_frame(&mp3d, mp3_buf+pos, play_len-pos, pcm, &fi);
+        if (s > 0) {
+            if (!clk_set || fi.hz != current_hz) {
+                i2s_std_clk_config_t new_clk = I2S_STD_CLK_DEFAULT_CONFIG(fi.hz);
+                i2s_channel_disable(tx_chan);
+                i2s_channel_reconfig_std_clock(tx_chan, &new_clk);
+                i2s_channel_enable(tx_chan);
+                current_hz = fi.hz;
+                clk_set = true;
+            }
+
+            // fade-out kalau ini frame terakhir, biar gak "nembak"/pop pas berhenti
+            if (pos + fi.frame_bytes >= play_len) {
+                int total_samples = s * fi.channels;
+                int fade_len = total_samples < 200 ? total_samples : 200;
+                for (int i = 0; i < fade_len; i++) {
+                    float g = 1.0f - ((float)i / fade_len);
+                    int idx = total_samples - fade_len + i;
+                    pcm[idx] = (int16_t)(pcm[idx] * g);
+                }
+            }
+
+            size_t bw;
+            i2s_channel_write(tx_chan, pcm, s * fi.channels * sizeof(int16_t), &bw, 2000);
         }
-        size_t bw;
-        i2s_channel_write(tx_chan, pcm, s * fi.channels * sizeof(int16_t), &bw, 2000);
+        if (fi.frame_bytes > 0) pos += fi.frame_bytes;
+        else break;
     }
-    if (fi.frame_bytes > 0) pos += fi.frame_bytes;
-    else break;
-}
+
+    // matiin speaker abis selesai ngomong, biar idle-nya bener-bener diem (fix noise "tek tek tek")
+    i2s_channel_disable(tx_chan);
 
     heap_caps_free(mp3_buf);
 }
