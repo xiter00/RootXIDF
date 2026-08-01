@@ -1,5 +1,6 @@
 #include "globals.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include "esp_log.h"
 #include "ai_audio.h"
 #include "esp_http_client.h"
@@ -11,17 +12,23 @@
 #include "freertos/task.h"
 #include "minimp3.h"
 #include "esp_crt_bundle.h"
-#include "groq_cert.h"
 #include <math.h>
-#include "gemini_cert.h"
-#include "freetts_cert.h"
-#include "api_keys.h" 
 #include "esp_timer.h"
 
-
-
-// Potong berapa detik dari belakang audio freetts (watermark)
+// Potong berapa detik dari belakang audio TTS (watermark)
 #define TTS_CUT_SECONDS 3
+
+// Ganti sesuai domain Worker gabungan (STT + Gemini + TTS jadi satu) punya lu
+#define ORCA_BRAIN_URL   "https://ai-brain.andyxd1955.workers.dev"
+#define ORCA_AUTH_TOKEN  "orca-secret-123"
+
+// === VAD (voice activity detection) tuning ===
+// Sesuaikan angka RMS ini kalau kepicu kesenggol noise, atau kepotong kecepetan
+#define VAD_CHUNK_MS         100   // ukuran potongan yang dicek tiap kali (ms)
+#define VAD_START_RMS        700   // RMS minimal buat dianggap "mulai ngomong"
+#define VAD_STOP_RMS         400   // RMS di bawah ini dianggap "diem"
+#define VAD_SILENCE_HANG_MS  700   // berapa lama diem berturut-turut sebelum dianggap "selesai ngomong"
+#define VAD_MAX_RECORD_SEC   8     // batas maksimal durasi rekam (jaga-jaga biar gak infinite)
 
 static const char *TAG = "AI_AUDIO";
 extern bool requireWakeWord;
@@ -29,8 +36,12 @@ extern bool requireWakeWord;
 i2s_chan_handle_t tx_chan = NULL;
 i2s_chan_handle_t rx_chan = NULL;
 
+// speaker_busy: true selagi audio TTS lagi diputer. Mic gak akan mulai dengerin
+// sampe ini balik false, biar gak nangkep suara sendiri (feedback/echo).
+static volatile bool speaker_busy = false;
+
 // ============================================================
-// HELPER WRITE
+// HELPER: WRITE ALL
 // ============================================================
 static bool http_write_all(esp_http_client_handle_t client, const char *data, int len) {
     int written = 0;
@@ -46,12 +57,32 @@ static bool http_write_all(esp_http_client_handle_t client, const char *data, in
 }
 
 // ============================================================
+// HELPER: URL DECODE (buat baca header X-Ucapan/X-Teks dari Worker)
+// ============================================================
+static void url_decode(char *dst, const char *src, size_t dst_size) {
+    if (!dst || !src || dst_size == 0) return;
+    size_t di = 0;
+    for (size_t i = 0; src[i] && di < dst_size - 1; i++) {
+        if (src[i] == '%' && isxdigit((unsigned char)src[i+1]) && isxdigit((unsigned char)src[i+2])) {
+            char hex[3] = { src[i+1], src[i+2], 0 };
+            dst[di++] = (char) strtol(hex, NULL, 16);
+            i += 2;
+        } else if (src[i] == '+') {
+            dst[di++] = ' ';
+        } else {
+            dst[di++] = src[i];
+        }
+    }
+    dst[di] = '\0';
+}
+
+// ============================================================
 // I2S INIT
 // ============================================================
 void init_i2s_audio(void) {
     ESP_LOGI(TAG, "Init I2S Audio...");
 
-    // TX - SPEAKER
+    // TX - SPEAKER (MAX98357A: wajib format I2S/Philips standar, bukan MSB)
     i2s_chan_config_t tx_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
     tx_cfg.dma_desc_num = 12;   // dari default ~6, nambah bantalan biar gak underrun/pecah
     tx_cfg.dma_frame_num = 480; // dari default ~240
@@ -103,79 +134,9 @@ void set_ai_audio_hardware(bool state) {
 }
 
 // ============================================================
-// FREE TTS
+// DECODE + PLAY MP3 (dipanggil setelah audio dari Worker berhasil didownload)
 // ============================================================
-void play_freetts(const char *text) {
-    ESP_LOGI(TAG, "TTS(via Worker): %s", text);
-
-    char safe_text[512] = {0};
-    int si = 0;
-    for (int i = 0; text[i] && si < 510; i++) {
-        if (text[i] == '"')       { safe_text[si++] = '\\'; safe_text[si++] = '"'; }
-        else if (text[i] == '\\') { safe_text[si++] = '\\'; safe_text[si++] = '\\'; }
-        else if (text[i] == '\n') { safe_text[si++] = '\\'; safe_text[si++] = 'n'; }
-        else safe_text[si++] = text[i];
-    }
-
-    char body[600];
-    int body_len = snprintf(body, sizeof(body), "{\"text\":\"%s\",\"voice\":\"id-ID-ArdiNeural\"}", safe_text);
-
-    esp_http_client_config_t cfg = {
-        .url = "https://dawn-bonus-1888.andyxd1955.workers.dev",
-        .method = HTTP_METHOD_POST,
-        .timeout_ms = 60000,
-        .buffer_size = 4096,
-        .buffer_size_tx = 2048,
-        .keep_alive_enable = true,
-        .keep_alive_idle = 5,
-        .keep_alive_interval = 5,
-        .keep_alive_count = 3,
-    };
-
-    esp_http_client_handle_t c = esp_http_client_init(&cfg);
-    esp_http_client_set_header(c, "Content-Type", "application/json");
-    esp_http_client_set_header(c, "X-Auth-Token", "nova-secret-123");
-
-    int64_t t0 = esp_timer_get_time();
-    esp_err_t err_open = esp_http_client_open(c, body_len);
-    int64_t t1 = esp_timer_get_time();
-    ESP_LOGI(TAG, "[TIMING TTS] open: %lld ms, err=%d", (t1-t0)/1000, err_open);
-    if (err_open != ESP_OK) {
-        ESP_LOGE(TAG, "Worker TTS open gagal");
-        esp_http_client_cleanup(c); return;
-    }
-
-    bool ok_write = http_write_all(c, body, body_len);
-    int64_t t2 = esp_timer_get_time();
-    ESP_LOGI(TAG, "[TIMING TTS] write: %lld ms, ok=%d", (t2-t1)/1000, ok_write);
-    if (!ok_write) {
-        ESP_LOGE(TAG, "Worker TTS write gagal");
-        esp_http_client_cleanup(c); return;
-    }
-
-    int content_len = esp_http_client_fetch_headers(c);
-    int64_t t3 = esp_timer_get_time();
-    int status = esp_http_client_get_status_code(c);
-    ESP_LOGI(TAG, "[TIMING TTS] fetch_headers: %lld ms, len=%d, status=%d", (t3-t2)/1000, content_len, status);
-    if (status != 200) {
-        ESP_LOGE(TAG, "Worker TTS gagal, status: %d", status);
-        esp_http_client_cleanup(c); return;
-    }
-
-    int buf_size = (content_len > 0) ? content_len : 512000;
-    uint8_t *mp3_buf = heap_caps_malloc(buf_size, MALLOC_CAP_SPIRAM);
-    if (!mp3_buf) {
-        ESP_LOGE(TAG, "PSRAM habis buat TTS buffer");
-        esp_http_client_cleanup(c); return;
-    }
-
-    int total = 0, n;
-    while ((n = esp_http_client_read(c, (char*)mp3_buf+total, buf_size-total)) > 0)
-        total += n;
-    esp_http_client_cleanup(c);
-
-    ESP_LOGI(TAG, "Audio downloaded: %d bytes", total);
-
+static void decode_and_play_mp3(uint8_t *mp3_buf, int total) {
     int cut_bytes = TTS_CUT_SECONDS * 16000;
     int play_len = total - cut_bytes;
     if (play_len <= 0) play_len = total;
@@ -188,6 +149,7 @@ void play_freetts(const char *text) {
     int current_hz = 0;
 
     // nyalain speaker cuma pas mau ngomong, biar gak nangkep noise pas idle ("tek tek tek")
+    speaker_busy = true;
     i2s_channel_enable(tx_chan);
 
     while (pos < play_len) {
@@ -220,104 +182,10 @@ void play_freetts(const char *text) {
         else break;
     }
 
-    // matiin speaker abis selesai ngomong, biar idle-nya bener-bener diem (fix noise "tek tek tek")
+    // matiin speaker abis selesai ngomong, biar idle-nya bener-bener diem
     i2s_channel_disable(tx_chan);
-
+    speaker_busy = false;
     heap_caps_free(mp3_buf);
-}
-
-// ============================================================
-// GEMINI
-// ============================================================
-void tanya_gemini(const char *q) {
-    ESP_LOGI(TAG, "→ Gemini(via Worker): %s", q);
-
-    char safe_q[512] = {0};
-    int si = 0;
-    for (int i = 0; q[i] && si < 510; i++) {
-        if (q[i] == '"')       { safe_q[si++] = '\\'; safe_q[si++] = '"'; }
-        else if (q[i] == '\\') { safe_q[si++] = '\\'; safe_q[si++] = '\\'; }
-        else if (q[i] == '\n') { safe_q[si++] = '\\'; safe_q[si++] = 'n'; }
-        else safe_q[si++] = q[i];
-    }
-
-    char body[600];
-    snprintf(body, sizeof(body), "{\"text\":\"%s\"}", safe_q);
-
-    esp_http_client_config_t cfg = {
-        .url = "https://dry-tooth-70b7.andyxd1955.workers.dev",
-        .method = HTTP_METHOD_POST,
-        .timeout_ms = 60000, // generation tetap bisa lama, kasih ruang
-        .buffer_size = 4096,
-        .buffer_size_tx = 2048,
-    };
-
-    esp_http_client_handle_t c = esp_http_client_init(&cfg);
-    esp_http_client_set_header(c, "Content-Type", "application/json");
-    esp_http_client_set_header(c, "X-Auth-Token", "nova-secret-123");
-
-    int body_len = strlen(body);
-
-    int64_t t0 = esp_timer_get_time();
-    esp_err_t err_open = esp_http_client_open(c, body_len);
-    int64_t t1 = esp_timer_get_time();
-    ESP_LOGI(TAG, "[TIMING] open: %lld ms, err=%d", (t1-t0)/1000, err_open);
-
-    bool ok_write = http_write_all(c, body, body_len);
-    int64_t t2 = esp_timer_get_time();
-    ESP_LOGI(TAG, "[TIMING] write: %lld ms, ok=%d", (t2-t1)/1000, ok_write);
-
-    int len = esp_http_client_fetch_headers(c);
-    int64_t t3 = esp_timer_get_time();
-    int status = esp_http_client_get_status_code(c);
-    ESP_LOGI(TAG, "[TIMING] fetch_headers: %lld ms, len=%d, status=%d", (t3-t2)/1000, len, status);
-
-    int buf_size = (len > 0) ? len : 4096;
-    char *buf = malloc(buf_size + 1);
-    char aksi_buf[32] = {0};
-    char ucapan_buf[512] = {0};
-    bool got_valid = false;
-
-    if (buf) {
-        int total = 0, n;
-        while ((n = esp_http_client_read(c, buf + total, buf_size - total)) > 0) total += n;
-        buf[total] = '\0';
-        ESP_LOGI(TAG, "Worker resp (%d): %s", status, buf);
-
-        cJSON *j = cJSON_Parse(buf);
-        if (j) {
-            cJSON *aksi = cJSON_GetObjectItem(j, "aksi");
-            cJSON *ucapan = cJSON_GetObjectItem(j, "ucapan");
-            if (aksi && ucapan && aksi->valuestring && ucapan->valuestring) {
-                strncpy(aksi_buf, aksi->valuestring, sizeof(aksi_buf)-1);
-                strncpy(ucapan_buf, ucapan->valuestring, sizeof(ucapan_buf)-1);
-                got_valid = true;
-            }
-            cJSON_Delete(j);
-        }
-        free(buf);
-    }
-
-    // tutup koneksi Gemini DULU sebelum buka koneksi TTS baru,
-    // biar gak ada 2 sesi TLS nyala bareng (penyebab mbedtls_ssl_setup gagal alokasi)
-    esp_http_client_cleanup(c);
-
-    if (got_valid) {
-        ESP_LOGI(TAG, "AKSI=%s UCAPAN=%s", aksi_buf, ucapan_buf);
-        play_freetts(ucapan_buf);
-        if      (!strcmp(aksi_buf, "wakeword_off")) requireWakeWord = false;
-        else if (!strcmp(aksi_buf, "wakeword_on"))  requireWakeWord = true;
-        else if (!strcmp(aksi_buf, "ir_blaster"))   ESP_LOGI(TAG, "IR!");
-        else if (!strcmp(aksi_buf, "wifi_scan")) {
-            ESP_LOGI(TAG, "SCAN!");
-            appMode = 1;
-            scannerState = 1;
-            triggerScan = true;
-            scanDone = false;
-            cursorInScanner = 0;
-            scrollPosScanner = 0;
-        }
-    }
 }
 
 // ============================================================
@@ -340,9 +208,9 @@ void generate_wav_header(char *h, uint32_t dataSize, uint32_t sr) {
 }
 
 // ============================================================
-// REKAM + STT
+// REKAM + KIRIM KE ORCA-BRAIN (Worker gabungan: Groq STT + Gemini + FreeTTS)
 // ============================================================
-void mulai_rekam_dan_stt(void) {
+void rekam_dan_proses(void) {
     uint32_t sz32 = 16000 * 4 * 4;
     uint32_t sz16 = 16000 * 2 * 4;
 
@@ -354,7 +222,7 @@ void mulai_rekam_dan_stt(void) {
     }
 
     // === REKAM ===
-    size_t bytes_read = 0, total = 0;
+    size_t bytes_read = 0, rtotal = 0;
 
     char *throwaway = malloc(16000 * 4 / 10);
     if (throwaway) {
@@ -362,14 +230,14 @@ void mulai_rekam_dan_stt(void) {
         free(throwaway);
     }
 
-    while (total < sz32) {
-        if (i2s_channel_read(rx_chan, (char*)raw+total, sz32-total, &bytes_read, 1000) != ESP_OK) break;
-        total += bytes_read;
+    while (rtotal < sz32) {
+        if (i2s_channel_read(rx_chan, (char*)raw+rtotal, sz32-rtotal, &bytes_read, 1000) != ESP_OK) break;
+        rtotal += bytes_read;
         vTaskDelay(1);
     }
 
-    // === KONVERSI 32→16 BIT ===
-    int n_samples = total / 4;
+    // === KONVERSI 32->16 BIT ===
+    int n_samples = rtotal / 4;
     for (int i = 0; i < n_samples; i++) {
         int32_t v = raw[i] >> 13;
         if (v >  32767) v =  32767;
@@ -393,128 +261,150 @@ void mulai_rekam_dan_stt(void) {
         free(pcm); return;
     }
 
-    // === GENERATE WAV HEADER ===
+    // === WAV HEADER ===
     char wav_hdr[44];
     generate_wav_header(wav_hdr, pcm_bytes, 16000);
-
-    // === MULTIPART SETUP ===
-    const char *boundary = "----RootXBoundary12345";
-    char head[256], tail[768];
-    snprintf(head, sizeof(head),
-        "--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\n"
-        "Content-Type: audio/wav\r\n\r\n", boundary);
-    snprintf(tail, sizeof(tail),
-        "\r\n--%s\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-large-v3\r\n"
-        "--%s\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nid\r\n"
-        "--%s\r\nContent-Disposition: form-data; name=\"temperature\"\r\n\r\n0\r\n"
-        "--%s\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nNova, Nova, ESP32, asisten AI, gw, lu, kek gini, obrolan kasual, nyalain, matiin\r\n"
-        "--%s--\r\n",
-        boundary, boundary, boundary, boundary, boundary);
-
-    // === KIRIM KE GROQ ===
-    uint32_t payload_len = strlen(head) + 44 + pcm_bytes + strlen(tail);
+    uint32_t payload_len = 44 + pcm_bytes;
     ESP_LOGI(TAG, "Payload: %d bytes", (int)payload_len);
 
-    esp_http_client_config_t cfg = {
-        .url = "https://api.groq.com/openai/v1/audio/transcriptions",
-        .method = HTTP_METHOD_POST,
-        .timeout_ms = 30000,
-        .cert_pem = GROQ_ROOT_CA,
-    };
-    esp_http_client_handle_t client = esp_http_client_init(&cfg);
+    for (int attempt = 1; attempt <= 2; attempt++) {
+        if (attempt > 1) ESP_LOGW(TAG, "Attempt ke-%d ke Orca-Brain (percobaan sebelumnya gagal/kepotong)", attempt);
 
-    char auth[128];
-    snprintf(auth, sizeof(auth), "Bearer %s", GROQ_API_KEY);
-    esp_http_client_set_header(client, "Authorization", auth);
+        esp_http_client_config_t cfg = {
+            .url = ORCA_BRAIN_URL,
+            .method = HTTP_METHOD_POST,
+            .timeout_ms = 60000,
+            .buffer_size = 4096,
+            .buffer_size_tx = 2048,
+            .keep_alive_enable = true,
+            .keep_alive_idle = 5,
+            .keep_alive_interval = 5,
+            .keep_alive_count = 3,
+        };
+        esp_http_client_handle_t client = esp_http_client_init(&cfg);
+        esp_http_client_set_header(client, "Content-Type", "audio/wav");
+        esp_http_client_set_header(client, "X-Auth-Token", ORCA_AUTH_TOKEN);
+        esp_http_client_set_header(client, "X-Wake-Required", requireWakeWord ? "true" : "false");
 
-    char ctype[64];
-    snprintf(ctype, sizeof(ctype), "multipart/form-data; boundary=%s", boundary);
-    esp_http_client_set_header(client, "Content-Type", ctype);
-
-    if (esp_http_client_open(client, payload_len) != ESP_OK) {
-        ESP_LOGE(TAG, "Open Groq gagal");
-        esp_http_client_cleanup(client); free(pcm); return;
-    }
-
-    bool ok = true;
-    ok &= http_write_all(client, head, strlen(head));
-    ok &= http_write_all(client, wav_hdr, 44);
-    ok &= http_write_all(client, (char*)pcm, pcm_bytes);
-    ok &= http_write_all(client, tail, strlen(tail));
-
-    if (!ok) {
-        ESP_LOGE(TAG, "Upload gagal");
-        esp_http_client_cleanup(client); free(pcm); return;
-    }
-    ESP_LOGI(TAG, "Upload OK: %d bytes", (int)payload_len);
-
-    // === BACA HASIL STT ===
-    int clen = esp_http_client_fetch_headers(client);
-    ESP_LOGI(TAG, "Groq content_length: %d", clen);
-
-    if (clen > 0) {
-        char *resp = malloc(clen + 1);
-        if (resp) {
-            esp_http_client_read(client, resp, clen);
-            resp[clen] = '\0';
-            ESP_LOGI(TAG, "STT raw: %s", resp);
-
-            cJSON *j = cJSON_Parse(resp);
-            if (j) {
-                cJSON *t = cJSON_GetObjectItem(j, "text");
-                if (t && t->valuestring) {
-                    char *teks = t->valuestring;
-                    ESP_LOGI(TAG, "Ngomong: [%s]", teks);
-
-                    // Lowercase buat cek wake word
-                    char lower[256];
-                    int li = 0;
-                    for (int ci = 0; teks[ci] && li < 255; ci++)
-                        lower[li++] = tolower((unsigned char)teks[ci]);
-                    lower[li] = '\0';
-
-                    // Filter halusinasi
-                    const char *blacklist[] = {
-                        "terima kasih telah menonton",
-                        "terima kasih sudah menonton",
-                        "subscribe", "jangan lupa like", "terima kasih", "terimakasih"
-                    };
-                    bool halusinasi = false;
-                    for (int b = 0; b < 6; b++) {
-                        if (strcasestr(lower, blacklist[b])) { halusinasi = true; break; }
-                    }
-
-                    if (halusinasi) {
-                        ESP_LOGW(TAG, "Halusinasi, skip.");
-                    } else if (requireWakeWord) {
-                        // Cek "nova" sebagai kata utuh, bukan substring
-                        bool wakeword_found = false;
-                        char *p = lower;
-                        while ((p = strstr(p, "nova")) != NULL) {
-                            bool before_ok = (p == lower) || !isalpha((unsigned char)*(p-1));
-                            bool after_ok  = !isalpha((unsigned char)*(p+4));
-                            if (before_ok && after_ok) { wakeword_found = true; break; }
-                            p++;
-                        }
-                        if (wakeword_found) {
-                            ESP_LOGI(TAG, "Wake word terdeteksi!");
-                            tanya_gemini(teks);
-                        } else {
-                            ESP_LOGI(TAG, "Bukan manggil gw. Diabaikan.");
-                        }
-                    } else {
-                        tanya_gemini(teks);
-                    }
-                }
-                cJSON_Delete(j);
-            }
-            free(resp);
+        int64_t t0 = esp_timer_get_time();
+        esp_err_t err_open = esp_http_client_open(client, payload_len);
+        int64_t t1 = esp_timer_get_time();
+        ESP_LOGI(TAG, "[TIMING] open: %lld ms, err=%d", (t1-t0)/1000, err_open);
+        if (err_open != ESP_OK) {
+            ESP_LOGE(TAG, "Open Orca-Brain gagal");
+            esp_http_client_cleanup(client);
+            continue;
         }
-    } else {
-        ESP_LOGE(TAG, "Groq respon kosong");
+
+        bool ok = true;
+        ok &= http_write_all(client, wav_hdr, 44);
+        ok &= http_write_all(client, (char*)pcm, pcm_bytes);
+        int64_t t2 = esp_timer_get_time();
+        ESP_LOGI(TAG, "[TIMING] write: %lld ms, ok=%d", (t2-t1)/1000, ok);
+        if (!ok) {
+            ESP_LOGE(TAG, "Upload ke Orca-Brain gagal");
+            esp_http_client_cleanup(client);
+            continue;
+        }
+
+        int content_len = esp_http_client_fetch_headers(client);
+        int64_t t3 = esp_timer_get_time();
+        int status = esp_http_client_get_status_code(client);
+        ESP_LOGI(TAG, "[TIMING] fetch_headers: %lld ms, len=%d, status=%d", (t3-t2)/1000, content_len, status);
+
+        char *ctype_ptr = NULL;
+        esp_http_client_get_header(client, "Content-Type", &ctype_ptr);
+        bool is_audio = ctype_ptr && strstr(ctype_ptr, "audio") != NULL;
+
+        if (status != 200) {
+            ESP_LOGE(TAG, "Orca-Brain gagal, status: %d", status);
+            int ebuf_size = (content_len > 0 && content_len < 2048) ? content_len : 2048;
+            char *ebuf = malloc(ebuf_size + 1);
+            if (ebuf) {
+                int n2, etotal = 0;
+                while ((n2 = esp_http_client_read(client, ebuf+etotal, ebuf_size-etotal)) > 0) etotal += n2;
+                ebuf[etotal] = '\0';
+                ESP_LOGE(TAG, "Detail: %s", ebuf);
+                free(ebuf);
+            }
+            esp_http_client_cleanup(client);
+            continue;
+        }
+
+        if (!is_audio) {
+            // response JSON: "diabaikan" (no wakeword / teks kosong) atau error lain, gak ada audio
+            int jbuf_size = (content_len > 0) ? content_len : 512;
+            char *jbuf = malloc(jbuf_size + 1);
+            if (jbuf) {
+                int n2, jtotal = 0;
+                while ((n2 = esp_http_client_read(client, jbuf+jtotal, jbuf_size-jtotal)) > 0) jtotal += n2;
+                jbuf[jtotal] = '\0';
+                ESP_LOGI(TAG, "Orca-Brain resp (json): %s", jbuf);
+                free(jbuf);
+            }
+            esp_http_client_cleanup(client);
+            free(pcm);
+            return;
+        }
+
+        // === response audio/mpeg: ambil metadata header DULU sebelum baca body ===
+        char *aksi_ptr = NULL, *ucapan_ptr = NULL, *teks_ptr = NULL;
+        esp_http_client_get_header(client, "X-Aksi", &aksi_ptr);
+        esp_http_client_get_header(client, "X-Ucapan", &ucapan_ptr);
+        esp_http_client_get_header(client, "X-Teks", &teks_ptr);
+
+        char aksi_buf[32] = {0};
+        char ucapan_buf[600] = {0};
+        char teks_buf[300] = {0};
+        if (aksi_ptr)   strncpy(aksi_buf, aksi_ptr, sizeof(aksi_buf)-1);
+        if (ucapan_ptr) url_decode(ucapan_buf, ucapan_ptr, sizeof(ucapan_buf));
+        if (teks_ptr)   url_decode(teks_buf, teks_ptr, sizeof(teks_buf));
+
+        ESP_LOGI(TAG, "Ngomong: [%s]", teks_buf);
+        ESP_LOGI(TAG, "AKSI=%s UCAPAN=%s", aksi_buf, ucapan_buf);
+
+        int buf_size = (content_len > 0) ? content_len : 512000;
+        uint8_t *mp3_buf = heap_caps_malloc(buf_size, MALLOC_CAP_SPIRAM);
+        if (!mp3_buf) {
+            ESP_LOGE(TAG, "PSRAM habis buat audio buffer");
+            esp_http_client_cleanup(client);
+            free(pcm);
+            return;
+        }
+
+        int mp3_total = 0, n;
+        while ((n = esp_http_client_read(client, (char*)mp3_buf+mp3_total, buf_size-mp3_total)) > 0)
+            mp3_total += n;
+        esp_http_client_cleanup(client);
+
+        ESP_LOGI(TAG, "Audio downloaded: %d bytes (expected %d)", mp3_total, content_len);
+
+        if (content_len > 0 && mp3_total < content_len) {
+            ESP_LOGW(TAG, "Audio kepotong (%d/%d bytes), coba ulang dari awal...", mp3_total, content_len);
+            heap_caps_free(mp3_buf);
+            continue; // retry seluruh request
+        }
+
+        // eksekusi aksi
+        if      (!strcmp(aksi_buf, "wakeword_off")) requireWakeWord = false;
+        else if (!strcmp(aksi_buf, "wakeword_on"))  requireWakeWord = true;
+        else if (!strcmp(aksi_buf, "ir_blaster"))   ESP_LOGI(TAG, "IR!");
+        else if (!strcmp(aksi_buf, "wifi_scan")) {
+            ESP_LOGI(TAG, "SCAN!");
+            appMode = 1;
+            scannerState = 1;
+            triggerScan = true;
+            scanDone = false;
+            cursorInScanner = 0;
+            scrollPosScanner = 0;
+        }
+
+        decode_and_play_mp3(mp3_buf, mp3_total);
+        free(pcm);
+        return;
     }
 
-    esp_http_client_cleanup(client);
+    ESP_LOGE(TAG, "Gagal proses audio setelah beberapa percobaan.");
     free(pcm);
 }
 
@@ -528,7 +418,7 @@ void ai_audio_task(void *pvParameters) {
     while (1) {
         if (aiAudioEnabled) {
             ESP_LOGI(TAG, "Mendengarkan...");
-            mulai_rekam_dan_stt();
+            rekam_dan_proses();
             vTaskDelay(pdMS_TO_TICKS(1000));
         } else {
             vTaskDelay(pdMS_TO_TICKS(500));
