@@ -274,38 +274,50 @@ void tanya_gemini(const char *q) {
 
     int buf_size = (len > 0) ? len : 4096;
     char *buf = malloc(buf_size + 1);
+    char aksi_buf[32] = {0};
+    char ucapan_buf[512] = {0};
+    bool got_valid = false;
+
     if (buf) {
         int total = 0, n;
         while ((n = esp_http_client_read(c, buf + total, buf_size - total)) > 0) total += n;
         buf[total] = '\0';
         ESP_LOGI(TAG, "Worker resp (%d): %s", status, buf);
 
-        // parsing aksi/ucapan kayak kode lama lu, buf ini udah langsung format {"aksi":..,"ucapan":..}
         cJSON *j = cJSON_Parse(buf);
         if (j) {
             cJSON *aksi = cJSON_GetObjectItem(j, "aksi");
             cJSON *ucapan = cJSON_GetObjectItem(j, "ucapan");
-            if (aksi && ucapan) {
-                ESP_LOGI(TAG, "AKSI=%s UCAPAN=%s", aksi->valuestring, ucapan->valuestring);
-                play_freetts(ucapan->valuestring);
-                if      (!strcmp(aksi->valuestring, "wakeword_off")) requireWakeWord = false;
-                else if (!strcmp(aksi->valuestring, "wakeword_on"))  requireWakeWord = true;
-                else if (!strcmp(aksi->valuestring, "ir_blaster"))   ESP_LOGI(TAG, "IR!");
-                else if (!strcmp(aksi->valuestring, "wifi_scan")) {
-                    ESP_LOGI(TAG, "SCAN!");
-                    appMode = 1;
-                    scannerState = 1;
-                    triggerScan = true;
-                    scanDone = false;
-                    cursorInScanner = 0;
-                    scrollPosScanner = 0;
-                }
-                            }
+            if (aksi && ucapan && aksi->valuestring && ucapan->valuestring) {
+                strncpy(aksi_buf, aksi->valuestring, sizeof(aksi_buf)-1);
+                strncpy(ucapan_buf, ucapan->valuestring, sizeof(ucapan_buf)-1);
+                got_valid = true;
+            }
             cJSON_Delete(j);
         }
         free(buf);
     }
+
+    // tutup koneksi Gemini DULU sebelum buka koneksi TTS baru,
+    // biar gak ada 2 sesi TLS nyala bareng (penyebab mbedtls_ssl_setup gagal alokasi)
     esp_http_client_cleanup(c);
+
+    if (got_valid) {
+        ESP_LOGI(TAG, "AKSI=%s UCAPAN=%s", aksi_buf, ucapan_buf);
+        play_freetts(ucapan_buf);
+        if      (!strcmp(aksi_buf, "wakeword_off")) requireWakeWord = false;
+        else if (!strcmp(aksi_buf, "wakeword_on"))  requireWakeWord = true;
+        else if (!strcmp(aksi_buf, "ir_blaster"))   ESP_LOGI(TAG, "IR!");
+        else if (!strcmp(aksi_buf, "wifi_scan")) {
+            ESP_LOGI(TAG, "SCAN!");
+            appMode = 1;
+            scannerState = 1;
+            triggerScan = true;
+            scanDone = false;
+            cursorInScanner = 0;
+            scrollPosScanner = 0;
+        }
+    }
 }
 
 // ============================================================
