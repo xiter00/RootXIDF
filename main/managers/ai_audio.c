@@ -16,7 +16,7 @@
 #include "esp_timer.h"
 
 // Potong berapa detik dari belakang audio TTS (watermark)
-#define TTS_CUT_SECONDS 3
+#define TTS_CUT_SECONDS 1
 
 // Ganti sesuai domain Worker gabungan (STT + Gemini + TTS jadi satu) punya lu
 #define ORCA_BRAIN_URL   "https://ai-brain.andyxd1955.workers.dev"
