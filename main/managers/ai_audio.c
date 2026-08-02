@@ -15,8 +15,9 @@
 #include <math.h>
 #include "esp_timer.h"
 
-// Potong berapa detik dari belakang audio TTS (watermark)
-#define TTS_CUT_SECONDS 1
+// Potong berapa ms dari belakang audio TTS (watermark). Bisa diatur sekecil apapun,
+// misal 300 buat 0.3 detik, 100 buat 0.1 detik.
+#define TTS_CUT_MS 450
 
 // Ganti sesuai domain Worker gabungan (STT + Gemini + TTS jadi satu) punya lu
 #define ORCA_BRAIN_URL   "https://ai-brain.andyxd1955.workers.dev"
@@ -137,7 +138,7 @@ void set_ai_audio_hardware(bool state) {
 // DECODE + PLAY MP3 (dipanggil setelah audio dari Worker berhasil didownload)
 // ============================================================
 static void decode_and_play_mp3(uint8_t *mp3_buf, int total) {
-    int cut_bytes = TTS_CUT_SECONDS * 16000;
+    int cut_bytes = (TTS_CUT_MS * 16000) / 1000;
     int play_len = total - cut_bytes;
     if (play_len <= 0) play_len = total;
 
@@ -182,7 +183,9 @@ static void decode_and_play_mp3(uint8_t *mp3_buf, int total) {
         else break;
     }
 
-    // matiin speaker abis selesai ngomong, biar idle-nya bener-bener diem
+    // tunggu DMA beneran abis ngeluarin sisa buffer sebelum dimatiin,
+    // biar gak ada audio lama yang "nyangkut" dan kebawa muter pas ngomong berikutnya
+    vTaskDelay(pdMS_TO_TICKS(300));
     i2s_channel_disable(tx_chan);
     speaker_busy = false;
     heap_caps_free(mp3_buf);
@@ -211,33 +214,105 @@ void generate_wav_header(char *h, uint32_t dataSize, uint32_t sr) {
 // REKAM + KIRIM KE ORCA-BRAIN (Worker gabungan: Groq STT + Gemini + FreeTTS)
 // ============================================================
 void rekam_dan_proses(void) {
-    uint32_t sz32 = 16000 * 4 * 4;
-    uint32_t sz16 = 16000 * 2 * 4;
+    const int chunk_samples = 1600;              // 100ms @ 16kHz
+    const int chunk_bytes   = chunk_samples * 4;  // raw 32-bit
+    const int max_samples   = 16000 * VAD_MAX_RECORD_SEC;
+    const int max_bytes     = max_samples * 4;
 
-    int32_t *raw = heap_caps_malloc(sz32, MALLOC_CAP_SPIRAM);
-    int16_t *pcm = heap_caps_malloc(sz16, MALLOC_CAP_SPIRAM);
+    int32_t *raw = heap_caps_malloc(max_bytes, MALLOC_CAP_SPIRAM);
+    int16_t *pcm = heap_caps_malloc(max_samples * 2, MALLOC_CAP_SPIRAM);
     if (!raw || !pcm) {
         ESP_LOGE(TAG, "PSRAM habis!");
         free(raw); free(pcm); return;
     }
 
-    // === REKAM ===
-    size_t bytes_read = 0, rtotal = 0;
-
-    char *throwaway = malloc(16000 * 4 / 10);
-    if (throwaway) {
-        i2s_channel_read(rx_chan, throwaway, 16000 * 4 / 10, &bytes_read, 1000);
-        free(throwaway);
+    // jangan mulai dengerin sampe speaker beneran mati, biar gak nangkep suara sendiri
+    while (speaker_busy) {
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 
-    while (rtotal < sz32) {
-        if (i2s_channel_read(rx_chan, (char*)raw+rtotal, sz32-rtotal, &bytes_read, 1000) != ESP_OK) break;
-        rtotal += bytes_read;
-        vTaskDelay(1);
+    int32_t chunk_buf[1600];
+    size_t bytes_read = 0;
+
+    // buang 1 chunk pertama (biasanya noise transient pas mic baru aktif)
+    i2s_channel_read(rx_chan, chunk_buf, chunk_bytes, &bytes_read, 1000);
+
+    // ring buffer 200ms terakhir, biar awal kata gak kepotong pas VAD baru trigger
+    int32_t preroll[2][1600];
+    bool preroll_filled[2] = { false, false };
+    int preroll_idx = 0;
+
+    bool triggered = false;
+    int silence_ms = 0;
+    uint32_t total_samples = 0;
+
+    while (total_samples < (uint32_t)max_samples) {
+        if (i2s_channel_read(rx_chan, chunk_buf, chunk_bytes, &bytes_read, 1000) != ESP_OK) break;
+        int got = bytes_read / 4;
+        if (got <= 0) continue;
+
+        float sum = 0;
+        for (int i = 0; i < got; i++) {
+            int32_t v = chunk_buf[i] >> 13;
+            if (v >  32767) v =  32767;
+            if (v < -32768) v = -32768;
+            sum += (float)v * v;
+        }
+        float chunk_rms = sqrtf(sum / got);
+
+        if (!triggered) {
+            memcpy(preroll[preroll_idx], chunk_buf, got * 4);
+            preroll_filled[preroll_idx] = true;
+            preroll_idx = (preroll_idx + 1) % 2;
+
+            if (chunk_rms >= VAD_START_RMS) {
+                ESP_LOGI(TAG, "Suara terdeteksi (RMS %.1f), mulai rekam...", chunk_rms);
+                triggered = true;
+                silence_ms = 0;
+
+                // masukin 200ms pre-roll dulu (urut dari yang paling lama), biar awal kata gak ilang
+                int order[2] = { preroll_idx, (preroll_idx + 1) % 2 };
+                for (int k = 0; k < 2; k++) {
+                    int idx = order[k];
+                    if (preroll_filled[idx] && total_samples + 1600 <= (uint32_t)max_samples) {
+                        memcpy(raw + total_samples, preroll[idx], 1600 * 4);
+                        total_samples += 1600;
+                    }
+                }
+                if (total_samples + got <= (uint32_t)max_samples) {
+                    memcpy(raw + total_samples, chunk_buf, got * 4);
+                    total_samples += got;
+                }
+            }
+            continue;
+        }
+
+        if (total_samples + got > (uint32_t)max_samples) {
+            got = max_samples - total_samples;
+            if (got <= 0) break;
+        }
+        memcpy(raw + total_samples, chunk_buf, got * 4);
+        total_samples += got;
+
+        if (chunk_rms < VAD_STOP_RMS) {
+            silence_ms += VAD_CHUNK_MS;
+            if (silence_ms >= VAD_SILENCE_HANG_MS) {
+                ESP_LOGI(TAG, "Diem %dms, berhenti rekam.", silence_ms);
+                break;
+            }
+        } else {
+            silence_ms = 0;
+        }
+    }
+
+    if (!triggered || total_samples < (uint32_t)chunk_samples) {
+        ESP_LOGI(TAG, "Gak ada suara terdeteksi, skip.");
+        free(raw); free(pcm);
+        return;
     }
 
     // === KONVERSI 32->16 BIT ===
-    int n_samples = rtotal / 4;
+    int n_samples = total_samples;
     for (int i = 0; i < n_samples; i++) {
         int32_t v = raw[i] >> 13;
         if (v >  32767) v =  32767;
@@ -247,10 +322,10 @@ void rekam_dan_proses(void) {
     size_t pcm_bytes = n_samples * 2;
     free(raw);
 
-    ESP_LOGI(TAG, "PCM: %d bytes | s[0]=%d s[100]=%d s[1000]=%d",
-        (int)pcm_bytes, pcm[0], pcm[100], pcm[1000]);
+    ESP_LOGI(TAG, "PCM: %d bytes (%.1f detik) | s[0]=%d s[100]=%d",
+        (int)pcm_bytes, n_samples / 16000.0f, pcm[0], pcm[100 < n_samples ? 100 : 0]);
 
-    // === CEK RMS ===
+    // === CEK RMS KESELURUHAN (jaga-jaga) ===
     float rms = 0;
     for (int i = 0; i < n_samples; i++) rms += (float)pcm[i] * pcm[i];
     rms = sqrtf(rms / n_samples);
@@ -274,7 +349,7 @@ void rekam_dan_proses(void) {
             .url = ORCA_BRAIN_URL,
             .method = HTTP_METHOD_POST,
             .timeout_ms = 60000,
-            .buffer_size = 4096,
+            .buffer_size = 8192,
             .buffer_size_tx = 2048,
             .keep_alive_enable = true,
             .keep_alive_idle = 5,
@@ -349,9 +424,12 @@ void rekam_dan_proses(void) {
 
         // === response audio/mpeg: ambil metadata header DULU sebelum baca body ===
         char *aksi_ptr = NULL, *ucapan_ptr = NULL, *teks_ptr = NULL;
-        esp_http_client_get_header(client, "X-Aksi", &aksi_ptr);
-        esp_http_client_get_header(client, "X-Ucapan", &ucapan_ptr);
-        esp_http_client_get_header(client, "X-Teks", &teks_ptr);
+        esp_err_t r1 = esp_http_client_get_header(client, "X-Aksi", &aksi_ptr);
+        esp_err_t r2 = esp_http_client_get_header(client, "X-Ucapan", &ucapan_ptr);
+        esp_err_t r3 = esp_http_client_get_header(client, "X-Teks", &teks_ptr);
+        ESP_LOGI(TAG, "[HDR] X-Aksi: ret=%d ptr=%p val=\"%s\"", r1, aksi_ptr, aksi_ptr ? aksi_ptr : "(NULL)");
+        ESP_LOGI(TAG, "[HDR] X-Ucapan: ret=%d ptr=%p val=\"%s\"", r2, ucapan_ptr, ucapan_ptr ? ucapan_ptr : "(NULL)");
+        ESP_LOGI(TAG, "[HDR] X-Teks: ret=%d ptr=%p val=\"%s\"", r3, teks_ptr, teks_ptr ? teks_ptr : "(NULL)");
 
         char aksi_buf[32] = {0};
         char ucapan_buf[600] = {0};
