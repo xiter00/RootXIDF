@@ -17,7 +17,7 @@
 
 // Potong berapa ms dari belakang audio TTS (watermark). Bisa diatur sekecil apapun,
 // misal 300 buat 0.3 detik, 100 buat 0.1 detik.
-#define TTS_CUT_MS 450
+#define TTS_CUT_MS 300
 
 // Ganti sesuai domain Worker gabungan (STT + Gemini + TTS jadi satu) punya lu
 #define ORCA_BRAIN_URL   "https://ai-brain.andyxd1955.workers.dev"
@@ -40,6 +40,28 @@ i2s_chan_handle_t rx_chan = NULL;
 // speaker_busy: true selagi audio TTS lagi diputer. Mic gak akan mulai dengerin
 // sampe ini balik false, biar gak nangkep suara sendiri (feedback/echo).
 static volatile bool speaker_busy = false;
+
+// esp_http_client_get_header() gak reliable buat header custom (X-Aksi dll),
+// jadi header ditangkep manual lewat event HTTP_EVENT_ON_HEADER di sini.
+static char g_ctype_buf[64];
+static char g_aksi_buf[32];
+static char g_ucapan_buf[600];
+static char g_teks_buf[300];
+
+static esp_err_t orca_brain_event_handler(esp_http_client_event_t *evt) {
+    if (evt->event_id == HTTP_EVENT_ON_HEADER) {
+        if (strcasecmp(evt->header_key, "Content-Type") == 0) {
+            strncpy(g_ctype_buf, evt->header_value, sizeof(g_ctype_buf)-1);
+        } else if (strcasecmp(evt->header_key, "X-Aksi") == 0) {
+            strncpy(g_aksi_buf, evt->header_value, sizeof(g_aksi_buf)-1);
+        } else if (strcasecmp(evt->header_key, "X-Ucapan") == 0) {
+            strncpy(g_ucapan_buf, evt->header_value, sizeof(g_ucapan_buf)-1);
+        } else if (strcasecmp(evt->header_key, "X-Teks") == 0) {
+            strncpy(g_teks_buf, evt->header_value, sizeof(g_teks_buf)-1);
+        }
+    }
+    return ESP_OK;
+}
 
 // ============================================================
 // HELPER: WRITE ALL
@@ -138,6 +160,12 @@ void set_ai_audio_hardware(bool state) {
 // DECODE + PLAY MP3 (dipanggil setelah audio dari Worker berhasil didownload)
 // ============================================================
 static void decode_and_play_mp3(uint8_t *mp3_buf, int total) {
+    if (!tx_chan) {
+        ESP_LOGE(TAG, "tx_chan NULL/invalid, gak bisa play audio, skip.");
+        heap_caps_free(mp3_buf);
+        return;
+    }
+
     int cut_bytes = (TTS_CUT_MS * 16000) / 1000;
     int play_len = total - cut_bytes;
     if (play_len <= 0) play_len = total;
@@ -345,6 +373,12 @@ void rekam_dan_proses(void) {
     for (int attempt = 1; attempt <= 2; attempt++) {
         if (attempt > 1) ESP_LOGW(TAG, "Attempt ke-%d ke Orca-Brain (percobaan sebelumnya gagal/kepotong)", attempt);
 
+        // reset buffer header sebelum request baru, biar gak kebawa data attempt sebelumnya
+        g_ctype_buf[0] = '\0';
+        g_aksi_buf[0] = '\0';
+        g_ucapan_buf[0] = '\0';
+        g_teks_buf[0] = '\0';
+
         esp_http_client_config_t cfg = {
             .url = ORCA_BRAIN_URL,
             .method = HTTP_METHOD_POST,
@@ -355,6 +389,7 @@ void rekam_dan_proses(void) {
             .keep_alive_idle = 5,
             .keep_alive_interval = 5,
             .keep_alive_count = 3,
+            .event_handler = orca_brain_event_handler,
         };
         esp_http_client_handle_t client = esp_http_client_init(&cfg);
         esp_http_client_set_header(client, "Content-Type", "audio/wav");
@@ -386,10 +421,10 @@ void rekam_dan_proses(void) {
         int64_t t3 = esp_timer_get_time();
         int status = esp_http_client_get_status_code(client);
         ESP_LOGI(TAG, "[TIMING] fetch_headers: %lld ms, len=%d, status=%d", (t3-t2)/1000, content_len, status);
+        ESP_LOGI(TAG, "[HDR] ctype=\"%s\" aksi=\"%s\" ucapan=\"%s\" teks=\"%s\"",
+            g_ctype_buf, g_aksi_buf, g_ucapan_buf, g_teks_buf);
 
-        char *ctype_ptr = NULL;
-        esp_http_client_get_header(client, "Content-Type", &ctype_ptr);
-        bool is_audio = ctype_ptr && strstr(ctype_ptr, "audio") != NULL;
+        bool is_audio = strstr(g_ctype_buf, "audio") != NULL;
 
         if (status != 200) {
             ESP_LOGE(TAG, "Orca-Brain gagal, status: %d", status);
@@ -422,21 +457,13 @@ void rekam_dan_proses(void) {
             return;
         }
 
-        // === response audio/mpeg: ambil metadata header DULU sebelum baca body ===
-        char *aksi_ptr = NULL, *ucapan_ptr = NULL, *teks_ptr = NULL;
-        esp_err_t r1 = esp_http_client_get_header(client, "X-Aksi", &aksi_ptr);
-        esp_err_t r2 = esp_http_client_get_header(client, "X-Ucapan", &ucapan_ptr);
-        esp_err_t r3 = esp_http_client_get_header(client, "X-Teks", &teks_ptr);
-        ESP_LOGI(TAG, "[HDR] X-Aksi: ret=%d ptr=%p val=\"%s\"", r1, aksi_ptr, aksi_ptr ? aksi_ptr : "(NULL)");
-        ESP_LOGI(TAG, "[HDR] X-Ucapan: ret=%d ptr=%p val=\"%s\"", r2, ucapan_ptr, ucapan_ptr ? ucapan_ptr : "(NULL)");
-        ESP_LOGI(TAG, "[HDR] X-Teks: ret=%d ptr=%p val=\"%s\"", r3, teks_ptr, teks_ptr ? teks_ptr : "(NULL)");
-
+        // === response audio/mpeg: metadata udah ketangkep lewat event handler ===
         char aksi_buf[32] = {0};
         char ucapan_buf[600] = {0};
         char teks_buf[300] = {0};
-        if (aksi_ptr)   strncpy(aksi_buf, aksi_ptr, sizeof(aksi_buf)-1);
-        if (ucapan_ptr) url_decode(ucapan_buf, ucapan_ptr, sizeof(ucapan_buf));
-        if (teks_ptr)   url_decode(teks_buf, teks_ptr, sizeof(teks_buf));
+        strncpy(aksi_buf, g_aksi_buf, sizeof(aksi_buf)-1);
+        url_decode(ucapan_buf, g_ucapan_buf, sizeof(ucapan_buf));
+        url_decode(teks_buf, g_teks_buf, sizeof(teks_buf));
 
         ESP_LOGI(TAG, "Ngomong: [%s]", teks_buf);
         ESP_LOGI(TAG, "AKSI=%s UCAPAN=%s", aksi_buf, ucapan_buf);
