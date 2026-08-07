@@ -259,14 +259,22 @@ void rekam_dan_proses(void) {
         vTaskDelay(pdMS_TO_TICKS(50));
     }
 
-    int32_t chunk_buf[1600];
+    int32_t *chunk_buf = heap_caps_malloc(1600 * sizeof(int32_t), MALLOC_CAP_SPIRAM);
+int32_t (*preroll)[1600] = heap_caps_malloc(2 * 1600 * sizeof(int32_t), MALLOC_CAP_SPIRAM);
+if (!chunk_buf || !preroll) {
+    ESP_LOGE(TAG, "PSRAM habis (chunk_buf/preroll)!");
+    free(raw); free(pcm);
+    if (chunk_buf) free(chunk_buf);
+    if (preroll) free(preroll);
+    return;
+}
     size_t bytes_read = 0;
 
     // buang 1 chunk pertama (biasanya noise transient pas mic baru aktif)
     i2s_channel_read(rx_chan, chunk_buf, chunk_bytes, &bytes_read, 1000);
 
     // ring buffer 200ms terakhir, biar awal kata gak kepotong pas VAD baru trigger
-    int32_t preroll[2][1600];
+    
     bool preroll_filled[2] = { false, false };
     int preroll_idx = 0;
 
@@ -332,6 +340,8 @@ void rekam_dan_proses(void) {
             silence_ms = 0;
         }
     }
+    free(chunk_buf);
+    free(preroll);
 
     if (!triggered || total_samples < (uint32_t)chunk_samples) {
         ESP_LOGI(TAG, "Gak ada suara terdeteksi, skip.");
@@ -384,11 +394,14 @@ void rekam_dan_proses(void) {
             .method = HTTP_METHOD_POST,
             .timeout_ms = 60000,
             .buffer_size = 8192,
-            .buffer_size_tx = 2048,
+            .buffer_size_tx = 4096,
+            .crt_bundle_attach = esp_crt_bundle_attach, 
+            
+            // SETTINGAN KEEP-ALIVE ANTI BADAI (Buat nahan ping jelek Hotspot)
             .keep_alive_enable = true,
-            .keep_alive_idle = 5,
-            .keep_alive_interval = 5,
-            .keep_alive_count = 3,
+            .keep_alive_idle = 2,       // Mulai ngirim "ping" setelah 2 detik nganggur
+            .keep_alive_interval = 3,   // Kirim "ping" tiap 3 detik selama nunggu Worker
+            .keep_alive_count = 10,  
             .event_handler = orca_brain_event_handler,
         };
         esp_http_client_handle_t client = esp_http_client_init(&cfg);
@@ -508,6 +521,7 @@ void rekam_dan_proses(void) {
         free(pcm);
         return;
     }
+    
 
     ESP_LOGE(TAG, "Gagal proses audio setelah beberapa percobaan.");
     free(pcm);
